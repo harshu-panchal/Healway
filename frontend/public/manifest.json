@@ -1,0 +1,22 @@
+{
+  "name": "Healway - Healthcare Platform",
+  "short_name": "Healway",
+  "description": "Healthcare platform for patients, doctors, pharmacies, and laboratories",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#11496c",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["health", "medical"],
+  "screenshots": [],
+  "shortcuts": []
+}
+

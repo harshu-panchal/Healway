@@ -1,0 +1,62 @@
+
+# dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# production
+build/
+dist/
+dist-ssr/
+*.local
+
+# misc
+.DS_Store
+.env
+.env.*.local
+*.env.*
+
+# debug logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# editor directories and files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.log
+
+# OS-specific files
+Thumbs.db
+
+# other
+coverage/
+*.tgz
+
+# local
+*.local
+
+# lockfiles
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# test coverage
+coverage/
+.nyc_output/
+
+# static analysis
+.eslintcache
+
+# optional build cache
+.cache/
+temp/
+
+# custom
+logs

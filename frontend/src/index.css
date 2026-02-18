@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+/* Prevent zoom on mobile & hide scrollbar globally */
+html,
+body {
+  touch-action: manipulation;
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+  /* Chrome, Safari, Opera */
+}
+
+/* Hide scrollbar on all scrollable elements */
+*::-webkit-scrollbar {
+  display: none;
+}
+
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Prevent iOS auto-zoom on input focus */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+textarea {
+  font-size: 16px !important;
+}
+
+@theme {
+  /* Logo-based Palette - Single Blue from 'way' */
+  --color-primary: #0077C2;
+  /* Blue from 'way' */
+  --color-primary-dark: #005a9e;
+  /* Darker Blue */
+  --color-primary-light: #3392ce;
+  /* Lighter Blue */
+  --color-primary-lighter: #66addb;
+  /* Very Light Blue */
+
+  --color-primary-surface: rgba(0, 119, 194, 0.1);
+  --color-primary-border: rgba(0, 119, 194, 0.3);
+
+  --color-secondary: #0077C2;
+  /* Teal as secondary */
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+/* Custom scrollbar styling for sidebar */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 119, 194, 0.2);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 119, 194, 0.4);
+}
+
+/* Firefox scrollbar */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 119, 194, 0.2) transparent;
+}
