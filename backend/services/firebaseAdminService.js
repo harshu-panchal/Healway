@@ -68,8 +68,8 @@ async function sendPushNotification(tokens, payload) {
       },
       data: payload.data
         ? Object.fromEntries(
-            Object.entries(payload.data).map(([k, v]) => [k, String(v)])
-          )
+          Object.entries(payload.data).map(([k, v]) => [k, String(v)])
+        )
         : {},
       tokens,
     };

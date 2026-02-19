@@ -44,7 +44,7 @@ const DoctorLogin = () => {
   const toast = useToast()
 
   const [mode, setMode] = useState('login') // 'login' | 'signup'
-  const [userRole, setUserRole] = useState('doctor') // 'doctor' | 'patient'
+  const [userRole, setUserRole] = useState('patient') // 'doctor' | 'patient'
 
   // OTP-based login data states
   const [doctorLoginData, setDoctorLoginData] = useState({ phone: '', otp: '', remember: true })
@@ -998,7 +998,7 @@ const DoctorLogin = () => {
               <motion.div
                 className="absolute rounded-xl bg-emerald-600 shadow-md shadow-emerald-600/15"
                 style={{
-                  left: userRole === 'doctor' ? '0.375rem' : 'calc(50% + 0.1875rem)',
+                  left: userRole === 'patient' ? '0.375rem' : 'calc(50% + 0.1875rem)',
                   width: 'calc(50% - 0.5625rem)',
                   height: 'calc(100% - 0.75rem)',
                 }}
@@ -1008,19 +1008,6 @@ const DoctorLogin = () => {
                   damping: 30,
                 }}
               />
-              <motion.button
-                type="button"
-                onClick={() => handleRoleChange('doctor')}
-                className={`relative z-10 flex-1 rounded-xl py-2 text-sm font-semibold text-center ${userRole === 'doctor'
-                  ? 'text-white'
-                  : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-              >
-                🩺 Doctor
-              </motion.button>
               <motion.button
                 type="button"
                 onClick={() => handleRoleChange('patient')}
@@ -1033,6 +1020,19 @@ const DoctorLogin = () => {
                 transition={{ type: 'spring', stiffness: 400, damping: 17 }}
               >
                 🧑 Patient
+              </motion.button>
+              <motion.button
+                type="button"
+                onClick={() => handleRoleChange('doctor')}
+                className={`relative z-10 flex-1 rounded-xl py-2 text-sm font-semibold text-center ${userRole === 'doctor'
+                  ? 'text-white'
+                  : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+              >
+                🩺 Doctor
               </motion.button>
             </div>
           </div>
