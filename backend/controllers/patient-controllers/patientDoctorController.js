@@ -435,13 +435,27 @@ exports.getDoctorById = asyncHandler(async (req, res) => {
 // GET /api/patients/specialties
 exports.getSpecialties = asyncHandler(async (req, res) => {
   const specialties = await Specialty.find({ isActive: true })
-    .select('name description icon doctorCount')
-    .sort({ name: 1 })
+    .select('name description icon doctorCount sortOrder')
+    .sort({ sortOrder: 1, name: 1 })
     .lean();
+
+  // Dynamically calculate doctorCount for each specialty to ensure accuracy
+  const specialtiesWithCounts = await Promise.all(specialties.map(async (specialty) => {
+    const count = await Doctor.countDocuments({
+      specialization: new RegExp(`^${specialty.name}$`, 'i'),
+      status: APPROVAL_STATUS.APPROVED,
+      isActive: true
+    });
+
+    return {
+      ...specialty,
+      doctorCount: count
+    };
+  }));
 
   return res.status(200).json({
     success: true,
-    data: specialties,
+    data: specialtiesWithCounts,
   });
 });
 
@@ -464,7 +478,7 @@ exports.getSpecialtyDoctors = asyncHandler(async (req, res) => {
       status: APPROVAL_STATUS.APPROVED,
       isActive: true,
     })
-      .select('firstName lastName specialization profileImage consultationFee original_fees discount_amount fees clinicDetails sortOrder')
+      .select('firstName lastName specialization profileImage consultationFee original_fees discount_amount fees clinicDetails experienceYears experience sortOrder')
       .sort({ sortOrder: 1, createdAt: -1 })
       .skip(skip)
       .limit(limit)

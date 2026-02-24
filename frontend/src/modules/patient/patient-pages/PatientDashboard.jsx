@@ -617,11 +617,19 @@ const PatientDashboard = () => {
               let displayAddress = '';
               if (doctor.clinicAddress && typeof doctor.clinicAddress === 'string') {
                 displayAddress = doctor.clinicAddress;
-              } else if (doctor.clinicDetails?.address) {
-                const addr = doctor.clinicDetails.address;
+              } else if (doctor.clinicDetails) {
                 const parts = [];
-                if (addr.line1) parts.push(addr.line1);
-                if (addr.city) parts.push(addr.city);
+                if (doctor.clinicDetails.name) parts.push(doctor.clinicDetails.name);
+
+                if (doctor.clinicDetails.address) {
+                  const addr = doctor.clinicDetails.address;
+                  if (addr.line1) parts.push(addr.line1);
+                  if (addr.line2) parts.push(addr.line2);
+                  if (addr.city) parts.push(addr.city);
+                  if (addr.state) parts.push(addr.state);
+                  if (addr.postalCode) parts.push(addr.postalCode);
+                  if (addr.country) parts.push(addr.country);
+                }
                 displayAddress = parts.join(', ');
               }
 
@@ -673,16 +681,10 @@ const PatientDashboard = () => {
                     </div>
 
                     <div className="space-y-1.5 mb-4 flex-1">
-                      {clinicName && (
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-1 h-1 rounded-full bg-emerald-400" />
-                          <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest truncate">{clinicName}</p>
-                        </div>
-                      )}
                       {displayAddress && (
-                        <div className="flex items-start gap-1.5 text-slate-400">
-                          <IoLocationOutline className="h-3 w-3 mt-0.5 shrink-0" />
-                          <p className="text-[10px] font-medium leading-relaxed line-clamp-1">{displayAddress}</p>
+                        <div className="flex items-start gap-1.5 text-slate-500">
+                          <IoLocationOutline className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary/70" />
+                          <p className="text-[10px] font-medium leading-relaxed text-slate-600">{displayAddress}</p>
                         </div>
                       )}
                     </div>
@@ -706,9 +708,9 @@ const PatientDashboard = () => {
                           e.stopPropagation()
                           handleBookDoctor(doctorId, inPersonFee)
                         }}
-                        className="bg-primary text-white font-black px-4 py-2.5 rounded-xl text-[10px] uppercase tracking-widest transition-all duration-300 shadow-lg shadow-primary/20 hover:bg-primary-dark active:scale-95 flex items-center gap-2"
+                        className="bg-primary text-white font-bold px-3 py-2 rounded-lg text-[10px] uppercase tracking-wider transition-all duration-300 shadow-md shadow-primary/20 hover:bg-primary-dark active:scale-95 flex items-center gap-1.5"
                       >
-                        <span>Book Appointment</span>
+                        <span>Book Now</span>
                         <IoArrowForwardOutline className="h-3 w-3" />
                       </button>
                     </div>
@@ -740,7 +742,7 @@ const PatientDashboard = () => {
               <div
                 key={specialty._id}
                 onClick={() =>
-                  navigate(`/patient/doctors?specialty=${encodeURIComponent(specialty.name)}`)
+                  navigate(`/patient/specialties/${specialty._id}/doctors`)
                 }
                 className="flex-shrink-0 w-36 bg-white border border-slate-100 rounded-2xl p-4 shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-primary/20 active:scale-[0.95] flex flex-col items-center text-center group"
               >
@@ -762,9 +764,12 @@ const PatientDashboard = () => {
                   )}
                 </div>
 
-                <h3 className="text-xs font-semibold text-slate-800 line-clamp-2 leading-snug">
+                <h3 className="text-xs font-semibold text-slate-800 line-clamp-1 leading-snug">
                   {specialty.name}
                 </h3>
+                <p className="text-[10px] font-bold text-primary/60 mt-0.5">
+                  {specialty.doctorCount || 0} Doctors
+                </p>
               </div>
             ))}
           </div>
@@ -869,12 +874,19 @@ const PatientDashboard = () => {
               let displayAddress = '';
               if (doctor.clinicAddress && typeof doctor.clinicAddress === 'string') {
                 displayAddress = doctor.clinicAddress;
-              } else if (doctor.clinicDetails?.address) {
-                const addr = doctor.clinicDetails.address;
+              } else if (doctor.clinicDetails) {
                 const parts = [];
-                if (addr.line1) parts.push(addr.line1);
-                if (addr.city) parts.push(addr.city);
-                if (addr.state) parts.push(addr.state);
+                if (doctor.clinicDetails.name) parts.push(doctor.clinicDetails.name);
+
+                if (doctor.clinicDetails.address) {
+                  const addr = doctor.clinicDetails.address;
+                  if (addr.line1) parts.push(addr.line1);
+                  if (addr.line2) parts.push(addr.line2);
+                  if (addr.city) parts.push(addr.city);
+                  if (addr.state) parts.push(addr.state);
+                  if (addr.postalCode) parts.push(addr.postalCode);
+                  if (addr.country) parts.push(addr.country);
+                }
                 displayAddress = parts.join(', ');
               }
 
@@ -908,17 +920,14 @@ const PatientDashboard = () => {
                             )}
                           </h3>
                           {(doctor.experienceYears || doctor.experience) && (
-                            <span className="shrink-0 bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-100 ml-2">
-                              {doctor.experienceYears || doctor.experience} Exp.
+                            <span className="shrink-0 bg-blue-50 text-blue-700 text-[9px] font-black px-1.5 py-0.5 rounded border border-blue-100/50 uppercase tracking-tighter ml-2">
+                              {doctor.experienceYears || doctor.experience} EXP
                             </span>
                           )}
                         </div>
                         <p className="text-xs text-slate-600 mb-0.5">{specialty}</p>
-                        {clinicName && (
-                          <p className="text-xs font-semibold text-slate-700 mb-0.5">{clinicName}</p>
-                        )}
                         {displayAddress && (
-                          <p className="text-xs text-slate-500 mb-1.5 line-clamp-2">{displayAddress}</p>
+                          <p className="text-[10px] text-slate-500 mb-1.5">{displayAddress}</p>
                         )}
 
                         {/* Consultation Modes */}
@@ -960,7 +969,7 @@ const PatientDashboard = () => {
                                   <span className="text-sm font-black text-slate-900">₹{inPersonFee}</span>
                                 </div>
                                 {(inPersonDiscount > 0) && (
-                                  <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded mt-0.5">
+                                  <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded mt-1 border border-emerald-100/50">
                                     ₹{inPersonDiscount} OFF
                                   </span>
                                 )}
@@ -985,7 +994,7 @@ const PatientDashboard = () => {
                         const inPersonOriginal = doctor.fees?.inPerson?.original || doctor.original_fees || 0;
                         return (
                           <>
-                            Book Appointment
+                            Book Now
                           </>
                         );
                       })()}

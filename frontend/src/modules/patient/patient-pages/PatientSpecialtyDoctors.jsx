@@ -31,7 +31,14 @@ const PatientSpecialtyDoctors = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
-  const specialtyLabel = specialtyLabels[specialtyId] || 'All Specialties'
+  const specialtyLabel = useMemo(() => {
+    if (specialtyId === 'all') return 'All Specialties'
+    if (specialtyLabels[specialtyId]) return specialtyLabels[specialtyId]
+    if (doctors.length > 0) {
+      return doctors[0].specialization || doctors[0].specialty || 'Selected'
+    }
+    return 'Loading...'
+  }, [specialtyId, doctors])
 
   // Fetch doctors by specialty from API
   useEffect(() => {
@@ -206,9 +213,15 @@ const PatientSpecialtyDoctors = () => {
                           {specialty}
                         </p>
 
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="shrink-0 bg-blue-50 text-blue-600 text-[10px] font-black px-2 py-0.5 rounded border border-blue-100/50 uppercase tracking-tight">
+                            {doctor.experienceYears || doctor.experience || 'NEW'} EXP
+                          </span>
+                        </div>
+
                         <div className="flex items-start gap-2 text-slate-500">
                           <IoLocationOutline className="h-4 w-4 mt-0.5 text-slate-400 shrink-0" />
-                          <p className="text-xs font-medium leading-relaxed line-clamp-2">{location}</p>
+                          <p className="text-xs font-medium leading-relaxed text-slate-600">{location}</p>
                         </div>
                       </div>
                     </div>
@@ -216,7 +229,7 @@ const PatientSpecialtyDoctors = () => {
 
                   <div className="flex items-center justify-between gap-5 pt-5 border-t border-slate-100 bg-slate-50/30 -mx-6 px-6 sm:bg-transparent sm:mx-0 sm:px-0">
                     <div className="text-left">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Fee</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Fees</p>
                       <div className="flex items-center gap-2.5">
                         {discountAmount > 0 && originalFees > 0 && (
                           <span className="text-sm line-through text-slate-300 font-bold italic">₹{originalFees}</span>
@@ -236,10 +249,10 @@ const PatientSpecialtyDoctors = () => {
                         e.stopPropagation()
                         navigate(`/patient/doctors/${doctorId}`)
                       }}
-                      className="h-[48px] px-6 bg-primary text-white font-black rounded-2xl text-[12px] uppercase tracking-widest transition-all duration-300 shadow-xl shadow-primary/20 hover:bg-primary-dark hover:shadow-2xl hover:translate-y-[-2px] active:scale-95 flex items-center justify-center gap-2"
+                      className="h-[40px] px-4 bg-primary text-white font-bold rounded-xl text-[11px] uppercase tracking-wider transition-all duration-300 shadow-lg shadow-primary/20 hover:bg-primary-dark hover:shadow-xl hover:translate-y-[-1px] active:scale-95 flex items-center justify-center gap-1.5"
                     >
-                      <span>Book Appointment</span>
-                      <IoCalendarOutline className="h-4 w-4" />
+                      <span>Book Now</span>
+                      <IoCalendarOutline className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>

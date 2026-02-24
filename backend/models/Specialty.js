@@ -27,6 +27,10 @@ const specialtySchema = new mongoose.Schema(
       default: true,
       index: true,
     },
+    sortOrder: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

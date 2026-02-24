@@ -11,11 +11,23 @@ const asyncHandler = require('../../middleware/asyncHandler');
 // @route   GET /api/admin/specialties
 // @access  Private (Admin)
 router.get('/', protect(ROLES.ADMIN), asyncHandler(async (req, res) => {
-    const specialties = await Specialty.find().sort({ createdAt: -1 });
+    const specialties = await Specialty.find().sort({ sortOrder: 1, name: 1 }).lean();
+
+    const Doctor = require('../../models/Doctor');
+    const { APPROVAL_STATUS } = require('../../utils/constants');
+
+    const specialtiesWithCounts = await Promise.all(specialties.map(async (specialty) => {
+        const count = await Doctor.countDocuments({
+            specialization: new RegExp(`^${specialty.name}$`, 'i'),
+            status: APPROVAL_STATUS.APPROVED,
+            isActive: true
+        });
+        return { ...specialty, doctorCount: count };
+    }));
 
     res.status(200).json({
         success: true,
-        data: specialties,
+        data: specialtiesWithCounts,
     });
 }));
 
@@ -23,7 +35,7 @@ router.get('/', protect(ROLES.ADMIN), asyncHandler(async (req, res) => {
 // @route   POST /api/admin/specialties
 // @access  Private (Admin)
 router.post('/', protect(ROLES.ADMIN), uploadImage('icon'), asyncHandler(async (req, res) => {
-    const { name, description } = req.body;
+    const { name, description, sortOrder } = req.body;
 
     let iconUrl = '';
     let iconPublicId = '';
@@ -37,8 +49,8 @@ router.post('/', protect(ROLES.ADMIN), uploadImage('icon'), asyncHandler(async (
     const specialty = await Specialty.create({
         name,
         description,
-        icon: iconUrl,
-        iconPublicId, // Add this field to your schema if not exists
+        iconPublicId,
+        sortOrder: sortOrder || 0,
     });
 
     res.status(201).json({
@@ -51,7 +63,7 @@ router.post('/', protect(ROLES.ADMIN), uploadImage('icon'), asyncHandler(async (
 // @route   PUT /api/admin/specialties/:id
 // @access  Private (Admin)
 router.put('/:id', protect(ROLES.ADMIN), uploadImage('icon'), asyncHandler(async (req, res) => {
-    const { name, description, isActive } = req.body;
+    const { name, description, isActive, sortOrder } = req.body;
     let specialty = await Specialty.findById(req.params.id);
 
     if (!specialty) {
@@ -81,7 +93,7 @@ router.put('/:id', protect(ROLES.ADMIN), uploadImage('icon'), asyncHandler(async
     }
 
     // Prepare update object
-    const updateData = { name, description, icon: iconUrl, isActive };
+    const updateData = { name, description, icon: iconUrl, isActive, sortOrder };
     if (iconPublicId) updateData.iconPublicId = iconPublicId;
 
     specialty = await Specialty.findByIdAndUpdate(
@@ -143,6 +155,34 @@ router.patch('/:id/toggle', protect(ROLES.ADMIN), asyncHandler(async (req, res) 
     res.status(200).json({
         success: true,
         data: specialty,
+    });
+}));
+
+// @desc    Reorder specialties
+// @route   PATCH /api/admin/specialties/reorder
+// @access  Private (Admin)
+router.patch('/reorder', protect(ROLES.ADMIN), asyncHandler(async (req, res) => {
+    const { orders } = req.body; // Array of { id, sortOrder }
+
+    if (!orders || !Array.isArray(orders)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Orders array is required.',
+        });
+    }
+
+    const bulkOps = orders.map((item) => ({
+        updateOne: {
+            filter: { _id: item.id },
+            update: { $set: { sortOrder: item.sortOrder } },
+        },
+    }));
+
+    await Specialty.bulkWrite(bulkOps);
+
+    res.status(200).json({
+        success: true,
+        message: 'Specialties reordered successfully.',
     });
 }));
 

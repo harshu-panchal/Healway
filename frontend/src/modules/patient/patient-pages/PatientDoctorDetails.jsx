@@ -2304,24 +2304,26 @@ const PatientDoctorDetails = () => {
                             const confirmAmount = fee.confirmSlotAmount || 0;
                             const isFree = isFreeConsultation(final);
                             return (
-                              <div>
-                                <div className="flex items-baseline gap-1">
-                                  {!isFree && original > final && original > 0 && (
-                                    <span className="text-[10px] line-through text-slate-400">
-                                      ₹{original}
+                              <div className="w-full">
+                                <div className="flex items-center justify-between w-full">
+                                  <div className="flex flex-col">
+                                    {!isFree && original > final && original > 0 && (
+                                      <span className="text-[10px] line-through text-slate-400 block -mb-0.5">
+                                        ₹{original}
+                                      </span>
+                                    )}
+                                    <span className={`text-sm font-black ${isFree ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                      {formatPrice(final)}
                                     </span>
-                                  )}
-                                  <span className={`text-sm font-black ${isFree ? 'text-emerald-600' : 'text-slate-900'}`}>
-                                    {formatPrice(final)}
-                                  </span>
-                                </div>
-                                {!isFree && discount > 0 && (
-                                  <div className="text-[9px] text-emerald-600 font-bold">
-                                    ₹{discount} OFF
                                   </div>
-                                )}
+                                  {!isFree && discount > 0 && (
+                                    <div className="text-[11px] text-emerald-600 font-black bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 whitespace-nowrap">
+                                      ₹{discount} OFF
+                                    </div>
+                                  )}
+                                </div>
                                 {!isFree && confirmAmount > 0 && (
-                                  <div className="mt-1.5">
+                                  <div className="mt-2">
                                     <span className="text-[9px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md font-bold border border-amber-200">
                                       Confirm Slot: ₹{confirmAmount}
                                     </span>
@@ -2336,11 +2338,13 @@ const PatientDoctorDetails = () => {
                       {/* Video Call Fee */}
                       {hasVideoCallFee && (
                         <div className="flex flex-col p-2 bg-slate-50 rounded-lg border border-slate-200">
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <IoVideocamOutline className="h-4 w-4 text-blue-600" />
-                            <span className="text-xs font-semibold text-slate-700">
-                              Video Call
-                            </span>
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-1.5">
+                              <IoVideocamOutline className="h-4 w-4 text-blue-600" />
+                              <span className="text-xs font-semibold text-slate-700">
+                                Video Call
+                              </span>
+                            </div>
                           </div>
                           {(() => {
                             const fee = doctor.fees.videoCall;
@@ -2349,20 +2353,24 @@ const PatientDoctorDetails = () => {
                             const discount = fee.discount || 0;
                             const isFree = isFreeConsultation(final);
                             return (
-                              <div>
-                                {!isFree && original > final && original > 0 && (
-                                  <span className="text-[10px] line-through text-slate-400">
-                                    ₹{original}
-                                  </span>
-                                )}
-                                <span className={`text-sm font-bold ${isFree ? 'text-emerald-600' : 'text-slate-900'} ml-1`}>
-                                  {formatPrice(final)}
-                                </span>
-                                {!isFree && discount > 0 && (
-                                  <div className="text-[9px] text-emerald-600 font-medium">
-                                    ₹{discount} OFF
+                              <div className="w-full">
+                                <div className="flex items-center justify-between w-full">
+                                  <div className="flex flex-col">
+                                    {!isFree && original > final && original > 0 && (
+                                      <span className="text-[10px] line-through text-slate-400 block -mb-0.5">
+                                        ₹{original}
+                                      </span>
+                                    )}
+                                    <span className={`text-sm font-black ${isFree ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                      {formatPrice(final)}
+                                    </span>
                                   </div>
-                                )}
+                                  {!isFree && discount > 0 && (
+                                    <div className="text-[11px] text-emerald-600 font-black bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 whitespace-nowrap">
+                                      ₹{discount} OFF
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             );
                           })()}
@@ -2372,11 +2380,13 @@ const PatientDoctorDetails = () => {
                       {/* Voice Call Fee */}
                       {hasVoiceCallFee && (
                         <div className="flex flex-col p-2 bg-slate-50 rounded-lg border border-slate-200">
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <IoCallOutline className="h-4 w-4 text-green-600" />
-                            <span className="text-xs font-semibold text-slate-700">
-                              Call
-                            </span>
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-1.5">
+                              <IoCallOutline className="h-4 w-4 text-green-600" />
+                              <span className="text-xs font-semibold text-slate-700">
+                                Call
+                              </span>
+                            </div>
                           </div>
                           {(() => {
                             const fee = doctor.fees.voiceCall;
@@ -2385,20 +2395,24 @@ const PatientDoctorDetails = () => {
                             const discount = fee.discount || 0;
                             const isFree = isFreeConsultation(final);
                             return (
-                              <div>
-                                {!isFree && original > final && original > 0 && (
-                                  <span className="text-[10px] line-through text-slate-400">
-                                    ₹{original}
-                                  </span>
-                                )}
-                                <span className={`text-sm font-bold ${isFree ? 'text-emerald-600' : 'text-slate-900'} ml-1`}>
-                                  {formatPrice(final)}
-                                </span>
-                                {!isFree && discount > 0 && (
-                                  <div className="text-[9px] text-emerald-600 font-medium">
-                                    ₹{discount} OFF
+                              <div className="w-full">
+                                <div className="flex items-center justify-between w-full">
+                                  <div className="flex flex-col">
+                                    {!isFree && original > final && original > 0 && (
+                                      <span className="text-[10px] line-through text-slate-400 block -mb-0.5">
+                                        ₹{original}
+                                      </span>
+                                    )}
+                                    <span className={`text-sm font-black ${isFree ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                      {formatPrice(final)}
+                                    </span>
                                   </div>
-                                )}
+                                  {!isFree && discount > 0 && (
+                                    <div className="text-[11px] text-emerald-600 font-black bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 whitespace-nowrap">
+                                      ₹{discount} OFF
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             );
                           })()}
@@ -2415,10 +2429,10 @@ const PatientDoctorDetails = () => {
               <button
                 type="button"
                 onClick={handleBookingClick}
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-[rgba(0,119,194,0.2)] transition-all hover:bg-primary-dark active:scale-95 sm:text-sm"
+                className="flex items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-[11px] font-bold text-white shadow-md shadow-primary/20 transition-all hover:bg-primary-dark active:scale-95"
               >
-                <IoCalendarOutline className="h-4 w-4" aria-hidden="true" />
-                Book Appointment
+                <IoCalendarOutline className="h-3.5 w-3.5" aria-hidden="true" />
+                Book Now
               </button>
             </div>
           </div>
@@ -2557,11 +2571,11 @@ const PatientDoctorDetails = () => {
           <div className="space-y-3">
             <Button
               type="primary"
-              size="large"
+              size="middle"
               block
               loading={isSubmitting}
               onClick={handleQuickBook}
-              className="h-12 rounded-xl font-bold shadow-lg shadow-primary/20"
+              className="h-10 rounded-lg font-bold shadow-md shadow-primary/20"
             >
               {isSubmitting ? "Booking..." : "Confirm"}
             </Button>
@@ -2812,7 +2826,7 @@ const PatientDoctorDetails = () => {
                       <div className="pt-2">
                         <Button
                           type="primary"
-                          className="w-full h-11 font-bold rounded-xl shadow-lg shadow-primary/20"
+                          className="w-full h-10 font-bold rounded-lg shadow-md shadow-primary/20"
                           onClick={() => {
                             if (
                               !guestDetails.name ||
@@ -2987,8 +3001,8 @@ const PatientDoctorDetails = () => {
                 <div className="flex justify-center pt-4">
                   <Button
                     type="primary"
-                    size="large"
-                    className="rounded-xl h-12 w-full font-bold shadow-lg shadow-primary/20"
+                    size="middle"
+                    className="rounded-lg h-10 w-full font-bold shadow-md shadow-primary/20"
                     onClick={handleNextStep}
                     disabled={!appointmentType}
                   >
@@ -3366,8 +3380,8 @@ const PatientDoctorDetails = () => {
                   </Button>
                   <Button
                     type="primary"
-                    size="large"
-                    className="rounded-xl h-11 px-8 font-bold shadow-md shadow-primary/20"
+                    size="middle"
+                    className="rounded-lg h-10 px-6 font-bold shadow-md shadow-primary/20"
                     onClick={handleNextStep}
                     disabled={
                       !selectedDate ||
@@ -3608,13 +3622,13 @@ const PatientDoctorDetails = () => {
                     type="primary"
                     loading={isSubmitting}
                     onClick={handleConfirmBooking}
-                    className="flex-1"
+                    className="flex-1 h-10 rounded-lg font-bold"
                   >
                     {hasDoctorCancelledAppointment ||
                       paymentType === "cod" ||
                       getFeeForDay(selectedDate, appointmentType) === 0 ||
                       ((patientProfile?.walletBalance || 0) >= (paymentType === 'confirmSlot' ? (doctor?.fees?.inPerson?.confirmSlotAmount || 0) : getFeeForDay(selectedDate, appointmentType)))
-                      ? "Confirm Booking"
+                      ? "Confirm Now"
                       : "Pay & Confirm"}
                   </Button>
                 </div>

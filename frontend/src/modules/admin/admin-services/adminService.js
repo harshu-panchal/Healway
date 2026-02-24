@@ -803,6 +803,15 @@ export default {
       throw error
     }
   },
+  reorderSpecialties: async (orders) => {
+    try {
+      const response = await apiClient.patch('/admin/specialties/reorder', { orders })
+      return response.data
+    } catch (error) {
+      console.error('Error reordering specialties:', error)
+      throw error
+    }
+  },
   getAllServices: async () => {
     try {
       const response = await apiClient.get('/admin/services')

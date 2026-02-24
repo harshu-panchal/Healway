@@ -276,70 +276,37 @@ const PatientDoctors = () => {
     setCurrentPage(1)
   }, [searchTerm, selectedSpecialty, selectedCity])
 
-  const handleCardClick = (doctorId) => {
-    navigate(`/patient/doctors/${doctorId}`)
+  const handleSpecialtyClick = (specialty) => {
+    if (specialty.id === 'all') {
+      // If 'All' is clicked, we could either show all doctors or keep them on this page.
+      // The user wants to go to a doctor list page. 
+      // Let's navigate to the specialty doctors page with 'all' as ID if supported.
+      navigate(`/patient/specialties/all/doctors`)
+    } else {
+      navigate(`/patient/specialties/${specialty.id}/doctors`)
+    }
   }
 
   return (
-    <section className="flex flex-col gap-4 pb-4">
-      {/* Search Bar - Outside Card */}
-      <div className="relative">
-        <div className="relative">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-primary)' }}>
-            <IoSearchOutline className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <input
-            id="doctor-search"
-            type="text"
-            placeholder="Search by name, specialty, or location..."
-            className="w-full rounded-lg border bg-white py-2.5 pl-10 pr-3 text-sm font-medium text-slate-900 shadow-sm transition-all placeholder:text-slate-400 hover:bg-white hover:shadow-md focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary sm:text-base"
-            style={{ borderColor: 'var(--color-primary-border)' }}
-            onFocus={(e) => {
-              e.target.style.borderColor = 'var(--color-primary)'
-              e.target.style.boxShadow = '0 0 0 2px var(--color-primary-border)'
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = 'var(--color-primary-border)'
-              e.target.style.boxShadow = ''
-            }}
-            onMouseEnter={(e) => {
-              if (document.activeElement !== e.target) {
-                e.target.style.borderColor = 'rgba(0, 119, 194, 0.4)'
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (document.activeElement !== e.target) {
-                e.target.style.borderColor = 'var(--color-primary-border)'
-              }
-            }}
-            value={searchTerm}
-            onChange={(e) => {
-              const value = e.target.value
-              setSearchTerm(value)
-            }}
-            autoComplete="off"
-          />
-        </div>
+    <section className="flex flex-col gap-6 pb-6 h-full">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-bold text-slate-900">Find Your Doctor</h1>
+        <p className="text-sm text-slate-600">Choose a specialty to see available doctors</p>
       </div>
 
-      {/* Specialty Filters - Scrollable Cards */}
-      <div className="flex gap-4 overflow-x-auto pb-3 mx-1 px-1 scrollbar-hide [-webkit-overflow-scrolling:touch]">
+      {/* Specialty Grid - 2 Columns, Scrollable */}
+      <div className="grid grid-cols-2 gap-4 pb-4 overflow-y-auto max-h-[calc(100vh-180px)] scrollbar-hide">
         {specialtiesList.map((specialty) => {
           const Icon = specialty.icon
           const isSelected = selectedSpecialty === specialty.name
           return (
             <div
               key={specialty.id}
-              onClick={() => setSelectedSpecialty(isSelected ? 'all' : specialty.name)}
-              className={`flex-shrink-0 w-28 bg-white rounded-2xl p-3 shadow-sm cursor-pointer transition-all hover:shadow-md active:scale-[0.95] flex flex-col items-center text-center group ${isSelected
-                ? 'border-2 shadow-md'
-                : 'border border-slate-100 hover:border-primary/20'
-                }`}
-              style={isSelected ? { borderColor: 'var(--color-primary)', boxShadow: '0 4px 12px -2px var(--color-primary-border)' } : {}}
+              onClick={() => handleSpecialtyClick(specialty)}
+              className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 cursor-pointer transition-all hover:shadow-lg hover:border-primary/20 active:scale-[0.95] flex flex-col items-center text-center group"
             >
               <div
-                className={`w-14 h-14 rounded-xl flex items-center justify-center mb-2 transition-colors ${isSelected ? 'bg-primary/15' : 'bg-primary/5 group-hover:bg-primary/10'
-                  }`}
+                className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3 bg-primary/5 group-hover:bg-primary/10 transition-colors"
               >
                 {specialty.iconUrl ? (
                   <img
@@ -353,227 +320,19 @@ const PatientDoctors = () => {
                     }}
                   />
                 ) : (
-                  <Icon className="w-7 h-7 text-primary" aria-hidden="true" />
+                  <Icon className="w-8 h-8 text-primary" aria-hidden="true" />
                 )}
               </div>
-              <h3 className={`text-[11px] font-semibold leading-snug line-clamp-2 ${isSelected ? 'text-primary' : 'text-slate-700'
-                }`}>
+              <h3 className="text-sm font-bold text-slate-800 leading-snug">
                 {specialty.label}
               </h3>
+              <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider font-semibold">
+                Explore Doctors
+              </p>
             </div>
           )
         })}
       </div>
-
-      {/* City Filter - Scrollable pills */}
-      {availableCities.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
-          <button
-            onClick={() => setSelectedCity('all')}
-            className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all border ${selectedCity === 'all'
-              ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
-              : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:bg-emerald-50'
-              }`}
-          >
-            All Cities
-          </button>
-          {availableCities.map((city) => (
-            <button
-              key={city}
-              onClick={() => setSelectedCity(selectedCity === city ? 'all' : city)}
-              className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all border ${selectedCity === city
-                ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:bg-emerald-50'
-                }`}
-            >
-              {city}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {loading ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-          <p className="text-sm font-medium text-slate-600">Loading doctors...</p>
-        </div>
-      ) : error ? (
-        <div className="rounded-2xl border border-dashed border-red-200 bg-red-50 p-8 text-center">
-          <p className="text-sm font-medium text-red-600">Error: {error}</p>
-          <p className="mt-1 text-xs text-red-500">Please try again later.</p>
-        </div>
-      ) : filteredDoctors.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-          <p className="text-sm font-medium text-slate-600">No doctors found matching your criteria.</p>
-          <p className="mt-1 text-xs text-slate-500">Try adjusting your search or filters.</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {paginatedDoctors.map((doctor) => {
-            const handleCardClickInner = (e) => {
-              e.stopPropagation();
-              if (doctor.id || doctor._id) {
-                navigate(`/patient/doctors/${doctor.id || doctor._id}`)
-              } else {
-                toast.error('Doctor details unavailable');
-              }
-            }
-
-            return (
-              <div
-                key={doctor.id || doctor._id || Math.random()}
-                onClick={handleCardClickInner}
-                className="group bg-white border border-slate-100 rounded-[24px] overflow-hidden shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] cursor-pointer transition-all duration-300 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.12)] hover:border-primary/30 hover:-translate-y-1.5 active:scale-[0.98]"
-              >
-                <div className="p-5 sm:p-6">
-                  {/* Top Section: Info & Pricing */}
-                  <div className="flex flex-col sm:flex-row gap-5">
-                    {/* Left: Avatar & Main Info */}
-                    <div className="flex gap-5 flex-1 items-center sm:items-start">
-                      <div className="relative shrink-0">
-                        <div className="absolute inset-0 bg-primary/20 rounded-[22px] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                        <img
-                          src={doctor.image}
-                          alt={doctor.name}
-                          className="relative h-24 w-24 sm:h-28 sm:w-28 rounded-[22px] object-cover ring-4 ring-white shadow-sm transition-transform duration-500 group-hover:scale-110"
-                          loading="lazy"
-                          onError={(e) => {
-                            e.target.onerror = null
-                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor.name)}&background=0077C2&color=fff&size=200&bold=true`
-                          }}
-                        />
-                        {doctor.isFeatured && (
-                          <div className="absolute -top-3 -left-3 bg-gradient-to-br from-amber-400 to-orange-500 text-white p-2 rounded-xl shadow-lg transform -rotate-12 group-hover:rotate-0 transition-transform duration-300">
-                            <IoStar className="h-4 w-4" />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-col h-full justify-center">
-                          <div className="flex flex-wrap items-center gap-2.5 mb-2">
-                            <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">
-                              {doctor.name}
-                            </h3>
-                            {doctor.experience && doctor.experience !== 'N/A' && (
-                              <span className="shrink-0 bg-blue-50 text-blue-600 text-[11px] font-black px-2.5 py-1 rounded-lg border border-blue-100/60 uppercase tracking-widest">
-                                {doctor.experience} EXP
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm font-bold text-primary mb-3 flex items-center gap-1.5">
-                            <span className="w-5 h-[2px] bg-primary/30 rounded-full" />
-                            {doctor.specialty}
-                          </p>
-
-                          <div className="space-y-1.5">
-                            {doctor.clinicName && (
-                              <div className="flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                                <p className="text-xs font-bold text-slate-700 uppercase tracking-wide">{doctor.clinicName}</p>
-                              </div>
-                            )}
-                            <div className="flex items-start gap-2 text-slate-500">
-                              <IoLocationOutline className="h-4 w-4 mt-0.5 text-slate-400 shrink-0" />
-                              <p className="text-xs font-medium leading-relaxed line-clamp-2">{doctor.location}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Right: Pricing Section */}
-                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 sm:border-l border-slate-100 pt-5 sm:pt-0 sm:pl-6 bg-slate-50/50 sm:bg-transparent -mx-5 sm:mx-0 px-5 sm:px-0">
-                      <div className="text-left sm:text-right">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Consultation Fee</p>
-                        <div className="flex items-center sm:justify-end gap-2.5">
-                          {doctor.discount_amount > 0 && doctor.original_fees > 0 && (
-                            <span className="text-base line-through text-slate-300 font-bold italic">₹{doctor.original_fees}</span>
-                          )}
-                          <span className="text-2xl font-black text-slate-900 tracking-tighter">₹{doctor.consultationFee}</span>
-                        </div>
-                        {doctor.discount_amount > 0 && (
-                          <div className="flex items-center sm:justify-end mt-1.5">
-                            <div className="bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm shadow-emerald-200">
-                              <span>SAVE ₹{doctor.discount_amount}</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Divider */}
-                  <div className="h-px bg-slate-100/80 my-5" />
-
-                  {/* Bottom Strip: Modes & CTA */}
-                  <div className="flex flex-col md:flex-row items-center gap-5">
-                    {/* Modes Badge List */}
-                    <div className="flex flex-wrap gap-2.5 flex-1">
-                      {(doctor.consultationModes && doctor.consultationModes.length > 0
-                        ? Array.from(new Set(doctor.consultationModes))
-                        : ['in_person']).map((mode, index) => {
-                          let Icon, label, colorClass, bgClass;
-                          switch (mode) {
-                            case 'in_person': Icon = IoPeopleOutline; label = 'In-Clinic'; colorClass = 'text-purple-600'; bgClass = 'bg-purple-500/10'; break;
-                            case 'video_call': Icon = IoVideocamOutline; label = 'Video'; colorClass = 'text-blue-600'; bgClass = 'bg-blue-500/10'; break;
-                            case 'voice_call': case 'call': Icon = IoCallOutline; label = 'Audio'; colorClass = 'text-emerald-600'; bgClass = 'bg-emerald-500/10'; break;
-                            default: return null;
-                          }
-                          return (
-                            <div key={index} className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl ${bgClass} ${colorClass} transition-all border border-transparent hover:border-current/20`}>
-                              <Icon className="h-3.5 w-3.5" />
-                              <span className="text-[11px] font-black uppercase tracking-widest">{label}</span>
-                            </div>
-                          );
-                        })
-                      }
-                    </div>
-
-                    {/* CTA Button */}
-                    <button
-                      onClick={handleCardClickInner}
-                      className="w-full md:w-auto min-w-[200px] h-[52px] bg-primary text-white font-black py-4 px-8 rounded-2xl text-[13px] uppercase tracking-[0.1em] transition-all duration-300 shadow-[0_10px_30px_-10px_rgba(0,119,194,0.5)] hover:bg-primary-dark hover:shadow-[0_15px_35px_-10px_rgba(0,119,194,0.6)] active:scale-95 flex items-center justify-center gap-3"
-                    >
-                      <span>Book Appointment</span>
-                      <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center group-hover:rotate-[360deg] transition-transform duration-700">
-                        <IoCalendarOutline className="h-3.5 w-3.5" />
-                      </div>
-                    </button>
-                  </div>
-
-                  {/* Availability Notice */}
-                  {doctor.availability.includes('today') && doctor.nextSlot && (
-                    <div className="mt-5 p-3.5 bg-gradient-to-r from-emerald-50 to-white rounded-2xl border border-emerald-100/60 shadow-inner flex items-center gap-4">
-                      <div className="relative flex h-3.5 w-3.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 shadow-sm border-2 border-white"></span>
-                      </div>
-                      <div className="flex-1 flex flex-wrap items-center gap-x-4 gap-y-1">
-                        <p className="text-[11px] font-black text-emerald-700 uppercase tracking-widest leading-none">Status: Live Now</p>
-                        <p className="text-xs font-bold text-slate-700">
-                          Next Available: <span className="bg-white px-2 py-0.5 rounded shadow-sm text-primary">{doctor.nextSlot}</span>
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Pagination */}
-      {!loading && filteredDoctors.length > 0 && totalPages > 1 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={totalItems}
-          itemsPerPage={itemsPerPage}
-          onPageChange={setCurrentPage}
-          loading={loading}
-        />
-      )}
     </section>
   )
 }

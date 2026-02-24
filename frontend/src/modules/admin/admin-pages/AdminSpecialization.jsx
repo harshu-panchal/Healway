@@ -8,8 +8,10 @@ import {
     IoCheckmarkCircleOutline,
     IoCloseCircleOutline,
     IoGridOutline,
-    IoListOutline
+    IoListOutline,
+    IoMenuOutline
 } from 'react-icons/io5'
+import { Reorder } from 'framer-motion'
 import { useToast } from '../../../contexts/ToastContext'
 import adminService from '../admin-services/adminService'
 import PageLoader from '../../../components/PageLoader'
@@ -125,6 +127,26 @@ const AdminSpecialization = () => {
         }
     }
 
+    const handleReorder = async (newOrder) => {
+        // Optimistically update the UI
+        setSpecialties(newOrder)
+
+        try {
+            // Calculate sortOrder based on position in the list
+            const orders = newOrder.map((s, index) => ({
+                id: s._id,
+                sortOrder: index,
+            }))
+
+            await adminService.reorderSpecialties(orders)
+            toast.success('Order updated')
+        } catch (error) {
+            console.error('Error reordering specialties:', error)
+            toast.error('Failed to save order')
+            fetchSpecialties()
+        }
+    }
+
     const closeModal = () => {
         setShowModal(false)
         setEditingSpecialty(null)
@@ -188,9 +210,21 @@ const AdminSpecialization = () => {
 
             {/* Content View */}
             {viewMode === 'grid' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <Reorder.Group
+                    axis="y"
+                    values={filteredSpecialties}
+                    onReorder={handleReorder}
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                >
                     {filteredSpecialties.map((specialty) => (
-                        <div key={specialty._id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all group">
+                        <Reorder.Item
+                            key={specialty._id}
+                            value={specialty}
+                            className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all group relative cursor-move"
+                        >
+                            <div className="absolute top-3 left-3 z-10 p-1.5 bg-white/80 backdrop-blur-md rounded-lg shadow-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                <IoMenuOutline className="text-slate-400 text-lg" />
+                            </div>
                             <div className="aspect-video relative overflow-hidden bg-slate-50 border-b border-slate-100">
                                 {specialty.icon ? (
                                     <img
@@ -203,9 +237,12 @@ const AdminSpecialization = () => {
                                         <IoCloudUploadOutline className="text-5xl" />
                                     </div>
                                 )}
-                                <div className="absolute top-3 right-3">
+                                <div className="absolute top-3 right-3 flex gap-2">
                                     <button
-                                        onClick={() => handleToggleStatus(specialty._id)}
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleToggleStatus(specialty._id)
+                                        }}
                                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md shadow-sm transition-colors ${specialty.isActive ? 'bg-green-500/90 text-white' : 'bg-slate-500/90 text-white'
                                             }`}
                                     >
@@ -225,14 +262,20 @@ const AdminSpecialization = () => {
                                     </div>
                                     <div className="flex gap-2">
                                         <button
-                                            onClick={() => handleEdit(specialty)}
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleEdit(specialty)
+                                            }}
                                             className="p-2 text-primary hover:bg-primary-surface rounded-lg transition-colors"
                                             title="Edit"
                                         >
                                             <IoPencilOutline className="text-xl" />
                                         </button>
                                         <button
-                                            onClick={() => handleDelete(specialty._id)}
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleDelete(specialty._id)
+                                            }}
                                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                             title="Delete"
                                         >
@@ -241,15 +284,16 @@ const AdminSpecialization = () => {
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </Reorder.Item>
                     ))}
-                </div>
+                </Reorder.Group>
             ) : (
                 <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead className="bg-slate-50 border-b border-slate-200">
                                 <tr>
+                                    <th className="px-6 py-4 w-10"></th>
                                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Icon</th>
                                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Name</th>
                                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Description</th>
@@ -258,9 +302,23 @@ const AdminSpecialization = () => {
                                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <Reorder.Group
+                                as="tbody"
+                                axis="y"
+                                values={filteredSpecialties}
+                                onReorder={handleReorder}
+                                className="divide-y divide-slate-100"
+                            >
                                 {filteredSpecialties.map((specialty) => (
-                                    <tr key={specialty._id} className="hover:bg-slate-50 transition-colors group">
+                                    <Reorder.Item
+                                        as="tr"
+                                        key={specialty._id}
+                                        value={specialty}
+                                        className="hover:bg-slate-50 transition-colors group cursor-move"
+                                    >
+                                        <td className="px-6 py-4 text-center">
+                                            <IoMenuOutline className="text-slate-300 group-hover:text-slate-500 transition-colors" />
+                                        </td>
                                         <td className="px-6 py-4">
                                             <div className="w-12 h-12 rounded-xl border border-slate-100 overflow-hidden bg-slate-50">
                                                 {specialty.icon ? (
@@ -287,7 +345,10 @@ const AdminSpecialization = () => {
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <button
-                                                onClick={() => handleToggleStatus(specialty._id)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    handleToggleStatus(specialty._id)
+                                                }}
                                                 className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${specialty.isActive
                                                     ? 'bg-green-100 text-green-700 hover:bg-green-200'
                                                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -300,14 +361,20 @@ const AdminSpecialization = () => {
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex gap-2 justify-end">
                                                 <button
-                                                    onClick={() => handleEdit(specialty)}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        handleEdit(specialty)
+                                                    }}
                                                     className="p-2 text-primary hover:bg-primary-surface rounded-lg transition-colors"
                                                     title="Edit"
                                                 >
                                                     <IoPencilOutline className="text-lg" />
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDelete(specialty._id)}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        handleDelete(specialty._id)
+                                                    }}
                                                     className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                     title="Delete"
                                                 >
@@ -315,9 +382,9 @@ const AdminSpecialization = () => {
                                                 </button>
                                             </div>
                                         </td>
-                                    </tr>
+                                    </Reorder.Item>
                                 ))}
-                            </tbody>
+                            </Reorder.Group>
                         </table>
                     </div>
                 </div>
