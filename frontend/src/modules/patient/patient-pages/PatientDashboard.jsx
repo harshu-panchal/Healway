@@ -31,7 +31,15 @@ import PatientNavbar from '../patient-components/PatientNavbar'
 import PatientSidebar from '../patient-components/PatientSidebar'
 import { useToast } from '../../../contexts/ToastContext'
 import { useNotification } from '../../../contexts/NotificationContext'
-import { getPatientDashboard, getPatientProfile, getFeaturedDoctors, getAnnouncements, getSpecialties } from '../patient-services/patientService'
+import {
+  getPatientDashboard,
+  getPatientProfile,
+  getFeaturedDoctors,
+  getAnnouncements,
+  getSpecialties,
+  getDiscoveryDoctors,
+  getDoctorSearchSuggestions,
+} from '../patient-services/patientService'
 import NotificationBell from '../../../components/NotificationBell'
 import { getFileUrl } from '../../../utils/apiClient'
 import { getSocket } from '../../../utils/socketClient'
@@ -98,8 +106,11 @@ const PatientDashboard = () => {
   const toast = useToast()
   const { unreadCount } = useNotification()
   const [searchTerm, setSearchTerm] = useState('')
+  const [searchSuggestions, setSearchSuggestions] = useState([])
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const toggleButtonRef = useRef(null)
+  const searchContainerRef = useRef(null)
   const [selectedSpecialty, setSelectedSpecialty] = useState(null) // For filtering doctors by specialization
   const [selectedCity, setSelectedCity] = useState(null) // For filtering doctors by city
 
@@ -109,6 +120,7 @@ const PatientDashboard = () => {
   const [error, setError] = useState(null)
   const [upcomingAppointments, setUpcomingAppointments] = useState([])
   const [doctors, setDoctors] = useState([])
+  const [searchResultDoctors, setSearchResultDoctors] = useState([])
   const [featuredDoctors, setFeaturedDoctors] = useState([])
   const [announcements, setAnnouncements] = useState([])
   const [profile, setProfile] = useState(null)
@@ -243,6 +255,66 @@ const PatientDashboard = () => {
     }
   }, [fetchDashboardData])
 
+  const hasSearchOrFilters = useMemo(
+    () => !!searchTerm.trim() || !!selectedSpecialty || !!selectedCity,
+    [searchTerm, selectedSpecialty, selectedCity],
+  )
+
+  useEffect(() => {
+    const fetchSearchDoctors = async () => {
+      if (!hasSearchOrFilters) {
+        setSearchResultDoctors([])
+        return
+      }
+
+      try {
+        const filters = { page: 1, limit: 200, _t: Date.now() }
+        if (searchTerm.trim()) filters.search = searchTerm.trim()
+        if (selectedSpecialty) filters.specialty = selectedSpecialty
+        if (selectedCity) filters.city = selectedCity
+
+        const response = await getDiscoveryDoctors(filters)
+        const items = Array.isArray(response)
+          ? response
+          : Array.isArray(response?.items)
+            ? response.items
+            : []
+        setSearchResultDoctors(items)
+      } catch (error) {
+        console.error('Error fetching doctor search results:', error)
+        setSearchResultDoctors([])
+      }
+    }
+
+    const timer = setTimeout(fetchSearchDoctors, 300)
+    return () => clearTimeout(timer)
+  }, [hasSearchOrFilters, searchTerm, selectedSpecialty, selectedCity])
+
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      const q = searchTerm.trim()
+      if (q.length < 2) {
+        setSearchSuggestions([])
+        return
+      }
+      const suggestions = await getDoctorSearchSuggestions(q)
+      setSearchSuggestions(Array.isArray(suggestions) ? suggestions : [])
+    }
+
+    const timer = setTimeout(fetchSuggestions, 220)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+        setShowSearchSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [])
+
   // Get category cards with real data
   const categoryCards = useMemo(() => {
     if (!dashboardData) return categoryCardsConfig.map(card => ({ ...card, value: '0' }))
@@ -282,22 +354,24 @@ const PatientDashboard = () => {
     })
   }, [dashboardData, announcements, unreadCount])
 
+  const displayedDoctors = hasSearchOrFilters ? searchResultDoctors : doctors
+
   // Extract unique cities from doctors for the city filter
   const availableCities = useMemo(() => {
     const citySet = new Set()
-    doctors.forEach((doctor) => {
+    displayedDoctors.forEach((doctor) => {
       const city = doctor.clinicDetails?.address?.city || doctor.city || ''
       if (city.trim()) {
         citySet.add(city.trim())
       }
     })
     return Array.from(citySet).sort()
-  }, [doctors])
+  }, [displayedDoctors])
 
   const filteredDoctors = useMemo(() => {
-    if (!doctors || !Array.isArray(doctors)) return []
+    if (!displayedDoctors || !Array.isArray(displayedDoctors)) return []
 
-    return doctors.filter((doctor) => {
+    return displayedDoctors.filter((doctor) => {
       // 1. Filter by active status
       if (!isDoctorActive(doctor)) return false
 
@@ -316,16 +390,20 @@ const PatientDashboard = () => {
       // 4. Filter by search term
       if (searchTerm.trim()) {
         const normalizedSearch = searchTerm.trim().toLowerCase()
+        const tokens = normalizedSearch.split(/\s+/).filter(Boolean)
         const name = doctor.name || `${doctor.firstName || ''} ${doctor.lastName || ''}`.trim()
         const specialty = doctor.specialty || doctor.specialization || ''
-        if (!name.toLowerCase().includes(normalizedSearch) && !specialty.toLowerCase().includes(normalizedSearch)) {
+        const servicesText = Array.isArray(doctor.services) ? doctor.services.join(' ') : ''
+        const searchableText = `${name} ${specialty} ${servicesText}`.toLowerCase()
+        const matches = tokens.every((token) => searchableText.includes(token))
+        if (!matches) {
           return false
         }
       }
 
       return true
     })
-  }, [searchTerm, doctors, selectedSpecialty, selectedCity])
+  }, [searchTerm, displayedDoctors, selectedSpecialty, selectedCity])
 
   const handleBookDoctor = (doctorId, fee) => {
     if (!doctorId) {
@@ -411,18 +489,20 @@ const PatientDashboard = () => {
 
       {/* Search Bar */}
       <div className="mb-4">
-        <div className="relative">
+        <div className="relative" ref={searchContainerRef}>
           <IoSearchOutline className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
           <input
             type="text"
-            placeholder="Search doctors or specialties"
+            placeholder="Search doctors, specialties, or services"
             value={searchTerm}
             onChange={(e) => {
               const value = e.target.value
               setSearchTerm(value)
+              setShowSearchSuggestions(true)
             }}
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
             onFocus={(e) => {
+              setShowSearchSuggestions(true)
               e.target.style.borderColor = 'var(--color-primary)'
               e.target.style.boxShadow = '0 0 0 2px var(--color-primary-surface)'
             }}
@@ -431,6 +511,37 @@ const PatientDashboard = () => {
               e.target.style.boxShadow = ''
             }}
           />
+          {showSearchSuggestions && searchTerm.trim().length >= 2 && (
+            <div className="absolute z-40 mt-1 w-full max-h-64 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+              {searchSuggestions.length > 0 ? (
+                searchSuggestions.map((suggestion, index) => (
+                  <button
+                    key={`${suggestion.type}-${suggestion.value}-${index}`}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      setSearchTerm(suggestion.value || suggestion.label || '')
+                      setShowSearchSuggestions(false)
+                    }}
+                    className="w-full px-3 py-2.5 text-left hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm text-slate-800 truncate">
+                        {suggestion.label}
+                      </span>
+                      <span className="text-[10px] uppercase font-semibold text-primary bg-primary/10 rounded px-1.5 py-0.5 shrink-0">
+                        {suggestion.type}
+                      </span>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-2.5 text-xs text-slate-500">
+                  No suggestions found
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

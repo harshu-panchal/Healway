@@ -377,6 +377,26 @@ export const getDiscoveryDoctors = async (filters = {}) => {
 export const getDoctors = getDiscoveryDoctors
 
 /**
+ * Get doctor search suggestions
+ * @param {string} query - Search query text
+ * @returns {Promise<Array>} Suggestions list
+ */
+export const getDoctorSearchSuggestions = async (query) => {
+  try {
+    const q = typeof query === 'string' ? query.trim() : ''
+    if (q.length < 2) return []
+    const response = await apiClient.get('/patients/doctors/suggestions', { q })
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to fetch suggestions')
+    }
+    return response.data?.suggestions || []
+  } catch (error) {
+    console.error('Error fetching doctor search suggestions:', error)
+    return []
+  }
+}
+
+/**
  * Get doctor by ID
  * @param {string} doctorId - Doctor ID
  * @returns {Promise<object>} Doctor data

@@ -5,6 +5,7 @@ import {
   getDoctorProfile,
   updateDoctorProfile,
   getSupportHistory,
+  getServices,
   uploadProfileImage,
   uploadSignature,
 } from "../doctor-services/doctorService";
@@ -109,6 +110,10 @@ const DoctorProfile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const languageInputRef = useRef(null);
+  const servicesDropdownRef = useRef(null);
+  const [availableServices, setAvailableServices] = useState([]);
+  const [serviceSearchTerm, setServiceSearchTerm] = useState("");
+  const [showServicesDropdown, setShowServicesDropdown] = useState(false);
   // Store stable averageConsultationMinutes value to prevent it from changing unexpectedly
   const [
     stableAverageConsultationMinutes,
@@ -139,6 +144,7 @@ const DoctorProfile = () => {
     consultationFee: 0,
     education: [],
     languages: [],
+    services: [],
     consultationModes: [],
     clinicDetails: {
       name: "",
@@ -276,6 +282,9 @@ const DoctorProfile = () => {
               : [],
             languages: Array.isArray(cachedProfile.languages)
               ? cachedProfile.languages
+              : [],
+            services: Array.isArray(cachedProfile.services)
+              ? cachedProfile.services
               : [],
             consultationModes: Array.isArray(cachedProfile.consultationModes)
               ? cachedProfile.consultationModes.map((mode) => {
@@ -476,6 +485,7 @@ const DoctorProfile = () => {
             consultationFee: doctor.consultationFee || 0,
             education: Array.isArray(doctor.education) ? doctor.education : [],
             languages: Array.isArray(doctor.languages) ? doctor.languages : [],
+            services: Array.isArray(doctor.services) ? doctor.services : [],
             consultationModes: Array.isArray(doctor.consultationModes)
               ? doctor.consultationModes.map((mode) => {
                 if (mode === "video" || mode === "call") return "video_call";
@@ -647,6 +657,39 @@ const DoctorProfile = () => {
 
     fetchDoctorProfile();
   }, []);
+
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const servicesRes = await getServices();
+        if (Array.isArray(servicesRes)) {
+          setAvailableServices(servicesRes.map((service) => service.name).filter(Boolean));
+        }
+      } catch (error) {
+        console.error("Error fetching services:", error);
+      }
+    };
+
+    fetchServices();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (servicesDropdownRef.current && !servicesDropdownRef.current.contains(event.target)) {
+        setShowServicesDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredServices = availableServices.filter((service) => {
+    const term = serviceSearchTerm.toLowerCase().trim();
+    const matchesSearch = !term || service.toLowerCase().includes(term);
+    const alreadySelected = (formData.services || []).includes(service);
+    return matchesSearch && !alreadySelected;
+  });
 
   const formatDate = (dateString) => {
     if (!dateString) return "—";
@@ -845,8 +888,8 @@ const DoctorProfile = () => {
     }
     setFormData((prev) => {
       const currentArray = prev[field] || [];
-      // For languages, check if it already exists (case-insensitive)
-      if (field === "languages" && typeof newItem === "string") {
+      // For tag-like string arrays, check if value already exists (case-insensitive)
+      if ((field === "languages" || field === "services") && typeof newItem === "string") {
         const exists = currentArray.some(
           (item) =>
             typeof item === "string" &&
@@ -1216,6 +1259,7 @@ const DoctorProfile = () => {
         consultationFee: formData.consultationFee,
         education: formData.education,
         languages: formData.languages,
+        services: formData.services,
         consultationModes: formData.consultationModes,
         clinicDetails: formData.clinicDetails,
         availabilitySlots: availabilitySlotsForBackend,
@@ -1254,6 +1298,8 @@ const DoctorProfile = () => {
         toast.success("Profile updated successfully!");
         setIsEditing(false);
         setActiveSection(null);
+        setShowServicesDropdown(false);
+        setServiceSearchTerm("");
       } else {
         toast.error(response.message || "Failed to update profile");
       }
@@ -1397,6 +1443,7 @@ const DoctorProfile = () => {
             },
           education: Array.isArray(doctor.education) ? doctor.education : [],
           languages: Array.isArray(doctor.languages) ? doctor.languages : [],
+          services: Array.isArray(doctor.services) ? doctor.services : [],
           consultationModes: Array.isArray(doctor.consultationModes)
             ? doctor.consultationModes
             : [],
@@ -1520,6 +1567,8 @@ const DoctorProfile = () => {
     }
     setIsEditing(false);
     setActiveSection(null);
+    setShowServicesDropdown(false);
+    setServiceSearchTerm("");
   };
 
   // Show loading state
@@ -2897,6 +2946,88 @@ const DoctorProfile = () => {
                             </button>
                           </div>
                         )}
+
+                        <div className="mt-4">
+                          <h3 className="mb-2 text-xs font-semibold text-slate-900">
+                            Services Provided
+                          </h3>
+                          {formData.services && formData.services.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {formData.services.map((service, index) => (
+                                <span
+                                  key={`${service}-${index}`}
+                                  className="inline-flex items-center gap-1 rounded-full bg-[rgba(0,119,194,0.1)] px-2 py-0.5 text-[10px] font-semibold text-primary"
+                                >
+                                  <IoBriefcaseOutline className="h-2.5 w-2.5 shrink-0" />
+                                  {service}
+                                  {isEditing && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleArrayRemove("services", index)
+                                      }
+                                      className="ml-0.5 text-primary hover:text-[#004c86] shrink-0"
+                                    >
+                                      <IoCloseOutline className="h-2.5 w-2.5" />
+                                    </button>
+                                  )}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-500">
+                              No services selected
+                            </p>
+                          )}
+
+                          {isEditing && (
+                            <div className="mt-2 relative" ref={servicesDropdownRef}>
+                              <input
+                                type="text"
+                                value={serviceSearchTerm}
+                                onChange={(e) => {
+                                  setServiceSearchTerm(e.target.value);
+                                  setShowServicesDropdown(true);
+                                }}
+                                onFocus={() => setShowServicesDropdown(true)}
+                                placeholder="Search services from admin list"
+                                className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-900 transition hover:border-slate-300 focus:outline-none focus:ring-2"
+                              />
+
+                              {showServicesDropdown && (
+                                <div className="absolute z-50 mt-1 w-full max-h-52 overflow-auto rounded-md border border-slate-200 bg-white shadow-lg">
+                                  {filteredServices.length > 0 ? (
+                                    <div className="py-1">
+                                      {filteredServices.map((service) => (
+                                        <button
+                                          key={service}
+                                          type="button"
+                                          onClick={() => {
+                                            handleArrayAdd("services", service);
+                                            setServiceSearchTerm("");
+                                          }}
+                                          className="w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-primary hover:text-white transition-colors flex items-center gap-1.5"
+                                        >
+                                          <IoBriefcaseOutline className="h-3.5 w-3.5 shrink-0" />
+                                          <span className="truncate">{service}</span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="px-3 py-2 text-xs text-slate-500">
+                                      {serviceSearchTerm
+                                        ? "No matching services found"
+                                        : "No more services available"}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              <p className="mt-1 text-[10px] text-slate-500">
+                                Select only from services configured by admin.
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       <div>

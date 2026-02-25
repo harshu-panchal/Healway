@@ -190,6 +190,7 @@ const PatientDoctors = () => {
               availability: 'Available',
               nextSlot: 'Today, 2:00 PM', // Mock for now
               consultationModes: doctor.consultationModes || ['in_person'],
+              services: Array.isArray(doctor.services) ? doctor.services : [],
               isFeatured: !!doctor.isFeatured,
               city: doctor.clinicDetails?.address?.city || '',
             }
@@ -246,11 +247,12 @@ const PatientDoctors = () => {
 
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase().trim()
-      filtered = filtered.filter(d =>
-        d.name.toLowerCase().includes(term) ||
-        d.specialty.toLowerCase().includes(term) ||
-        d.location.toLowerCase().includes(term)
-      )
+      const tokens = term.split(/\s+/).filter(Boolean)
+      filtered = filtered.filter((d) => {
+        const servicesText = Array.isArray(d.services) ? d.services.join(' ') : ''
+        const searchableText = `${d.name} ${d.specialty} ${d.location} ${servicesText}`.toLowerCase()
+        return tokens.every((token) => searchableText.includes(token))
+      })
     }
 
     return filtered.sort((a, b) => {

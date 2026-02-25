@@ -3,6 +3,7 @@ const router = express.Router();
 const { protect } = require('../../middleware/authMiddleware');
 const {
   getDoctors,
+  getDoctorSearchSuggestions,
   getDoctorById,
   getFeaturedDoctors,
   getSpecialties,
@@ -23,6 +24,7 @@ router.get('/locations', getLocations);
 
 // Featured doctors
 router.get('/featured', getFeaturedDoctors);
+router.get('/suggestions', getDoctorSearchSuggestions);
 
 // Parameterized routes (must come after specific routes)
 router.get('/:id/slots', checkDoctorSlotAvailability);

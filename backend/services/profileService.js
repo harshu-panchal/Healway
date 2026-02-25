@@ -343,7 +343,7 @@ const applyDoctorUpdates = async (doc, updates, Model) => {
     'isActive',
   ];
   const mergeFields = ['clinicDetails', 'digitalSignature', 'fees', 'availabilitySlots'];
-  const arrayReplaceFields = ['education', 'languages', 'consultationModes', 'availability', 'documents'];
+  const arrayReplaceFields = ['education', 'languages', 'services', 'consultationModes', 'availability', 'documents'];
   const mergeFieldsForDoctor = ['availabilitySlots'];
 
   if (updates.phone && updates.phone !== doc.phone) {

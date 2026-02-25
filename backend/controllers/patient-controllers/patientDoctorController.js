@@ -190,8 +190,22 @@ const buildPagination = (req) => {
 
 const buildSearchFilter = (search, fields = []) => {
   if (!search || !search.trim() || !fields.length) return {};
-  const regex = new RegExp(search.trim(), 'i');
-  return { $or: fields.map((field) => ({ [field]: regex })) };
+  const normalized = search.trim();
+  const tokens = normalized
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+
+  if (!tokens.length) return {};
+
+  const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return {
+    $and: tokens.map((token) => {
+      const regex = new RegExp(escapeRegex(token), 'i');
+      return { $or: fields.map((field) => ({ [field]: regex })) };
+    }),
+  };
 };
 
 // GET /api/patients/doctors
@@ -213,6 +227,7 @@ exports.getDoctors = asyncHandler(async (req, res) => {
       'firstName',
       'lastName',
       'specialization',
+      'services',
       'clinicDetails.name',
     ])
     : {};
@@ -233,7 +248,7 @@ exports.getDoctors = asyncHandler(async (req, res) => {
 
   const [doctors, total] = await Promise.all([
     Doctor.find(finalFilter)
-      .select('firstName lastName specialization profileImage consultationFee original_fees discount_amount fees clinicDetails bio experienceYears consultationModes sortOrder')
+      .select('firstName lastName specialization services profileImage consultationFee original_fees discount_amount fees clinicDetails bio experienceYears consultationModes sortOrder')
       .sort({ sortOrder: 1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -262,6 +277,105 @@ exports.getDoctors = asyncHandler(async (req, res) => {
   });
 
   return res.status(200).json(response);
+});
+
+// GET /api/patients/doctors/suggestions?q=<query>
+exports.getDoctorSearchSuggestions = asyncHandler(async (req, res) => {
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  if (q.length < 2) {
+    return res.status(200).json({
+      success: true,
+      data: { suggestions: [] },
+    });
+  }
+
+  const searchFilter = buildSearchFilter(q, [
+    'firstName',
+    'lastName',
+    'specialization',
+    'services',
+  ]);
+
+  const doctors = await Doctor.find({
+    status: APPROVAL_STATUS.APPROVED,
+    isActive: true,
+    ...(Object.keys(searchFilter).length ? searchFilter : {}),
+  })
+    .select('firstName lastName specialization services sortOrder')
+    .sort({ sortOrder: 1, createdAt: -1 })
+    .limit(20)
+    .lean();
+
+  const lowerQ = q.toLowerCase();
+  const tokens = lowerQ.split(/\s+/).filter(Boolean);
+  const rankText = (text) => {
+    const value = String(text || '').toLowerCase();
+    if (!value) return -1;
+    if (value.startsWith(lowerQ)) return 4;
+    if (value.includes(lowerQ)) return 3;
+    if (tokens.length && tokens.every((token) => value.includes(token))) return 2;
+    if (tokens.length && tokens.some((token) => value.includes(token))) return 1;
+    return -1;
+  };
+
+  const doctorSuggestions = [];
+  const specializationMap = new Map();
+  const serviceMap = new Map();
+
+  doctors.forEach((doctor) => {
+    const name = `Dr. ${doctor.firstName || ''} ${doctor.lastName || ''}`.replace(/\s+/g, ' ').trim();
+    const nameRank = rankText(name);
+    if (nameRank > 0) {
+      doctorSuggestions.push({
+        type: 'doctor',
+        label: name,
+        value: `${doctor.firstName || ''} ${doctor.lastName || ''}`.trim(),
+        score: nameRank,
+      });
+    }
+
+    const specialization = String(doctor.specialization || '').trim();
+    const specializationRank = rankText(specialization);
+    if (specialization && specializationRank > 0 && !specializationMap.has(specialization.toLowerCase())) {
+      specializationMap.set(specialization.toLowerCase(), {
+        type: 'specialization',
+        label: specialization,
+        value: specialization,
+        score: specializationRank,
+      });
+    }
+
+    if (Array.isArray(doctor.services)) {
+      doctor.services.forEach((service) => {
+        const serviceName = String(service || '').trim();
+        const serviceRank = rankText(serviceName);
+        if (!serviceName || serviceRank <= 0) return;
+        const key = serviceName.toLowerCase();
+        if (!serviceMap.has(key)) {
+          serviceMap.set(key, {
+            type: 'service',
+            label: serviceName,
+            value: serviceName,
+            score: serviceRank,
+          });
+        }
+      });
+    }
+  });
+
+  const suggestions = [
+    ...doctorSuggestions,
+    ...specializationMap.values(),
+    ...serviceMap.values(),
+  ]
+    .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label))
+    .slice(0, 10)
+    .map(({ score, ...rest }) => rest);
+
+  return res.status(200).json({
+    success: true,
+    data: { suggestions },
+  });
 });
 
 // GET /api/patients/doctors/featured
