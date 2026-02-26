@@ -134,6 +134,23 @@ const DoctorLogin = () => {
 
   const isLogin = mode === 'login'
 
+  useEffect(() => {
+    const restoreAuthView = location.state?.restoreAuthView
+    if (!restoreAuthView) return
+
+    if (restoreAuthView.mode === 'signup' || restoreAuthView.mode === 'login') {
+      setMode(restoreAuthView.mode)
+    }
+
+    if (restoreAuthView.userRole === 'doctor' || restoreAuthView.userRole === 'patient') {
+      setUserRole(restoreAuthView.userRole)
+    }
+
+    if (typeof restoreAuthView.signupStep === 'number' && restoreAuthView.signupStep >= 1 && restoreAuthView.signupStep <= totalSignupSteps) {
+      setSignupStep(restoreAuthView.signupStep)
+    }
+  }, [location.state, totalSignupSteps])
+
   // Get current login data
   const getCurrentLoginData = () => {
     return doctorLoginData
@@ -1296,7 +1313,30 @@ const DoctorLogin = () => {
                       onChange={handlePatientSignupChange}
                       className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary mt-0.5"
                     />
-                    <span>I agree to the <a href="/doctor/terms-of-service" target="_blank" className="text-primary hover:underline">Terms of Service</a> and <a href="/doctor/privacy-policy" target="_blank" className="text-primary hover:underline">Privacy Policy</a></span>
+                    <span>
+                      I agree to the{' '}
+                      <Link
+                        to="/terms"
+                        state={{
+                          fromPath: location.pathname,
+                          restoreAuthView: { mode: 'signup', userRole: 'patient' },
+                        }}
+                        className="text-primary hover:underline"
+                      >
+                        Terms of Service
+                      </Link>
+                      {' '}and{' '}
+                      <Link
+                        to="/privacy"
+                        state={{
+                          fromPath: location.pathname,
+                          restoreAuthView: { mode: 'signup', userRole: 'patient' },
+                        }}
+                        className="text-primary hover:underline"
+                      >
+                        Privacy Policy
+                      </Link>
+                    </span>
                   </label>
                 </div>
 
@@ -2236,11 +2276,25 @@ const DoctorLogin = () => {
                         />
                         <span>
                           I have read and agree to Healway's{' '}
-                          <Link to="/terms" className="font-semibold text-primary hover:text-primary-dark">
+                          <Link
+                            to="/terms"
+                            state={{
+                              fromPath: location.pathname,
+                              restoreAuthView: { mode: 'signup', userRole: 'doctor', signupStep },
+                            }}
+                            className="font-semibold text-primary hover:text-primary-dark"
+                          >
                             terms of service
                           </Link>{' '}
                           and{' '}
-                          <Link to="/privacy" className="font-semibold text-primary hover:text-primary-dark">
+                          <Link
+                            to="/privacy"
+                            state={{
+                              fromPath: location.pathname,
+                              restoreAuthView: { mode: 'signup', userRole: 'doctor', signupStep },
+                            }}
+                            className="font-semibold text-primary hover:text-primary-dark"
+                          >
                             privacy policy
                           </Link>
                           .
@@ -2320,12 +2374,6 @@ const DoctorLogin = () => {
       <footer className="relative z-10 border-t border-slate-100 bg-white/95 backdrop-blur mt-auto">
         <div className="mx-auto flex max-w-md flex-col items-center gap-2 px-4 py-4 text-center text-xs text-slate-500">
           <span>Secure access powered by Healway</span>
-          <span>
-            Need help? Contact{' '}
-            <Link to="/support" className="font-semibold text-primary hover:text-primary-dark transition">
-              support
-            </Link>
-          </span>
         </div>
       </footer>
     </div>

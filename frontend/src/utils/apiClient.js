@@ -176,7 +176,8 @@ const apiRequest = async (endpoint, options = {}, module = 'admin') => {
   const isPublicDiscoveryEndpoint = (endpoint.includes('/patients/doctors') ||
     endpoint.includes('/patients/specialties') ||
     endpoint.includes('/specialties') ||
-    endpoint.includes('/services')) &&
+    endpoint.includes('/services') ||
+    endpoint.includes('/public/legal')) &&
     !endpoint.includes('/admin/')
 
   // For protected endpoints (not auth or public discovery), check token before making request

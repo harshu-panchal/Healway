@@ -15,13 +15,42 @@ exports.getSettings = asyncHandler(async (req, res) => {
 exports.updateSettings = asyncHandler(async (req, res) => {
   const updateData = req.body;
 
-  let settings = await AdminSettings.findOne();
-  if (!settings) {
-    settings = await AdminSettings.create(updateData);
-  } else {
-    Object.assign(settings, updateData);
-    await settings.save();
+  const settings = await AdminSettings.getSettings();
+  const mergedData = {
+    ...updateData,
+  };
+
+  if (updateData.platformSettings) {
+    mergedData.platformSettings = {
+      ...(settings.platformSettings?.toObject?.() || settings.platformSettings || {}),
+      ...updateData.platformSettings,
+    };
   }
+
+  if (updateData.paymentSettings) {
+    mergedData.paymentSettings = {
+      ...(settings.paymentSettings?.toObject?.() || settings.paymentSettings || {}),
+      ...updateData.paymentSettings,
+    };
+  }
+
+  if (updateData.notificationSettings) {
+    mergedData.notificationSettings = {
+      ...(settings.notificationSettings?.toObject?.() || settings.notificationSettings || {}),
+      ...updateData.notificationSettings,
+    };
+  }
+
+  if (updateData.legalContent) {
+    mergedData.legalContent = {
+      ...(settings.legalContent?.toObject?.() || settings.legalContent || {}),
+      ...updateData.legalContent,
+      lastUpdatedAt: new Date(),
+    };
+  }
+
+  Object.assign(settings, mergedData);
+  await settings.save();
 
   return res.status(200).json({
     success: true,

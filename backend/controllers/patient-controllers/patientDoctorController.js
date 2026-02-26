@@ -294,6 +294,7 @@ exports.getDoctorSearchSuggestions = asyncHandler(async (req, res) => {
     'lastName',
     'specialization',
     'services',
+    'clinicDetails.name',
   ]);
 
   const doctors = await Doctor.find({
@@ -301,7 +302,7 @@ exports.getDoctorSearchSuggestions = asyncHandler(async (req, res) => {
     isActive: true,
     ...(Object.keys(searchFilter).length ? searchFilter : {}),
   })
-    .select('firstName lastName specialization services sortOrder')
+    .select('firstName lastName specialization services clinicDetails sortOrder')
     .sort({ sortOrder: 1, createdAt: -1 })
     .limit(20)
     .lean();
@@ -321,6 +322,7 @@ exports.getDoctorSearchSuggestions = asyncHandler(async (req, res) => {
   const doctorSuggestions = [];
   const specializationMap = new Map();
   const serviceMap = new Map();
+  const hospitalMap = new Map();
 
   doctors.forEach((doctor) => {
     const name = `Dr. ${doctor.firstName || ''} ${doctor.lastName || ''}`.replace(/\s+/g, ' ').trim();
@@ -361,12 +363,24 @@ exports.getDoctorSearchSuggestions = asyncHandler(async (req, res) => {
         }
       });
     }
+
+    const hospitalName = String(doctor.clinicDetails?.name || '').trim();
+    const hospitalRank = rankText(hospitalName);
+    if (hospitalName && hospitalRank > 0 && !hospitalMap.has(hospitalName.toLowerCase())) {
+      hospitalMap.set(hospitalName.toLowerCase(), {
+        type: 'hospital',
+        label: hospitalName,
+        value: hospitalName,
+        score: hospitalRank,
+      });
+    }
   });
 
   const suggestions = [
     ...doctorSuggestions,
     ...specializationMap.values(),
     ...serviceMap.values(),
+    ...hospitalMap.values(),
   ]
     .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label))
     .slice(0, 10)

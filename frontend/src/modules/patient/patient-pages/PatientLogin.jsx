@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   IoArrowForwardOutline,
@@ -28,6 +28,7 @@ const initialSignupState = {
 
 const PatientLogin = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const toast = useToast()
   const [mode, setMode] = useState('login')
   const [loginData, setLoginData] = useState({ phone: '', otp: '', remember: true })
@@ -49,6 +50,13 @@ const PatientLogin = () => {
   const otpInputRefs = useRef([])
 
   const isLogin = mode === 'login'
+
+  useEffect(() => {
+    const restoreMode = location.state?.restoreAuthView?.mode
+    if (restoreMode === 'signup' || restoreMode === 'login') {
+      setMode(restoreMode)
+    }
+  }, [location.state])
 
   // OTP timer countdown
   useEffect(() => {
@@ -732,11 +740,19 @@ const PatientLogin = () => {
                       />
                       <span>
                         I have read and agree to Healway's{' '}
-                        <Link to="/terms" className="font-semibold text-primary hover:text-primary-dark">
+                        <Link
+                          to="/terms"
+                          state={{ fromPath: location.pathname, restoreAuthView: { mode: 'signup' } }}
+                          className="font-semibold text-primary hover:text-primary-dark"
+                        >
                           terms of service
                         </Link>{' '}
                         and{' '}
-                        <Link to="/privacy" className="font-semibold text-primary hover:text-primary-dark">
+                        <Link
+                          to="/privacy"
+                          state={{ fromPath: location.pathname, restoreAuthView: { mode: 'signup' } }}
+                          className="font-semibold text-primary hover:text-primary-dark"
+                        >
                           privacy policy
                         </Link>
                         .

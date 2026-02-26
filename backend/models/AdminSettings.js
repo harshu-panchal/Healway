@@ -51,6 +51,11 @@ const adminSettingsSchema = new mongoose.Schema(
       paymentConfirmation: { type: Boolean, default: true },
       prescriptionReady: { type: Boolean, default: true },
     },
+    legalContent: {
+      termsOfService: { type: String, default: '' },
+      privacyPolicy: { type: String, default: '' },
+      lastUpdatedAt: { type: Date },
+    },
   },
   {
     timestamps: true,

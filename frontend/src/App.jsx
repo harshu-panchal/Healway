@@ -80,6 +80,7 @@ const AdminWallet = lazy(() => import('./modules/admin/admin-pages/AdminWallet')
 const AdminProviderRevenue = lazy(() => import('./modules/admin/admin-pages/AdminProviderRevenue'))
 const AdminProfile = lazy(() => import('./modules/admin/admin-pages/AdminProfile'))
 const AdminSettings = lazy(() => import('./modules/admin/admin-pages/AdminSettings'))
+const AdminLegalContent = lazy(() => import('./modules/admin/admin-pages/AdminLegalContent'))
 const AdminSupport = lazy(() => import('./modules/admin/admin-pages/AdminSupport'))
 const AdminVerification = lazy(() => import('./modules/admin/admin-pages/AdminVerification'))
 const AdminAnnouncements = lazy(() => import('./modules/admin/admin-pages/AdminAnnouncements'))
@@ -244,6 +245,9 @@ function AdminRoutes() {
           <Route path="/settings" element={
             <Suspense fallback={<PageLoader />}><ProtectedRoute module="admin"><AdminSettings /></ProtectedRoute></Suspense>
           } />
+          <Route path="/legal-content" element={
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="admin"><AdminLegalContent /></ProtectedRoute></Suspense>
+          } />
           <Route path="/notifications" element={
             <Suspense fallback={<PageLoader />}><ProtectedRoute module="admin"><NotificationsPage /></ProtectedRoute></Suspense>
           } />
@@ -260,29 +264,34 @@ function AdminRoutes() {
 
 function DoctorRoutes() {
   const location = useLocation()
-  const isLoginPage = location.pathname === '/doctor/login' || location.pathname === '/doctor/signup'
+  const isPublicDoctorPage = [
+    '/doctor/login',
+    '/doctor/signup',
+    '/doctor/terms-of-service',
+    '/doctor/privacy-policy',
+  ].includes(location.pathname)
   const token = getAuthToken('doctor')
 
   // If authenticated and on login/signup page, redirect to dashboard
-  if (token && isLoginPage) {
+  if (token && (location.pathname === '/doctor/login' || location.pathname === '/doctor/signup')) {
     return <Navigate to="/doctor/dashboard" replace />
   }
 
   return (
     <NotificationProvider module="doctor">
       {/* Mobile Navbar - Only visible on mobile/tablet */}
-      {!isLoginPage && <DoctorNavbar />}
+      {!isPublicDoctorPage && <DoctorNavbar />}
 
       {/* Desktop Header - Only visible on desktop */}
-      {!isLoginPage && <DoctorHeader />}
+      {!isPublicDoctorPage && <DoctorHeader />}
 
       {/* Doctor Call Status Indicator */}
-      {!isLoginPage && <DoctorCallStatus />}
+      {!isPublicDoctorPage && <DoctorCallStatus />}
 
       {/* Call Popup - For doctors to join WebRTC */}
-      {!isLoginPage && <CallPopup />}
+      {!isPublicDoctorPage && <CallPopup />}
 
-      <main className={isLoginPage ? '' : 'px-4 pb-24 pt-20 sm:px-6 lg:px-8 lg:pt-24 lg:pb-8 lg:min-h-screen lg:flex lg:flex-col'}>
+      <main className={isPublicDoctorPage ? '' : 'px-4 pb-24 pt-20 sm:px-6 lg:px-8 lg:pt-24 lg:pb-8 lg:min-h-screen lg:flex lg:flex-col'}>
         <div className="max-w-7xl mx-auto w-full lg:flex-1">
           <Routes>
             <Route
@@ -484,9 +493,7 @@ function DoctorRoutes() {
               path="/privacy-policy"
               element={
                 <Suspense fallback={<PageLoader />}>
-                  <ProtectedRoute module="doctor">
-                    <PrivacyPolicy />
-                  </ProtectedRoute>
+                  <PrivacyPolicy />
                 </Suspense>
               }
             />
@@ -494,9 +501,7 @@ function DoctorRoutes() {
               path="/terms-of-service"
               element={
                 <Suspense fallback={<PageLoader />}>
-                  <ProtectedRoute module="doctor">
-                    <TermsOfService />
-                  </ProtectedRoute>
+                  <TermsOfService />
                 </Suspense>
               }
             />
@@ -541,7 +546,7 @@ function DoctorRoutes() {
       </main>
 
       {/* Desktop Footer - Only visible on desktop */}
-      {!isLoginPage && <DoctorFooter />}
+      {!isPublicDoctorPage && <DoctorFooter />}
     </NotificationProvider>
   )
 }
@@ -637,6 +642,14 @@ function App() {
             {/* Onboarding Route - No Navbar */}
             <Route path="/onboarding" element={
               <Suspense fallback={<PageLoader />}><WebOnBoarding /></Suspense>
+            } />
+
+            {/* Public legal pages used by signup flows */}
+            <Route path="/terms" element={
+              <Suspense fallback={<PageLoader />}><TermsOfService /></Suspense>
+            } />
+            <Route path="/privacy" element={
+              <Suspense fallback={<PageLoader />}><PrivacyPolicy /></Suspense>
             } />
 
             {/* Default route - show landing page or redirect if authenticated */}

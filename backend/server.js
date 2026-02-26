@@ -280,6 +280,7 @@ app.use(
   "/api/services",
   require("./routes/patient-routes/service.routes")
 );
+app.use("/api/public/legal", require("./routes/public-routes/legal.routes"));
 
 app.get("/", (req, res) => {
   res.json({

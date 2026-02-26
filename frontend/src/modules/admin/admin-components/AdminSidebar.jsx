@@ -7,6 +7,7 @@ import {
   IoShieldCheckmarkOutline,
   IoHelpCircleOutline,
   IoMegaphoneOutline,
+  IoDocumentTextOutline,
 } from 'react-icons/io5'
 
 const sidebarNavItems = [
@@ -18,6 +19,7 @@ const sidebarNavItems = [
   { id: 'service', label: 'Services', to: '/admin/services', Icon: IoMegaphoneOutline },
   { id: 'wallet', label: 'Wallet', to: '/admin/wallet', Icon: IoWalletOutline },
   { id: 'announcements', label: 'Announcements', to: '/admin/announcements', Icon: IoMegaphoneOutline },
+  { id: 'legal-content', label: 'Legal Content', to: '/admin/legal-content', Icon: IoDocumentTextOutline },
   { id: 'support', label: 'Support', to: '/admin/support', Icon: IoHelpCircleOutline },
 ]
 

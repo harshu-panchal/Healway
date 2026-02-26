@@ -394,7 +394,8 @@ const PatientDashboard = () => {
         const name = doctor.name || `${doctor.firstName || ''} ${doctor.lastName || ''}`.trim()
         const specialty = doctor.specialty || doctor.specialization || ''
         const servicesText = Array.isArray(doctor.services) ? doctor.services.join(' ') : ''
-        const searchableText = `${name} ${specialty} ${servicesText}`.toLowerCase()
+        const hospitalName = doctor.clinicDetails?.name || doctor.clinicName || ''
+        const searchableText = `${name} ${specialty} ${servicesText} ${hospitalName}`.toLowerCase()
         const matches = tokens.every((token) => searchableText.includes(token))
         if (!matches) {
           return false
@@ -486,64 +487,6 @@ const PatientDashboard = () => {
           </div>
         </div>
       </header>
-
-      {/* Search Bar */}
-      <div className="mb-4">
-        <div className="relative" ref={searchContainerRef}>
-          <IoSearchOutline className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search doctors, specialties, or services"
-            value={searchTerm}
-            onChange={(e) => {
-              const value = e.target.value
-              setSearchTerm(value)
-              setShowSearchSuggestions(true)
-            }}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-            onFocus={(e) => {
-              setShowSearchSuggestions(true)
-              e.target.style.borderColor = 'var(--color-primary)'
-              e.target.style.boxShadow = '0 0 0 2px var(--color-primary-surface)'
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = ''
-              e.target.style.boxShadow = ''
-            }}
-          />
-          {showSearchSuggestions && searchTerm.trim().length >= 2 && (
-            <div className="absolute z-40 mt-1 w-full max-h-64 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
-              {searchSuggestions.length > 0 ? (
-                searchSuggestions.map((suggestion, index) => (
-                  <button
-                    key={`${suggestion.type}-${suggestion.value}-${index}`}
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault()
-                      setSearchTerm(suggestion.value || suggestion.label || '')
-                      setShowSearchSuggestions(false)
-                    }}
-                    className="w-full px-3 py-2.5 text-left hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm text-slate-800 truncate">
-                        {suggestion.label}
-                      </span>
-                      <span className="text-[10px] uppercase font-semibold text-primary bg-primary/10 rounded px-1.5 py-0.5 shrink-0">
-                        {suggestion.type}
-                      </span>
-                    </div>
-                  </button>
-                ))
-              ) : (
-                <div className="px-3 py-2.5 text-xs text-slate-500">
-                  No suggestions found
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Category Cards - 2x2 Grid */}
       <div className="grid grid-cols-2 gap-3">
@@ -887,6 +830,64 @@ const PatientDashboard = () => {
 
         </div>
       )}
+
+      {/* Search Bar */}
+      <div className="mb-4">
+        <div className="relative" ref={searchContainerRef}>
+          <IoSearchOutline className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search doctors, specialties, services, or hospital"
+            value={searchTerm}
+            onChange={(e) => {
+              const value = e.target.value
+              setSearchTerm(value)
+              setShowSearchSuggestions(true)
+            }}
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+            onFocus={(e) => {
+              setShowSearchSuggestions(true)
+              e.target.style.borderColor = 'var(--color-primary)'
+              e.target.style.boxShadow = '0 0 0 2px var(--color-primary-surface)'
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = ''
+              e.target.style.boxShadow = ''
+            }}
+          />
+          {showSearchSuggestions && searchTerm.trim().length >= 2 && (
+            <div className="absolute z-40 mt-1 w-full max-h-64 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+              {searchSuggestions.length > 0 ? (
+                searchSuggestions.map((suggestion, index) => (
+                  <button
+                    key={`${suggestion.type}-${suggestion.value}-${index}`}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      setSearchTerm(suggestion.value || suggestion.label || '')
+                      setShowSearchSuggestions(false)
+                    }}
+                    className="w-full px-3 py-2.5 text-left hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm text-slate-800 truncate">
+                        {suggestion.label}
+                      </span>
+                      <span className="text-[10px] uppercase font-semibold text-primary bg-primary/10 rounded px-1.5 py-0.5 shrink-0">
+                        {suggestion.type}
+                      </span>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-2.5 text-xs text-slate-500">
+                  No suggestions found
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Doctors Section */}
       <div id="doctors-section">
