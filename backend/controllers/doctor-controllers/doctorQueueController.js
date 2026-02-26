@@ -111,11 +111,11 @@ exports.updateQueueStatus = asyncHandler(async (req, res) => {
         patientId: appointment.patientId,
         doctorId: id,
         consultationDate: new Date(),
-        status: "in-progress",
+        status: "completed",
       });
       appointment.consultationId = consultation._id;
     } else {
-      consultation.status = "in-progress";
+      consultation.status = "completed";
       await consultation.save();
     }
 

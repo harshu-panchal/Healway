@@ -20,13 +20,17 @@ exports.getConsultations = asyncHandler(async (req, res) => {
 
   const filter = { doctorId: id };
   if (status) filter.status = status;
-  if (date) {
-    const dateObj = new Date(date);
-    filter.consultationDate = {
-      $gte: new Date(dateObj.setHours(0, 0, 0, 0)),
-      $lt: new Date(dateObj.setHours(23, 59, 59, 999)),
-    };
-  }
+
+  // Default to today's date if no date is provided
+  const targetDate = date ? new Date(date) : new Date();
+  targetDate.setHours(0, 0, 0, 0);
+  const nextDate = new Date(targetDate);
+  nextDate.setHours(23, 59, 59, 999);
+
+  filter.consultationDate = {
+    $gte: targetDate,
+    $lt: nextDate,
+  };
 
   const Patient = require('../../models/Patient');
 

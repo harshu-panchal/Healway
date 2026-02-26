@@ -28,13 +28,13 @@ const normalizePhone = (phone) => {
   if (!phone) return null;
   // Preserve only digits
   let cleaned = phone.replace(/\D/g, '');
-  
+
   // If it starts with 0 and is longer than 10 digits (e.g., 091...), remove leading 0
   // But if it's exactly 10 digits starting with 0, keep it (some regions use leading 0)
   if (cleaned.startsWith('0') && cleaned.length > 10) {
     cleaned = cleaned.substring(1);
   }
-  
+
   return cleaned;
 };
 
@@ -69,7 +69,7 @@ const requestLoginOtp = async ({ role, phone }) => {
     throw error;
   }
 
-  const otp = generateOtp();
+  const otp = process.env.NODE_ENV === 'development' ? '123456' : generateOtp();
   const otpHash = await hashOtp(otp);
 
   const expiryMinutes = PASSWORD_RESET_CONFIG.OTP_EXPIRY_MINUTES || 10;
