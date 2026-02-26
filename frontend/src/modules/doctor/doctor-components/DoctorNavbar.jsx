@@ -60,8 +60,11 @@ const DoctorNavbar = () => {
     ? allNavItems.filter(item => item.id !== 'patients')
     : allNavItems
 
-  // Navbar items for mobile bottom nav (without Support and Announcements)
+  // Header nav keeps existing session-aware behavior.
   const navbarItems = filteredNavItems.filter((item) => item.id !== 'support' && item.id !== 'announcements' && item.id !== 'queue')
+
+  // Bottom nav should remain stable with 5 items for consistent mobile UX.
+  const bottomNavbarItems = allNavItems.filter((item) => item.id !== 'support' && item.id !== 'announcements' && item.id !== 'queue')
 
   // Hide header on dashboard and login pages
   const isDashboardPage = location.pathname === '/doctor/dashboard' || location.pathname === '/doctor/'
@@ -170,7 +173,7 @@ const DoctorNavbar = () => {
 
       {!isLoginPage && (
         <nav className="fixed inset-x-0 bottom-0 z-50 flex items-center justify-around gap-1 border-t border-slate-200 bg-white/95 px-3 py-2 backdrop-blur md:hidden">
-          {navbarItems.map(({ id, label, to, Icon }) => (
+          {bottomNavbarItems.map(({ id, label, to, Icon }) => (
             <NavLink
               key={id}
               to={to}
