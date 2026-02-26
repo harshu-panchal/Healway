@@ -266,7 +266,19 @@ const DoctorConsultations = () => {
           // Check if consultation with same ID already exists
           const existsById = acc.find(c => (c.id || c._id) === (current.id || current._id))
           if (existsById) {
-            return acc // Skip duplicate
+            return acc
+          }
+
+          // Check if consultation for the same appointment already exists (handles frontend vs backend ID formats)
+          const currentAptId = current.appointmentId?._id || current.appointmentId
+          if (currentAptId) {
+            const existsByApt = acc.find(c => {
+              const cAptId = c.appointmentId?._id || c.appointmentId
+              return cAptId?.toString() === currentAptId?.toString()
+            })
+            if (existsByApt) {
+              return acc
+            }
           }
 
           // Check if consultation with same patient ID and status already exists (for in-progress consultations)
@@ -278,7 +290,7 @@ const DoctorConsultations = () => {
                 (c.status === 'in-progress' || c.status === 'called')
             })
             if (existsByPatient) {
-              return acc // Skip duplicate
+              return acc
             }
           }
 
@@ -546,6 +558,7 @@ const DoctorConsultations = () => {
   const lastRestoredPatientIdRef = useRef(null) // Track last restored patient to prevent unnecessary restorations
   const isConsultationActiveRef = useRef(false) // Track if doctor is actively working on consultation
   const isManuallySelectedRef = useRef(false) // Track if consultation was manually selected by doctor (clicked on)
+  const isCompletingRef = useRef(false) // Guard for completion process
 
   useEffect(() => {
     if (passedConsultation) {
@@ -1005,9 +1018,9 @@ const DoctorConsultations = () => {
           isManuallySelectedRef.current = false
         }
 
-        // Prevent restoration if doctor is actively working on consultation
-        if (isConsultationActiveRef.current || vitalsEdited) {
-          console.log('⚠️ Skipping queue:next:called - doctor is actively working on consultation')
+        // Prevent restoration if doctor is actively working on consultation or finishing one
+        if (isConsultationActiveRef.current || vitalsEdited || isCompletingRef.current) {
+          console.log('⚠️ Skipping queue:next:called - doctor is actively working on or completing a consultation')
           return
         }
 
@@ -1193,14 +1206,14 @@ const DoctorConsultations = () => {
           return
         }
 
-        // Only restore if not currently editing consultation to prevent flickering
+        // Only restore if not currently editing or completing consultation to prevent flickering
         // Add a small delay to debounce rapid events
-        if (!isConsultationActiveRef.current && !vitalsEdited && !isRestoringRef.current) {
+        if (!isConsultationActiveRef.current && !vitalsEdited && !isRestoringRef.current && !isCompletingRef.current) {
           setTimeout(async () => {
             await restoreConsultationFromAppointmentStatus()
           }, 500) // Debounce by 500ms
         } else {
-          console.log('⚠️ Skipping queue update - doctor is working on consultation or restoration in progress')
+          console.log('⚠️ Skipping queue update - doctor is working on consultation, completing, or restoration in progress')
         }
       }
     }
@@ -2811,6 +2824,8 @@ const DoctorConsultations = () => {
         }))
         : []
 
+      isCompletingRef.current = true
+
       if (isValidObjectId) {
         // Update existing
         await updateConsultation(consultationId, {
@@ -2820,6 +2835,7 @@ const DoctorConsultations = () => {
           investigations: transformedInvestigations,
           advice,
           followUpDate: followUpDate || null,
+          status: 'completed',
         })
       } else {
         // Create new
@@ -2831,6 +2847,7 @@ const DoctorConsultations = () => {
           investigations: transformedInvestigations,
           advice: advice || '',
           followUpDate: followUpDate || null,
+          status: 'completed',
         })
         if (consultationResponse) {
           consultationId = consultationResponse._id || consultationResponse.id
@@ -2859,6 +2876,16 @@ const DoctorConsultations = () => {
         height: '',
         bmi: '',
       })
+
+      // Explicitly clear localStorage for current session/consultation
+      localStorage.removeItem('doctorSelectedConsultation')
+      localStorage.removeItem('doctorConsultations')
+
+      // Reset refs
+      isConsultationActiveRef.current = false
+      isManuallySelectedRef.current = false
+      setVitalsEdited(false)
+      isCompletingRef.current = false
 
       // Refresh data
       fetchConsultations()
