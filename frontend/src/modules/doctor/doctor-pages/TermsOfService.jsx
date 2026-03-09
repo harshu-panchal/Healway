@@ -1,8 +1,7 @@
-import LegalContentPage from '../../shared/LegalContentPage'
+﻿import LegalContentPage from '../../shared/LegalContentPage'
 
-const TermsOfService = () => {
-  return <LegalContentPage type="terms" />
+const TermsOfService = ({ role = 'doctor' }) => {
+  return <LegalContentPage type="terms" role={role} />
 }
 
 export default TermsOfService
-

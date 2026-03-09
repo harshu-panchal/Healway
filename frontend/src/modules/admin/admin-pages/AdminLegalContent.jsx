@@ -1,12 +1,17 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { IoDocumentTextOutline, IoCheckmarkCircleOutline } from 'react-icons/io5'
 import { useToast } from '../../../contexts/ToastContext'
 import { getAdminSettings, updateAdminSettings } from '../admin-services/adminService'
 
 const defaultLegalContent = {
-  termsOfService: '',
-  privacyPolicy: '',
+  patientTermsOfService: '',
+  patientPrivacyPolicy: '',
+  doctorTermsOfService: '',
+  doctorPrivacyPolicy: '',
 }
+
+const textareaClassName =
+  'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20'
 
 const AdminLegalContent = () => {
   const toast = useToast()
@@ -45,8 +50,10 @@ const AdminLegalContent = () => {
     try {
       await updateAdminSettings({
         legalContent: {
-          termsOfService: legalContent.termsOfService || '',
-          privacyPolicy: legalContent.privacyPolicy || '',
+          patientTermsOfService: legalContent.patientTermsOfService || '',
+          patientPrivacyPolicy: legalContent.patientPrivacyPolicy || '',
+          doctorTermsOfService: legalContent.doctorTermsOfService || '',
+          doctorPrivacyPolicy: legalContent.doctorPrivacyPolicy || '',
         },
       })
       toast.success('Legal content saved successfully')
@@ -62,46 +69,84 @@ const AdminLegalContent = () => {
     <section className="flex flex-col gap-3 pb-20 pt-20 lg:pt-24">
       <header>
         <h1 className="text-2xl font-bold text-slate-900">Legal Content</h1>
-        <p className="mt-1 text-sm text-slate-600">Manage Terms of Service and Privacy Policy content for signup pages</p>
+        <p className="mt-1 text-sm text-slate-600">Manage separate Terms of Service and Privacy Policy content for patient and doctor signup pages</p>
       </header>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-3">
           <IoDocumentTextOutline className="h-6 w-6 text-primary" />
-          <h2 className="text-lg font-semibold text-slate-900">Public Legal Documents</h2>
+          <h2 className="text-lg font-semibold text-slate-900">Role-Based Legal Documents</h2>
         </div>
 
         {isLoading ? (
           <p className="text-sm text-slate-500">Loading legal content...</p>
         ) : (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="termsOfService" className="text-sm font-semibold text-slate-700">
-                Terms of Service
-              </label>
-              <textarea
-                id="termsOfService"
-                value={legalContent.termsOfService}
-                onChange={(event) => handleChange('termsOfService', event.target.value)}
-                placeholder="Write Terms of Service content here..."
-                rows={12}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-700">Patient</h3>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="patientTermsOfService" className="text-sm font-semibold text-slate-700">
+                    Terms of Service
+                  </label>
+                  <textarea
+                    id="patientTermsOfService"
+                    value={legalContent.patientTermsOfService}
+                    onChange={(event) => handleChange('patientTermsOfService', event.target.value)}
+                    placeholder="Write patient Terms of Service content here..."
+                    rows={10}
+                    className={textareaClassName}
+                  />
+                </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="privacyPolicy" className="text-sm font-semibold text-slate-700">
-                Privacy Policy
-              </label>
-              <textarea
-                id="privacyPolicy"
-                value={legalContent.privacyPolicy}
-                onChange={(event) => handleChange('privacyPolicy', event.target.value)}
-                placeholder="Write Privacy Policy content here..."
-                rows={12}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="patientPrivacyPolicy" className="text-sm font-semibold text-slate-700">
+                    Privacy Policy
+                  </label>
+                  <textarea
+                    id="patientPrivacyPolicy"
+                    value={legalContent.patientPrivacyPolicy}
+                    onChange={(event) => handleChange('patientPrivacyPolicy', event.target.value)}
+                    placeholder="Write patient Privacy Policy content here..."
+                    rows={10}
+                    className={textareaClassName}
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-700">Doctor</h3>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="doctorTermsOfService" className="text-sm font-semibold text-slate-700">
+                    Terms of Service
+                  </label>
+                  <textarea
+                    id="doctorTermsOfService"
+                    value={legalContent.doctorTermsOfService}
+                    onChange={(event) => handleChange('doctorTermsOfService', event.target.value)}
+                    placeholder="Write doctor Terms of Service content here..."
+                    rows={10}
+                    className={textareaClassName}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="doctorPrivacyPolicy" className="text-sm font-semibold text-slate-700">
+                    Privacy Policy
+                  </label>
+                  <textarea
+                    id="doctorPrivacyPolicy"
+                    value={legalContent.doctorPrivacyPolicy}
+                    onChange={(event) => handleChange('doctorPrivacyPolicy', event.target.value)}
+                    placeholder="Write doctor Privacy Policy content here..."
+                    rows={10}
+                    className={textareaClassName}
+                  />
+                </div>
+              </div>
+            </section>
           </div>
         )}
       </section>
@@ -121,4 +166,3 @@ const AdminLegalContent = () => {
 }
 
 export default AdminLegalContent
-

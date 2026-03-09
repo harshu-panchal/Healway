@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react'
+﻿import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
@@ -493,7 +493,7 @@ function DoctorRoutes() {
               path="/privacy-policy"
               element={
                 <Suspense fallback={<PageLoader />}>
-                  <PrivacyPolicy />
+                  <PrivacyPolicy role="doctor" />
                 </Suspense>
               }
             />
@@ -501,7 +501,7 @@ function DoctorRoutes() {
               path="/terms-of-service"
               element={
                 <Suspense fallback={<PageLoader />}>
-                  <TermsOfService />
+                  <TermsOfService role="doctor" />
                 </Suspense>
               }
             />
@@ -613,7 +613,7 @@ function App() {
       // Foreground notifications are shown as browser Notification objects
       // by setupForegroundNotificationHandler itself.
       // Add any custom in-app toast or UI update here if needed.
-      console.log('📬 Push notification received while app is open:', payload?.notification?.title)
+      console.log('ðŸ“¬ Push notification received while app is open:', payload?.notification?.title)
     })
   }, [])
 
@@ -646,10 +646,10 @@ function App() {
 
             {/* Public legal pages used by signup flows */}
             <Route path="/terms" element={
-              <Suspense fallback={<PageLoader />}><TermsOfService /></Suspense>
+              <Suspense fallback={<PageLoader />}><TermsOfService role="patient" /></Suspense>
             } />
             <Route path="/privacy" element={
-              <Suspense fallback={<PageLoader />}><PrivacyPolicy /></Suspense>
+              <Suspense fallback={<PageLoader />}><PrivacyPolicy role="patient" /></Suspense>
             } />
 
             {/* Default route - show landing page or redirect if authenticated */}
@@ -675,3 +675,5 @@ function App() {
 }
 
 export default App
+
+

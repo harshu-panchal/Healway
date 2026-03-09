@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+﻿const mongoose = require('mongoose');
 
 const adminSettingsSchema = new mongoose.Schema(
   {
@@ -54,6 +54,10 @@ const adminSettingsSchema = new mongoose.Schema(
     legalContent: {
       termsOfService: { type: String, default: '' },
       privacyPolicy: { type: String, default: '' },
+      patientTermsOfService: { type: String, default: '' },
+      patientPrivacyPolicy: { type: String, default: '' },
+      doctorTermsOfService: { type: String, default: '' },
+      doctorPrivacyPolicy: { type: String, default: '' },
       lastUpdatedAt: { type: Date },
     },
   },
@@ -75,4 +79,5 @@ adminSettingsSchema.statics.getSettings = async function () {
 const AdminSettings = mongoose.model('AdminSettings', adminSettingsSchema);
 
 module.exports = AdminSettings;
+
 

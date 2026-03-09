@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { IoArrowBackOutline, IoDocumentTextOutline } from 'react-icons/io5'
 import { getLegalDocument } from '../../services/legalService'
@@ -20,7 +20,7 @@ const formatDate = (value, defaultDate) => {
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
-const LegalContentPage = ({ type }) => {
+const LegalContentPage = ({ type, role }) => {
   const navigate = useNavigate()
   const location = useLocation()
   const [content, setContent] = useState('')
@@ -34,7 +34,7 @@ const LegalContentPage = ({ type }) => {
 
     const loadContent = async () => {
       try {
-        const data = await getLegalDocument(type)
+        const data = await getLegalDocument(type, role)
         if (!isMounted) return
         setContent((data?.content || '').trim())
         setLastUpdatedAt(data?.lastUpdatedAt || null)
@@ -51,7 +51,7 @@ const LegalContentPage = ({ type }) => {
     return () => {
       isMounted = false
     }
-  }, [type])
+  }, [type, role])
 
   const finalContent = useMemo(() => {
     return content || fallbackContent[type]
