@@ -118,6 +118,7 @@ const DoctorAppointments = () => {
   const [statistics, setStatistics] = useState(null); // Statistics from backend
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPeriod, setFilterPeriod] = useState("all"); // 'today', 'monthly', 'yearly', 'all'
+  const [selectedDate, setSelectedDate] = useState(""); // YYYY-MM-DD date filter
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [appointmentToCancel, setAppointmentToCancel] = useState(null);
   const [cancelReason, setCancelReason] = useState("");
@@ -153,7 +154,7 @@ const DoctorAppointments = () => {
   // Reset page when period filter or search changes
   useEffect(() => {
     setPage(1);
-  }, [filterPeriod, searchTerm]);
+  }, [filterPeriod, searchTerm, selectedDate]);
 
   // Fetch appointments from API
   useEffect(() => {
@@ -164,7 +165,8 @@ const DoctorAppointments = () => {
         const params = {
           page,
           limit,
-          ...(searchTerm && { search: searchTerm }), // Note: Backend may not support search, keeping for future compatibility
+          ...(searchTerm && { search: searchTerm }), // Note: Backend may not support search, kept for future compatibility
+          ...(selectedDate && { date: selectedDate }), // Let backend also filter by selected date
         };
         const data = await getDoctorAppointments(params);
 
@@ -190,13 +192,22 @@ const DoctorAppointments = () => {
             setStatistics(null);
           }
 
-          // Transform API data to match component structure
+      // Transform API data to match component structure
           const transformed = appointmentsData.map((apt) => {
             // Normalize date - use appointmentDate from backend
             const appointmentDate = apt.appointmentDate || apt.date;
-            const normalizedDate = appointmentDate
-              ? new Date(appointmentDate)
-              : new Date();
+        const normalizedDate = appointmentDate
+          ? new Date(appointmentDate)
+          : new Date();
+
+        // Local date string (YYYY-MM-DD) for reliable date filtering/display
+        let localDate = null;
+        if (!Number.isNaN(normalizedDate.getTime())) {
+          const y = normalizedDate.getFullYear();
+          const m = String(normalizedDate.getMonth() + 1).padStart(2, "0");
+          const d = String(normalizedDate.getDate()).padStart(2, "0");
+          localDate = `${y}-${m}-${d}`;
+        }
 
             return {
               id: apt._id || apt.id,
@@ -215,8 +226,9 @@ const DoctorAppointments = () => {
                 apt.patientId?.image ||
                 apt.patientImage ||
                 `https://ui-avatars.com/api/?name=${encodeURIComponent(apt.patientId?.firstName || "Patient")}&background=0077C2&color=fff&size=160`,
-              date: appointmentDate, // Use appointmentDate from backend
-              appointmentDate: appointmentDate, // Keep both for compatibility
+          date: appointmentDate, // Raw backend date
+          appointmentDate: appointmentDate, // Keep both for compatibility
+          localDate, // Local YYYY-MM-DD (used for filtering/display)
               time: apt.time || "",
               // Format type for display
               // Normalized consultation mode for internal logic
@@ -312,7 +324,7 @@ const DoctorAppointments = () => {
     // Refresh every 30 seconds to get new appointments
     const interval = setInterval(fetchAppointments, 30000);
     return () => clearInterval(interval);
-  }, [toast, page, limit, searchTerm]);
+  }, [toast, page, limit, searchTerm, selectedDate]);
 
   // Get today's date for filtering
   const today = new Date();
@@ -369,6 +381,24 @@ const DoctorAppointments = () => {
     }
     // 'all' shows all appointments
 
+    // Filter by selected calendar date (overlays on top of period filter)
+    if (selectedDate) {
+      filtered = filtered.filter((apt) => {
+        // Prefer precomputed localDate (YYYY-MM-DD); if missing, fall back to raw date
+        if (apt.localDate) {
+          return apt.localDate === selectedDate;
+        }
+        const raw = apt.date || apt.appointmentDate;
+        if (!raw) return false;
+        if (typeof raw === "string") {
+          const datePart = raw.split("T")[0];
+          return datePart === selectedDate;
+        }
+        const iso = raw.toISOString().slice(0, 10);
+        return iso === selectedDate;
+      });
+    }
+
     // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(
@@ -390,6 +420,7 @@ const DoctorAppointments = () => {
     appointments,
     filterPeriod,
     searchTerm,
+    selectedDate,
     today,
     tomorrow,
     currentMonthStart,
@@ -838,17 +869,41 @@ const DoctorAppointments = () => {
         </div>
 
         {/* Search Bar */}
-        <div className="relative">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-            <IoSearchOutline className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <input
-            type="search"
-            placeholder="Search by patient name, reason, or time..."
-            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm font-medium text-slate-900 shadow-sm transition-all placeholder:text-slate-400 hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-[rgba(0,119,194,0.2)]"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="space-y-2">
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <IoSearchOutline className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <input
+              type="search"
+              placeholder="Search by patient name, reason, or time..."
+              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm font-medium text-slate-900 shadow-sm transition-all placeholder:text-slate-400 hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-[rgba(0,119,194,0.2)]"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          {/* Date filter */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-slate-600">
+              Filter by date:
+            </label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-[rgba(0,119,194,0.3)]"
+            />
+            {selectedDate && (
+              <button
+                type="button"
+                onClick={() => setSelectedDate("")}
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Appointments List */}
@@ -1046,7 +1101,9 @@ const DoctorAppointments = () => {
                     <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:gap-x-2 sm:gap-y-1 text-xs sm:text-[10px] text-slate-600 mt-1 p-2.5 sm:p-0 bg-slate-50 sm:bg-transparent rounded-xl sm:rounded-none">
                       <div className="flex items-center gap-1.5 sm:gap-1">
                         <IoCalendarOutline className="h-4 w-4 sm:h-3 sm:w-3 text-primary shrink-0" />
-                        <span className="font-semibold text-slate-800">{formatDate(appointment.date)}</span>
+                        <span className="font-semibold text-slate-800">
+                          {formatDate(appointment.localDate || appointment.date)}
+                        </span>
                       </div>
                       <div className="flex items-center gap-1.5 sm:gap-1">
                         <IoTimeOutline className="h-4 w-4 sm:h-3 sm:w-3 text-primary shrink-0" />

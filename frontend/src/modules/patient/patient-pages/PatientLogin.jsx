@@ -31,7 +31,11 @@ const PatientLogin = () => {
   const location = useLocation()
   const toast = useToast()
   const [mode, setMode] = useState('login')
-  const [loginData, setLoginData] = useState({ phone: '', otp: '', remember: true })
+  const [loginData, setLoginData] = useState({
+    phone: localStorage.getItem('rememberedPatientPhone') || '',
+    otp: '',
+    remember: localStorage.getItem('patientRememberMe') !== 'false'
+  })
   const [signupData, setSignupData] = useState(initialSignupState)
 
   // OTP flow states
@@ -284,9 +288,24 @@ const PatientLogin = () => {
 
       if (response && response.tokens) {
         storePatientTokens(response.tokens, loginData.remember)
+
+        // Handle Remember Me logic
+        if (loginData.remember) {
+          localStorage.setItem('rememberedPatientPhone', loginData.phone)
+          localStorage.setItem('patientRememberMe', 'true')
+        } else {
+          localStorage.removeItem('rememberedPatientPhone')
+          localStorage.setItem('patientRememberMe', 'false')
+        }
+
         toast.success('Login successful! Redirecting...')
         // Register FCM token after login (fire-and-forget)
         registerFCMToken('patient', true).catch(() => { })
+        setLoginData({
+          phone: loginData.remember ? loginData.phone : '',
+          otp: '',
+          remember: loginData.remember
+        })
         navigate('/patient/dashboard', { replace: true })
       } else {
         toast.error('Login failed. Please try again.')

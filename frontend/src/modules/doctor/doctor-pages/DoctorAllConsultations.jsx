@@ -79,11 +79,12 @@ const DoctorAllConsultations = () => {
   const [page, setPage] = useState(1)
   const [limit] = useState(20)
   const [pagination, setPagination] = useState(null)
+  const [selectedDate, setSelectedDate] = useState('') // YYYY-MM-DD date filter
 
   // Reset page when filters or search change
   useEffect(() => {
     setPage(1)
-  }, [filterPeriod, filterStatus, searchTerm])
+  }, [filterPeriod, filterStatus, searchTerm, selectedDate])
 
   // Fetch consultations from API
   useEffect(() => {
@@ -107,22 +108,37 @@ const DoctorAllConsultations = () => {
             setPagination(response.pagination)
           }
 
-          const transformed = consultationsData.map(consultation => ({
-            id: consultation._id || consultation.id,
-            patientId: consultation.patientId?._id || consultation.patientId?.id || consultation.patientId || '',
-            patientName: consultation.patientId?.firstName && consultation.patientId?.lastName
-              ? `${consultation.patientId.firstName} ${consultation.patientId.lastName}`
-              : consultation.patientId?.name || consultation.patientName || 'Unknown Patient',
-            age: consultation.patientId?.age || consultation.age || null,
-            gender: consultation.patientId?.gender || consultation.gender || 'N/A',
-            patientImage: consultation.patientId?.profileImage || consultation.patientImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(consultation.patientId?.firstName || consultation.patientName || 'Patient')}&background=0077C2&color=fff&size=160`,
-            appointmentTime: consultation.appointmentTime || consultation.createdAt || consultation.date || new Date().toISOString(),
-            appointmentType: consultation.appointmentType || consultation.type || 'Follow-up',
-            status: consultation.status || 'completed',
-            reason: consultation.reason || consultation.complaint || consultation.chiefComplaint || 'Consultation',
-            type: consultation.type || 'In-person',
-            diagnosis: consultation.diagnosis || '',
-          }))
+          const transformed = consultationsData.map(consultation => {
+            const rawTime = consultation.appointmentTime || consultation.createdAt || consultation.date || new Date().toISOString()
+            const jsDate = new Date(rawTime)
+
+            // Local date string (YYYY-MM-DD) for reliable date filtering/display
+            let localDate = null
+            if (!Number.isNaN(jsDate.getTime())) {
+              const y = jsDate.getFullYear()
+              const m = String(jsDate.getMonth() + 1).padStart(2, '0')
+              const d = String(jsDate.getDate()).padStart(2, '0')
+              localDate = `${y}-${m}-${d}`
+            }
+
+            return {
+              id: consultation._id || consultation.id,
+              patientId: consultation.patientId?._id || consultation.patientId?.id || consultation.patientId || '',
+              patientName: consultation.patientId?.firstName && consultation.patientId?.lastName
+                ? `${consultation.patientId.firstName} ${consultation.patientId.lastName}`
+                : consultation.patientId?.name || consultation.patientName || 'Unknown Patient',
+              age: consultation.patientId?.age || consultation.age || null,
+              gender: consultation.patientId?.gender || consultation.gender || 'N/A',
+              patientImage: consultation.patientId?.profileImage || consultation.patientImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(consultation.patientId?.firstName || consultation.patientName || 'Patient')}&background=0077C2&color=fff&size=160`,
+              appointmentTime: rawTime,
+              localDate,
+              appointmentType: consultation.appointmentType || consultation.type || 'Follow-up',
+              status: consultation.status || 'completed',
+              reason: consultation.reason || consultation.complaint || consultation.chiefComplaint || 'Consultation',
+              type: consultation.type || 'In-person',
+              diagnosis: consultation.diagnosis || '',
+            }
+          })
 
           setConsultations(transformed)
         }
@@ -177,6 +193,23 @@ const DoctorAllConsultations = () => {
     }
     // 'all' shows all consultations
 
+    // Filter by selected calendar date (overlays on top of period filter)
+    if (selectedDate) {
+      filtered = filtered.filter((cons) => {
+        if (cons.localDate) {
+          return cons.localDate === selectedDate
+        }
+        const raw = cons.appointmentTime
+        if (!raw) return false
+        if (typeof raw === 'string') {
+          const datePart = raw.split('T')[0]
+          return datePart === selectedDate
+        }
+        const iso = raw.toISOString().slice(0, 10)
+        return iso === selectedDate
+      })
+    }
+
     // Filter by status
     if (filterStatus !== 'all') {
       filtered = filtered.filter((cons) => cons.status === filterStatus)
@@ -198,7 +231,7 @@ const DoctorAllConsultations = () => {
       const dateB = new Date(b.appointmentTime)
       return dateB - dateA
     })
-  }, [consultations, filterPeriod, filterStatus, searchTerm, today, tomorrow, currentMonthStart, currentMonthEnd, currentYearStart, currentYearEnd])
+  }, [consultations, filterPeriod, filterStatus, searchTerm, selectedDate, today, tomorrow, currentMonthStart, currentMonthEnd, currentYearStart, currentYearEnd])
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -349,18 +382,41 @@ const DoctorAllConsultations = () => {
           </button>
         </div>
 
-        {/* Search Bar */}
-        <div className="relative">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-            <IoSearchOutline className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <input
-            type="search"
-            placeholder="Search by patient name, reason, or diagnosis..."
-            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm font-medium text-slate-900 shadow-sm transition-all placeholder:text-slate-400 hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-[rgba(0,119,194,0.2)]"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        {/* Search + Date Filter */}
+        <div className="space-y-2">
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <IoSearchOutline className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <input
+              type="search"
+              placeholder="Search by patient name, reason, or diagnosis..."
+              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm font-medium text-slate-900 shadow-sm transition-all placeholder:text-slate-400 hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-[rgba(0,119,194,0.2)]"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-slate-600">
+              Filter by date:
+            </label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-[rgba(0,119,194,0.3)]"
+            />
+            {selectedDate && (
+              <button
+                type="button"
+                onClick={() => setSelectedDate('')}
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Consultations List */}
@@ -434,7 +490,9 @@ const DoctorAllConsultations = () => {
                       <div className="flex flex-col items-start gap-1.5 lg:gap-1.5 text-[10px] lg:text-xs text-slate-600 group-hover:text-slate-700 transition-colors">
                         <div className="flex items-center gap-1.5 w-full">
                           <IoCalendarOutline className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-slate-500 shrink-0" />
-                          <span className="line-clamp-1 flex-1">{formatDate(consultation.appointmentTime)}</span>
+                          <span className="line-clamp-1 flex-1">
+                            {formatDate(consultation.localDate || consultation.appointmentTime)}
+                          </span>
                         </div>
                         <div className="flex items-center gap-1.5 w-full">
                           <TypeIcon className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-slate-500 shrink-0" />

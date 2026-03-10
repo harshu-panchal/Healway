@@ -86,6 +86,9 @@ const AdminVerification = lazy(() => import('./modules/admin/admin-pages/AdminVe
 const AdminAnnouncements = lazy(() => import('./modules/admin/admin-pages/AdminAnnouncements'))
 const AdminSpecialization = lazy(() => import('./modules/admin/admin-pages/AdminSpecialization'))
 const AdminServices = lazy(() => import('./modules/admin/admin-pages/AdminServices.jsx'))
+const AdminForgotPassword = lazy(() => import('./modules/admin/admin-pages/AdminForgotPassword'))
+const AdminVerifyOTP = lazy(() => import('./modules/admin/admin-pages/AdminVerifyOTP'))
+const AdminResetPassword = lazy(() => import('./modules/admin/admin-pages/AdminResetPassword'))
 
 // Shared/Website Pages
 const NotificationsPage = lazy(() => import('./modules/shared/NotificationsPage'))
@@ -178,19 +181,24 @@ function PatientRoutes() {
 
 function AdminRoutes() {
   const location = useLocation()
-  const isLoginPage = location.pathname === '/admin/login'
+  const isPublicAdminPage = [
+    '/admin/login',
+    '/admin/forgot-password',
+    '/admin/verify-otp',
+    '/admin/reset-password'
+  ].includes(location.pathname)
   const token = getAuthToken('admin')
-  const isAuthenticated = !!token && !isLoginPage
+  const isAuthenticated = !!token && !isPublicAdminPage
 
-  // If not authenticated and not on login page, force redirect to login
-  if (!token && !isLoginPage) {
+  // If not authenticated and not on a public admin page, force redirect to login
+  if (!token && !isPublicAdminPage) {
     return <Navigate to="/admin/login" replace />
   }
 
   return (
     <NotificationProvider module="admin">
       {isAuthenticated && <AdminNavbar />}
-      <main className={isLoginPage ? '' : 'px-4 pb-24 pt-28 sm:px-6 lg:ml-64 transition-all duration-300'}>
+      <main className={isPublicAdminPage ? '' : 'px-4 pb-24 pt-28 sm:px-6 lg:ml-64 transition-all duration-300'}>
         <Routes>
           {/* Public route - Login page */}
           <Route path="/login" element={
@@ -250,6 +258,17 @@ function AdminRoutes() {
           } />
           <Route path="/notifications" element={
             <Suspense fallback={<PageLoader />}><ProtectedRoute module="admin"><NotificationsPage /></ProtectedRoute></Suspense>
+          } />
+
+          {/* Public Password Reset Routes */}
+          <Route path="/forgot-password" element={
+            <Suspense fallback={<PageLoader />}><AdminForgotPassword /></Suspense>
+          } />
+          <Route path="/verify-otp" element={
+            <Suspense fallback={<PageLoader />}><AdminVerifyOTP /></Suspense>
+          } />
+          <Route path="/reset-password" element={
+            <Suspense fallback={<PageLoader />}><AdminResetPassword /></Suspense>
           } />
 
           {/* Catch-all - redirect to login if not authenticated */}

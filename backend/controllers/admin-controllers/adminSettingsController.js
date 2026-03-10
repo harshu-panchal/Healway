@@ -59,3 +59,56 @@ exports.updateSettings = asyncHandler(async (req, res) => {
   });
 });
 
+// PATCH /api/admin/settings/commission
+// Convenience endpoint to update doctor commission rate from the Admin Wallet UI
+exports.updateCommissionRate = asyncHandler(async (req, res) => {
+  const { doctorCommissionRate, commission, rate } = req.body || {};
+
+  let input = doctorCommissionRate;
+  if (input == null && commission != null) input = commission;
+  if (input == null && rate != null) input = rate;
+
+  const numeric = Number(input);
+
+  if (!Number.isFinite(numeric)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Valid numeric commission rate is required',
+    });
+  }
+
+  // Accept either decimal (0.1) or percentage (10) from clients
+  let normalized = numeric;
+  if (normalized <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Commission rate must be greater than 0',
+    });
+  }
+
+  if (normalized > 1) {
+    normalized = normalized / 100;
+  }
+
+  if (normalized >= 1) {
+    return res.status(400).json({
+      success: false,
+      message: 'Commission rate must be less than 100%',
+    });
+  }
+
+  const settings = await AdminSettings.getSettings();
+  settings.paymentSettings = settings.paymentSettings || {};
+  settings.paymentSettings.commissionRate = settings.paymentSettings.commissionRate || {};
+  settings.paymentSettings.commissionRate.doctor = normalized;
+  await settings.save();
+
+  return res.status(200).json({
+    success: true,
+    message: 'Doctor commission rate updated successfully',
+    data: {
+      doctorCommissionRate: normalized,
+    },
+  });
+});
+

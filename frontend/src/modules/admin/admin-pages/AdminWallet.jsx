@@ -20,7 +20,7 @@ import {
   IoArrowUpOutline,
   IoCalendarOutline,
 } from 'react-icons/io5'
-import { getAdminWalletOverview, getProviderSummaries, getWithdrawals, updateWithdrawalStatus, getAdminWalletBalance, getAdminWalletTransactions } from '../admin-services/adminService'
+import { getAdminWalletOverview, getProviderSummaries, getWithdrawals, updateWithdrawalStatus, getAdminWalletBalance, getAdminWalletTransactions, getAdminSettings, updateAdminSettings } from '../admin-services/adminService'
 import { useToast } from '../../../contexts/ToastContext'
 
 // Default wallet overview - initialize with zeros to avoid showing mock data
@@ -141,8 +141,33 @@ const AdminWallet = () => {
   const [error, setError] = useState(null)
   const [earningsPeriod, setEarningsPeriod] = useState('all') // all, daily, weekly, monthly, yearly
   const [providerPeriod, setProviderPeriod] = useState('all') // Period filter for provider cards
+  const [commissionRate, setCommissionRate] = useState('10') // percentage string for doctor commission
+  const [isSavingCommission, setIsSavingCommission] = useState(false)
 
-  // Fetch wallet data from API
+  // Load commission settings once (avoid polling /admin/settings repeatedly)
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const settingsData = await getAdminSettings()
+        if (settingsData && settingsData.data) {
+          const doctorRate = settingsData.data.paymentSettings?.commissionRate?.doctor
+          const effectiveRate =
+            typeof doctorRate === 'number' && !Number.isNaN(doctorRate) && doctorRate > 0
+              ? doctorRate
+              : 0.1
+
+          setCommissionRate(String(Math.round(effectiveRate * 100)))
+        }
+      } catch (err) {
+        console.error('Error fetching admin settings:', err)
+        // Do not toast here to avoid noise; wallet can work with default 10%
+      }
+    }
+
+    fetchSettings()
+  }, [])
+
+  // Fetch wallet data from API (periodically)
   useEffect(() => {
     const fetchWalletData = async () => {
       try {
@@ -284,16 +309,13 @@ const AdminWallet = () => {
 
     fetchWalletData()
 
-    // Listen for appointment booking event to refresh wallet
+    // Listen for appointment booking event to refresh wallet once when needed
     const handleAppointmentBooked = () => {
       fetchWalletData()
     }
     window.addEventListener('appointmentBooked', handleAppointmentBooked)
 
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchWalletData, 30000)
     return () => {
-      clearInterval(interval)
       window.removeEventListener('appointmentBooked', handleAppointmentBooked)
     }
   }, [toast, earningsPeriod, providerPeriod])
@@ -314,6 +336,36 @@ const AdminWallet = () => {
 
   const earningsByRole = {
     doctors: walletOverview.doctorEarnings || 0,
+  }
+
+  const handleCommissionSave = async () => {
+    const trimmed = commissionRate.trim()
+    const numeric = Number(trimmed)
+    if (!Number.isFinite(numeric) || numeric <= 0) {
+      toast.error('Please enter a valid commission percentage greater than 0')
+      return
+    }
+    if (numeric >= 100) {
+      toast.error('Commission percentage must be less than 100')
+      return
+    }
+
+    try {
+      setIsSavingCommission(true)
+      await updateAdminSettings({
+        paymentSettings: {
+          commissionRate: {
+            doctor: numeric / 100,
+          },
+        },
+      })
+      toast.success('Commission rate updated successfully')
+    } catch (err) {
+      console.error('Error updating commission rate:', err)
+      toast.error(err.message || 'Failed to update commission rate')
+    } finally {
+      setIsSavingCommission(false)
+    }
   }
 
   const handleApprove = async (withdrawalId) => {
@@ -626,7 +678,26 @@ const AdminWallet = () => {
             </div>
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 mb-1">Platform Fees</p>
             <p className="text-xl sm:text-2xl font-bold text-slate-900">{loading ? '...' : formatCurrency(walletOverview.totalCommission)}</p>
-            <p className="mt-1 text-[10px] text-slate-500">Platform fees</p>
+            <p className="mt-1 text-[10px] text-slate-500 mb-3">Platform fees</p>
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="number"
+                min="1"
+                max="99"
+                value={commissionRate}
+                onChange={(e) => setCommissionRate(e.target.value)}
+                className="w-20 rounded-lg border border-emerald-200 bg-white px-2 py-1 text-xs text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+              <span className="text-xs text-slate-600">% doctor commission</span>
+              <button
+                type="button"
+                onClick={handleCommissionSave}
+                disabled={isSavingCommission}
+                className="ml-auto rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-700 disabled:bg-emerald-300 disabled:cursor-not-allowed"
+              >
+                {isSavingCommission ? 'Saving...' : 'Save'}
+              </button>
+            </div>
           </div>
         </article>
 

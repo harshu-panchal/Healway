@@ -54,7 +54,13 @@ const requestPasswordReset = async ({ role, email }) => {
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 
-  await sendPasswordResetOtpEmail({ role, email, otp });
+  const emailResult = await sendPasswordResetOtpEmail({ role, email, otp });
+
+  if (!emailResult) {
+    const error = new Error('Failed to send OTP email. Please check server configuration.');
+    error.status = 500;
+    throw error;
+  }
 
   return {
     message: 'OTP sent to registered email address.',

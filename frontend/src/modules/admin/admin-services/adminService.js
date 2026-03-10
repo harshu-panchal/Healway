@@ -1,5 +1,9 @@
-// Admin service utilities for API calls
 import apiClient, { storeTokens, clearTokens } from '../../../utils/apiClient'
+
+// Cache for admin settings to reduce redundant API calls
+let settingsCache = null
+let settingsCacheTime = 0
+const SETTINGS_CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 
 /**
  * Admin login
@@ -381,9 +385,16 @@ export const updateAdminPassword = async (passwordData) => {
  * Get admin settings
  */
 export const getAdminSettings = async () => {
+  const now = Date.now()
+  if (settingsCache && (now - settingsCacheTime < SETTINGS_CACHE_DURATION)) {
+    return settingsCache
+  }
+
   try {
     const response = await apiClient.get('/admin/settings')
-    return response.data
+    settingsCache = response.data
+    settingsCacheTime = now
+    return settingsCache
   } catch (error) {
     console.error('Error fetching admin settings:', error)
     throw error
@@ -396,6 +407,9 @@ export const getAdminSettings = async () => {
 export const updateAdminSettings = async (settings) => {
   try {
     const response = await apiClient.patch('/admin/settings', settings)
+    // Invalidate cache on update
+    settingsCache = null
+    settingsCacheTime = 0
     return response.data
   } catch (error) {
     console.error('Error updating admin settings:', error)
@@ -428,7 +442,7 @@ export const logoutAdmin = async () => {
 export const forgotPassword = async (email) => {
   try {
     const response = await apiClient.post('/admin/auth/forgot-password', { email })
-    return response.data
+    return response
   } catch (error) {
     console.error('Error requesting password reset:', error)
     throw error
@@ -443,7 +457,7 @@ export const forgotPassword = async (email) => {
 export const verifyPasswordOtp = async (data) => {
   try {
     const response = await apiClient.post('/admin/auth/verify-otp', data)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error verifying OTP:', error)
     throw error
@@ -458,7 +472,7 @@ export const verifyPasswordOtp = async (data) => {
 export const resetPassword = async (data) => {
   try {
     const response = await apiClient.post('/admin/auth/reset-password', data)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error resetting password:', error)
     throw error
@@ -471,7 +485,7 @@ export const resetPassword = async (data) => {
  */
 export const getRevenueOverview = async (period = 'all') => {
   try {
-    const response = await apiClient.get(`/admin/revenue?period=${period}`)
+    const response = await apiClient.get('/admin/revenue', { period })
     return response.data
   } catch (error) {
     console.error('Error fetching revenue overview:', error)
@@ -499,9 +513,8 @@ export const getProviderRevenue = async (type, period = 'all') => {
  */
 export const getAdminWalletOverview = async (period = 'all') => {
   try {
-    const response = await apiClient.get('/admin/wallet/overview', {
-      params: { period }
-    })
+    // ApiClient expects the second argument to be the query object directly
+    const response = await apiClient.get('/admin/wallet/overview', { period })
     return response.data
   } catch (error) {
     console.error('Error fetching wallet overview:', error)
@@ -517,7 +530,8 @@ export const getProviderSummaries = async (role = null, period = 'all') => {
     const params = {}
     if (role) params.role = role
     if (period) params.period = period
-    const response = await apiClient.get('/admin/wallet/providers', { params })
+    // Pass query params directly so they serialize correctly (?period=monthly)
+    const response = await apiClient.get('/admin/wallet/providers', params)
     return response.data
   } catch (error) {
     console.error('Error fetching provider summaries:', error)

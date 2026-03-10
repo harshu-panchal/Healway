@@ -122,7 +122,7 @@ exports.updateQueueStatus = asyncHandler(async (req, res) => {
     const totalAmount = appointment.paidAmount || appointment.fee || 0;
 
     if (totalAmount > 0) {
-      const { earning, commission } = calculateProviderEarning(totalAmount, 'doctor');
+      const { earning, commission } = await calculateProviderEarning(totalAmount, 'doctor');
       const doctor = await Doctor.findById(id);
       if (doctor) {
         doctor.walletBalance = (doctor.walletBalance || 0) + earning;
@@ -244,7 +244,7 @@ exports.markAsPaid = asyncHandler(async (req, res) => {
   // Credit doctor's wallet for the cash payment received (recording the earning after commission)
   const doctor = await Doctor.findById(doctorId);
   if (doctor) {
-    const { earning, commission } = calculateProviderEarning(remaining, 'doctor');
+    const { earning, commission } = await calculateProviderEarning(remaining, 'doctor');
     doctor.walletBalance = (doctor.walletBalance || 0) + earning;
     await doctor.save();
 

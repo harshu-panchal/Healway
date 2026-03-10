@@ -18,7 +18,11 @@ const AdminLogin = () => {
   const toast = useToast()
 
   // Login state
-  const [loginData, setLoginData] = useState({ email: '', password: '', remember: true })
+  const [loginData, setLoginData] = useState({
+    email: localStorage.getItem('rememberedAdminEmail') || '',
+    password: '',
+    remember: localStorage.getItem('adminRememberMe') !== 'false'
+  })
   const [showLoginPassword, setShowLoginPassword] = useState(false)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [loginErrors, setLoginErrors] = useState({})
@@ -71,7 +75,16 @@ const AdminLogin = () => {
       // Store tokens and profile
       if (data?.tokens) {
         storeAdminTokens(data.tokens, loginData.remember)
-        
+
+        // Handle Remember Me logic
+        if (loginData.remember) {
+          localStorage.setItem('rememberedAdminEmail', loginData.email)
+          localStorage.setItem('adminRememberMe', 'true')
+        } else {
+          localStorage.removeItem('rememberedAdminEmail')
+          localStorage.setItem('adminRememberMe', 'false')
+        }
+
         // Store admin profile
         if (data.admin) {
           const storage = loginData.remember ? localStorage : sessionStorage
@@ -80,6 +93,10 @@ const AdminLogin = () => {
       }
 
       toast.success('Login successful! Redirecting to dashboard...')
+      setLoginData(prev => ({
+        ...prev,
+        password: '',
+      }))
       setTimeout(() => {
         navigate('/admin/dashboard', { replace: true })
       }, 500)
@@ -148,11 +165,10 @@ const AdminLogin = () => {
                   autoComplete="email"
                   required
                   placeholder="admin@healway.com"
-                  className={`w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 pl-11 text-sm text-slate-900 outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 ${
-                    loginErrors.email
-                      ? 'border-red-300 focus:border-red-500 focus:ring-red-500/10'
-                      : ''
-                  }`}
+                  className={`w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 pl-11 text-sm text-slate-900 outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 ${loginErrors.email
+                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500/10'
+                    : ''
+                    }`}
                 />
               </div>
               {loginErrors.email && (
@@ -178,11 +194,10 @@ const AdminLogin = () => {
                   autoComplete="current-password"
                   required
                   placeholder="••••••••"
-                  className={`w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 pl-11 pr-12 text-sm text-slate-900 outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 ${
-                    loginErrors.password
-                      ? 'border-red-300 focus:border-red-500 focus:ring-red-500/10'
-                      : ''
-                  }`}
+                  className={`w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 pl-11 pr-12 text-sm text-slate-900 outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 ${loginErrors.password
+                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500/10'
+                    : ''
+                    }`}
                 />
                 <button
                   type="button"
@@ -216,6 +231,7 @@ const AdminLogin = () => {
               </label>
               <button
                 type="button"
+                onClick={() => navigate('/admin/forgot-password')}
                 className="text-sm font-semibold text-primary hover:text-primary-dark transition-colors"
               >
                 Forgot password?
@@ -224,7 +240,7 @@ const AdminLogin = () => {
 
             {/* Submit Error */}
             {loginErrors.submit && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="rounded-xl bg-red-50 border border-red-100 p-4 text-sm text-red-600"

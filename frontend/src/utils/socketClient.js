@@ -62,15 +62,15 @@ export const initSocket = (module) => {
     auth: {
       token: token.trim(), // Ensure token is trimmed
     },
-    transports: ['polling', 'websocket'], // Try polling first, then websocket
+    transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
     reconnection: true,
-    reconnectionDelay: 2000, // Start with 2 seconds delay
-    reconnectionDelayMax: 10000, // Max 10 seconds delay
-    reconnectionAttempts: Infinity, // Keep trying to reconnect
-    timeout: 20000, // 20 seconds timeout
-    forceNew: true, // Force new connection
-    withCredentials: true, // Include credentials in CORS requests
-    autoConnect: true, // Auto connect on initialization
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    reconnectionAttempts: Infinity,
+    timeout: 45000, // Increase timeout for slower connections
+    forceNew: true,
+    withCredentials: true,
+    autoConnect: true,
     // Suppress connection errors in console when server is not available
     rejectUnauthorized: false, // For development only
   })

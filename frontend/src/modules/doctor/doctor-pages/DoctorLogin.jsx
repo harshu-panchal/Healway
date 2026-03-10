@@ -37,6 +37,28 @@ import {
 } from '../doctor-services/doctorService'
 import { registerFCMToken } from '../../../services/pushNotificationService'
 
+// Helper to get initial login state based on role and saved "remember me" values
+const getInitialLoginStateForRole = (role) => {
+  if (role === 'patient') {
+    return {
+      phone: typeof window !== 'undefined' ? (localStorage.getItem('rememberedPatientPhone') || '') : '',
+      otp: '',
+      remember:
+        typeof window !== 'undefined'
+          ? localStorage.getItem('patientRememberMe') !== 'false'
+          : true,
+    }
+  }
+
+  return {
+    phone: typeof window !== 'undefined' ? (localStorage.getItem('rememberedDoctorPhone') || '') : '',
+    otp: '',
+    remember:
+      typeof window !== 'undefined'
+        ? localStorage.getItem('doctorRememberMe') !== 'false'
+        : true,
+  }
+}
 
 const DoctorLogin = () => {
   const navigate = useNavigate()
@@ -46,8 +68,10 @@ const DoctorLogin = () => {
   const [mode, setMode] = useState('login') // 'login' | 'signup'
   const [userRole, setUserRole] = useState('patient') // 'doctor' | 'patient'
 
-  // OTP-based login data states
-  const [doctorLoginData, setDoctorLoginData] = useState({ phone: '', otp: '', remember: true })
+  // OTP-based login data states (shared for both doctor/patient roles)
+  const [doctorLoginData, setDoctorLoginData] = useState(() =>
+    getInitialLoginStateForRole('patient')
+  )
 
 
   // OTP flow states
@@ -215,7 +239,7 @@ const DoctorLogin = () => {
     setOtpTimer(0)
     setIsSubmitting(false)
     setSignupStep(1)
-    setDoctorLoginData({ phone: '', otp: '', remember: true })
+    setDoctorLoginData(getInitialLoginStateForRole(role))
   }
 
   // Fetch specialties and services on mount
@@ -422,13 +446,26 @@ const DoctorLogin = () => {
 
         if (response && response.tokens) {
           storePatientTokensFromDoctor(response.tokens, loginData.remember)
+
+          // Handle Remember Me logic
+          if (loginData.remember) {
+            localStorage.setItem('rememberedPatientPhone', loginData.phone)
+            localStorage.setItem('patientRememberMe', 'true')
+          } else {
+            localStorage.removeItem('rememberedPatientPhone')
+            localStorage.setItem('patientRememberMe', 'false')
+          }
         }
 
         if (response) {
           toast.success('Welcome back! Redirecting to patient dashboard...')
           // Register FCM token after patient login (fire-and-forget)
           registerFCMToken('patient', true).catch(() => { })
-          setCurrentLoginData({ phone: '', otp: '', remember: true })
+          setCurrentLoginData({
+            phone: loginData.remember ? loginData.phone : '',
+            otp: '',
+            remember: loginData.remember
+          })
           setOtpSent(false)
           setOtpTimer(0)
           setIsSubmitting(false)
@@ -443,13 +480,26 @@ const DoctorLogin = () => {
 
         if (response && response.tokens) {
           storeDoctorTokens(response.tokens, loginData.remember)
+
+          // Handle Remember Me logic
+          if (loginData.remember) {
+            localStorage.setItem('rememberedDoctorPhone', loginData.phone)
+            localStorage.setItem('doctorRememberMe', 'true')
+          } else {
+            localStorage.removeItem('rememberedDoctorPhone')
+            localStorage.setItem('doctorRememberMe', 'false')
+          }
         }
 
         if (response) {
           toast.success(`Welcome back! Redirecting to doctor dashboard...`)
           // Register FCM token after doctor login (fire-and-forget)
           registerFCMToken('doctor', true).catch(() => { })
-          setCurrentLoginData({ phone: '', otp: '', remember: true })
+          setCurrentLoginData({
+            phone: loginData.remember ? loginData.phone : '',
+            otp: '',
+            remember: loginData.remember
+          })
           setOtpSent(false)
           setOtpTimer(0)
           setIsSubmitting(false)

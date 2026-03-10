@@ -103,7 +103,7 @@ exports.getWalletOverview = asyncHandler(async (req, res) => {
   let totalGBVFromAppointments = 0;
   for (const apt of allAppointments) {
     if (apt.fee) {
-      const { commission } = calculateProviderEarning(apt.fee, 'doctor');
+      const { commission } = await calculateProviderEarning(apt.fee, 'doctor');
       totalCommissionFromAppointments += commission;
       totalGBVFromAppointments += apt.fee;
     }
@@ -144,7 +144,7 @@ exports.getWalletOverview = asyncHandler(async (req, res) => {
   let thisMonthCommission = 0;
   for (const apt of thisMonthAppointments) {
     if (apt.fee) {
-      const { commission } = calculateProviderEarning(apt.fee, 'doctor');
+      const { commission } = await calculateProviderEarning(apt.fee, 'doctor');
       thisMonthCommission += commission;
     }
   }
@@ -160,7 +160,7 @@ exports.getWalletOverview = asyncHandler(async (req, res) => {
   let lastMonthCommission = 0;
   for (const apt of lastMonthAppointments) {
     if (apt.fee) {
-      const { commission } = calculateProviderEarning(apt.fee, 'doctor');
+      const { commission } = await calculateProviderEarning(apt.fee, 'doctor');
       lastMonthCommission += commission;
     }
   }
@@ -172,6 +172,7 @@ exports.getWalletOverview = asyncHandler(async (req, res) => {
     data: {
       totalEarnings: totalCommission,
       totalCommission: totalCommission,
+      doctorEarnings: Number(doctorEarnings) || 0,
       totalGBV: Number(totalPatientPayments) || 0,
       availableBalance: Number(adminAvailableBalance) || 0,
       pendingWithdrawals: Number(pendingAmount) || 0,

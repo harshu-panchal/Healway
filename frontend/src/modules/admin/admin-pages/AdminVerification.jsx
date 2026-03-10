@@ -3,7 +3,7 @@ import {
   IoSearchOutline,
   IoMedicalOutline,
   IoPeopleOutline,
-  IoCloseOutline ,
+  IoCloseOutline,
   IoCheckmarkCircleOutline,
   IoCloseCircleOutline,
   IoTimeOutline,
@@ -14,6 +14,16 @@ import {
   IoEyeOutline,
   IoDocumentTextOutline,
   IoDownloadOutline,
+  IoMaleFemaleOutline,
+  IoSchoolOutline,
+  IoRibbonOutline,
+  IoLanguageOutline,
+  IoBusinessOutline,
+  IoWalletOutline,
+  IoCardOutline,
+  IoCashOutline,
+  IoBriefcaseOutline,
+  IoInformationCircleOutline,
 } from 'react-icons/io5'
 import { useToast } from '../../../contexts/ToastContext'
 import {
@@ -111,6 +121,10 @@ const transformVerification = (item, type) => {
       rejectionReason: item.rejectionReason || '',
       approvedAt: item.approvedAt || null,
       rejectedAt: item.status === 'rejected' ? item.updatedAt : null,
+      services: item.services && Array.isArray(item.services) ? item.services : [],
+      fees: item.fees || {},
+      withdrawalMethod: item.withdrawalMethod || 'none',
+      withdrawalDetails: item.withdrawalDetails || {},
     }
   }
   return null
@@ -164,6 +178,80 @@ const AdminVerification = () => {
   useEffect(() => {
     setCurrentPage(1)
   }, [statusFilter, searchTerm])
+
+  const handleDownload = async (fileUrl, fileName) => {
+    try {
+      const normalizedUrl = normalizeDocumentUrl(fileUrl)
+
+      // If it's a Cloudinary URL, we can use the fl_attachment transformation to force download
+      let downloadUrl = normalizedUrl
+      if (normalizedUrl.includes('res.cloudinary.com') && !normalizedUrl.includes('/raw/upload/')) {
+        // Find if it has /upload/ and replace with /upload/fl_attachment/
+        downloadUrl = normalizedUrl.replace('/upload/', '/upload/fl_attachment/')
+      }
+
+      // We attempt to fetch the file to create a blob for a truly direct download if possible
+      try {
+        const response = await fetch(downloadUrl, { mode: 'cors' })
+        if (response.ok) {
+          const blob = await response.blob()
+          const blobUrl = window.URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = blobUrl
+          a.download = fileName || 'document.pdf'
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          window.URL.revokeObjectURL(blobUrl)
+          return
+        }
+      } catch (err) {
+        console.warn('Direct blob download failed (likely CORS), falling back to URL open', err)
+      }
+
+      // Fallback: Use the link with download attribute or just open it
+      window.open(downloadUrl, '_blank')
+    } catch (error) {
+      console.error('Download error:', error)
+      toast.error('Failed to download document')
+    }
+  }
+
+  const handleViewDocument = async (fileUrl, fileName) => {
+    try {
+      const normalizedUrl = normalizeDocumentUrl(fileUrl)
+      // Check for PDF by extension in either URL or original filename
+      const isPdf = fileUrl?.toLowerCase().endsWith('.pdf') || fileName?.toLowerCase().endsWith('.pdf')
+
+      // Use the fetch strategy whenever possible for PDFs as it's the most reliable way to force inline viewing
+      if (isPdf) {
+        try {
+          const response = await fetch(normalizedUrl, { mode: 'cors' })
+          if (response.ok) {
+            const blob = await response.blob()
+            const viewUrl = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
+            window.open(viewUrl, '_blank')
+            return
+          }
+        } catch (err) {
+          console.warn('PDF blob view failed (CORS), trying URL-based display', err)
+        }
+      }
+
+      // Fallback for Cloudinary inline display
+      let finalUrl = normalizedUrl
+      if (normalizedUrl.includes('res.cloudinary.com') && !normalizedUrl.includes('/raw/upload/')) {
+        finalUrl = normalizedUrl.replace('/upload/fl_attachment/', '/upload/fl_inline/')
+        if (!finalUrl.includes('fl_inline')) {
+          finalUrl = finalUrl.replace('/upload/', '/upload/fl_inline/')
+        }
+      }
+      window.open(finalUrl, '_blank')
+    } catch (error) {
+      console.error('View error:', error)
+      toast.error('Failed to open document')
+    }
+  }
 
   useEffect(() => {
     loadVerifications()
@@ -442,51 +530,307 @@ const AdminVerification = () => {
 
       {viewingVerification && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setViewingVerification(null)}>
-          <div className="w-full max-w-lg rounded-xl border border-slate-200 bg-white shadow-xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-              <h2 className="text-base font-semibold text-slate-900">Verification Details</h2>
-              <button onClick={() => setViewingVerification(null)} className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100">
-                <IoCloseOutline className="h-4 w-4" />
+          <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${getTypeColor(viewingVerification.type)}`}>
+                  {(() => {
+                    const Icon = getTypeIcon(viewingVerification.type)
+                    return <Icon className="h-5 w-5" />
+                  })()}
+                </div>
+                <h2 className="text-lg font-bold text-slate-900">Verification Details</h2>
+              </div>
+              <button onClick={() => setViewingVerification(null)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 transition-colors">
+                <IoCloseOutline className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-4 space-y-4">
-              <div>
-                <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">Basic Information</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-slate-500">Name</p>
-                    <p className="mt-1 text-sm font-semibold text-slate-900">{viewingVerification.name}</p>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+              {/* Basic Information */}
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <IoInformationCircleOutline className="h-5 w-5 text-primary" />
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Basic Information</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase">Full Name</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">{viewingVerification.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase">Email Address</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">{viewingVerification.email}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Email</p>
-                    <p className="mt-1 text-sm font-semibold text-slate-900">{viewingVerification.email}</p>
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase">Phone Number</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">{viewingVerification.phone || 'N/A'}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase">Gender</p>
+                        <p className="mt-1 text-sm font-bold text-slate-900 capitalize">{viewingVerification.gender || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase">Status</p>
+                        <span className={`mt-1 inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase ${viewingVerification.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : viewingVerification.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {viewingVerification.status}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </section>
+
+              {/* Professional Information */}
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <IoBriefcaseOutline className="h-5 w-5 text-primary" />
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Professional Information</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase">Specialization</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">{viewingVerification.specialty || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase">License Number</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">{viewingVerification.licenseNumber || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase">Qualification</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">{viewingVerification.qualification || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase">Experience</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">{viewingVerification.experienceYears ? `${viewingVerification.experienceYears} Years` : 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase">Languages</p>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {viewingVerification.languages.length > 0 ? (
+                          viewingVerification.languages.map((lang, i) => (
+                            <span key={i} className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[10px] font-medium text-slate-600">
+                              {lang}
+                            </span>
+                          ))
+                        ) : 'N/A'}
+                      </div>
+                    </div>
+                    {viewingVerification.education.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase">Education</p>
+                        <ul className="mt-1 space-y-1">
+                          {viewingVerification.education.map((edu, i) => (
+                            <li key={i} className="text-xs font-bold text-slate-900">{edu}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {viewingVerification.bio && (
+                  <div className="mt-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p className="text-xs font-semibold text-slate-500 uppercase">Biography</p>
+                    <p className="mt-2 text-sm text-slate-600 leading-relaxed italic">"{viewingVerification.bio}"</p>
+                  </div>
+                )}
+                {viewingVerification.services.length > 0 && (
+                  <div className="mt-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Services Offered</p>
+                    <div className="flex flex-wrap gap-2">
+                      {viewingVerification.services.map((service, i) => (
+                        <span key={i} className="px-2.5 py-1 bg-primary/10 text-primary rounded-full text-[11px] font-bold">
+                          {service}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              {/* Clinic & Location */}
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <IoBusinessOutline className="h-5 w-5 text-primary" />
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Clinic & Location</h3>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase">Clinic Name</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">{viewingVerification.clinic || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase">Full Address</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">{viewingVerification.fullAddress || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Consultation & Fees */}
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <IoCashOutline className="h-5 w-5 text-primary" />
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Consultation & Fees</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                    <p className="text-[10px] font-bold text-emerald-600 uppercase">In-Person</p>
+                    <div className="mt-2 text-lg font-black text-emerald-700">
+                      ₹{viewingVerification.fees?.inPerson?.final || 0}
+                    </div>
+                    {viewingVerification.fees?.inPerson?.discount > 0 && (
+                      <p className="text-[10px] text-emerald-500 line-through">₹{viewingVerification.fees.inPerson.original}</p>
+                    )}
+                  </div>
+                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                    <p className="text-[10px] font-bold text-blue-600 uppercase">Video Call</p>
+                    <div className="mt-2 text-lg font-black text-blue-700">
+                      ₹{viewingVerification.fees?.videoCall?.final || 0}
+                    </div>
+                    {viewingVerification.fees?.videoCall?.discount > 0 && (
+                      <p className="text-[10px] text-blue-500 line-through">₹{viewingVerification.fees.videoCall.original}</p>
+                    )}
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
+                    <p className="text-[10px] font-bold text-purple-600 uppercase">Voice Call</p>
+                    <div className="mt-2 text-lg font-black text-purple-700">
+                      ₹{viewingVerification.fees?.voiceCall?.final || 0}
+                    </div>
+                    {viewingVerification.fees?.voiceCall?.discount > 0 && (
+                      <p className="text-[10px] text-purple-500 line-through">₹{viewingVerification.fees.voiceCall.original}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Modes Offered</p>
+                  <div className="flex flex-wrap gap-2">
+                    {viewingVerification.consultationModes.length > 0 ? (
+                      viewingVerification.consultationModes.map((mode, i) => (
+                        <span key={i} className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700">
+                          {mode}
+                        </span>
+                      ))
+                    ) : 'N/A'}
+                  </div>
+                </div>
+              </section>
+
+              {/* Payout Details */}
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <IoWalletOutline className="h-5 w-5 text-primary" />
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Payout Details</h3>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <div className="mb-4">
+                    <p className="text-xs font-semibold text-slate-500 uppercase">Method</p>
+                    <p className="mt-1 text-sm font-bold text-slate-900 uppercase">{viewingVerification.withdrawalMethod || 'Not Set'}</p>
+                  </div>
+
+                  {viewingVerification.withdrawalMethod === 'bank_transfer' && viewingVerification.withdrawalDetails?.bank ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase">Account Holder</p>
+                        <p className="mt-1 text-sm font-bold text-slate-900">{viewingVerification.withdrawalDetails.bank.accountHolderName || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase">Bank Name</p>
+                        <p className="mt-1 text-sm font-bold text-slate-900">{viewingVerification.withdrawalDetails.bank.bankName || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase">Account Number</p>
+                        <p className="mt-1 text-sm font-bold text-slate-900">{viewingVerification.withdrawalDetails.bank.accountNumber || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase">IFSC Code</p>
+                        <p className="mt-1 text-sm font-bold text-slate-900">{viewingVerification.withdrawalDetails.bank.ifscCode || 'N/A'}</p>
+                      </div>
+                    </div>
+                  ) : viewingVerification.withdrawalMethod === 'upi' && viewingVerification.withdrawalDetails?.upi ? (
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase">UPI ID</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">{viewingVerification.withdrawalDetails.upi.upiId || 'N/A'}</p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500 italic">No payout details provided yet.</p>
+                  )}
+                </div>
+              </section>
+
+              {/* Documents */}
               {viewingVerification.documents && viewingVerification.documents.length > 0 && (
-                <div>
-                  <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">Documents</h3>
-                  <div className="space-y-2">
+                <section>
+                  <div className="flex items-center gap-2 mb-4">
+                    <IoDocumentTextOutline className="h-5 w-5 text-primary" />
+                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Verification Documents</h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {viewingVerification.documents.map((doc, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-2 rounded-lg border border-slate-200 bg-slate-50">
-                        <div className="flex items-center gap-2">
-                          <IoDocumentTextOutline className="h-4 w-4 text-slate-400" />
-                          <span className="text-xs font-medium text-slate-700">{doc.name}</span>
+                      <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-white group hover:border-primary transition-colors">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <IoDocumentTextOutline className="h-5 w-5 text-slate-400 group-hover:text-primary" />
+                          <div className="min-w-0">
+                            <span className="block text-xs font-bold text-slate-700 truncate">{doc.name}</span>
+                            {doc.uploadedAt && <span className="block text-[10px] text-slate-400">{formatDate(doc.uploadedAt)}</span>}
+                          </div>
                         </div>
-                        <a href={normalizeDocumentUrl(doc.fileUrl)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
-                          <IoDownloadOutline className="h-3.5 w-3.5" />
-                          Download
-                        </a>
+                        <div className="shrink-0 flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleViewDocument(doc.fileUrl, doc.name)}
+                            className="flex items-center justify-center p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                            title="View Document"
+                          >
+                            <IoEyeOutline className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDownload(doc.fileUrl, doc.name)}
+                            className="flex items-center justify-center p-2 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                            title="Download Document"
+                          >
+                            <IoDownloadOutline className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
-                </div>
+                </section>
               )}
             </div>
-            <div className="border-t border-slate-100 p-4 bg-slate-50 flex justify-end gap-3">
-              <button onClick={() => setViewingVerification(null)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">
-                Close
-              </button>
+
+            <div className="border-t border-slate-200 p-6 bg-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="text-[11px] text-slate-400 italic">
+                Submitted on: {formatDate(viewingVerification.submittedAt)}
+              </div>
+              <div className="flex gap-3 w-full sm:w-auto">
+                <button onClick={() => setViewingVerification(null)} className="flex-1 sm:flex-none px-6 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors">
+                  Close
+                </button>
+                {viewingVerification.status === 'pending' && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleApprove(viewingVerification.id)}
+                      className="px-6 py-2.5 text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleRejectClick(viewingVerification.id)}
+                      className="px-6 py-2.5 text-sm font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 shadow-lg shadow-red-200 transition-all"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

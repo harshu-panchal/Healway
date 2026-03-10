@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 const WalletTransaction = require('../../models/WalletTransaction');
 const WithdrawalRequest = require('../../models/WithdrawalRequest');
 const Doctor = require('../../models/Doctor');
-const { getCommissionRateByRole } = require('../../utils/constants');
 const { sendWithdrawalRequestNotification } = require('../../services/notificationService');
 
 // Helper functions

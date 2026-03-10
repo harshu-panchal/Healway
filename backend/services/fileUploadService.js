@@ -92,9 +92,9 @@ const getFileExtension = (filename, mimetype) => {
 const getResourceType = (mimetype) => {
   if (!mimetype) return 'auto';
   if (mimetype.startsWith('image/')) return 'image';
-  if (mimetype === 'application/pdf') return 'raw';
+  if (mimetype === 'application/pdf') return 'image'; // PDF as image allows inline viewing on Cloudinary
   if (mimetype.startsWith('video/')) return 'video';
-  return 'raw';
+  return 'auto'; // Default to auto instead of raw
 };
 
 /**

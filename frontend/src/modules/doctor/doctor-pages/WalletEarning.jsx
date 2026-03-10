@@ -167,14 +167,28 @@ const WalletEarning = () => {
             lastMonthEarnings: Number(data.lastMonthEarnings || 0),
             thisYearEarnings: Number(data.thisYearEarnings || 0),
             todayEarnings: Number(data.todayEarnings || 0),
-            earnings: earningsList.map(earn => ({
-              id: earn._id || earn.id,
-              amount: Number(earn.amount || 0),
-              description: getDescription(earn),
-              date: earn.createdAt || earn.date || new Date().toISOString(),
-              status: earn.status || 'completed',
-              category: getCategory(earn),
-            })),
+            earnings: earningsList.map(earn => {
+              const rawDate = earn.createdAt || earn.date || new Date().toISOString()
+              const jsDate = new Date(rawDate)
+
+              let localDate = null
+              if (!Number.isNaN(jsDate.getTime())) {
+                const y = jsDate.getFullYear()
+                const m = String(jsDate.getMonth() + 1).padStart(2, '0')
+                const d = String(jsDate.getDate()).padStart(2, '0')
+                localDate = `${y}-${m}-${d}`
+              }
+
+              return {
+                id: earn._id || earn.id,
+                amount: Number(earn.amount || 0),
+                description: getDescription(earn),
+                date: rawDate,
+                localDate,
+                status: earn.status || 'completed',
+                category: getCategory(earn),
+              }
+            }),
           })
 
           console.log('💰 Setting earnings data:', {
@@ -200,10 +214,40 @@ const WalletEarning = () => {
     ? ((earningData.thisMonthEarnings - earningData.lastMonthEarnings) / earningData.lastMonthEarnings) * 100
     : 0
 
-  // Note: filterType ('today', 'month', 'year') is not currently implemented
-  // The earnings data already includes totals for today, month, year from backend
-  // For now, we show all earnings and pagination works on all data
-  const filteredEarnings = earningData.earnings
+  // Apply local filtering for Today / Month / Year tabs using localDate
+  const filteredEarnings = (() => {
+    const all = earningData.earnings || []
+    if (!all.length) return all
+
+    const now = new Date()
+    const todayY = now.getFullYear()
+    const todayM = now.getMonth()
+    const todayD = now.getDate()
+
+    if (filterType === 'today') {
+      const todayStr = `${todayY}-${String(todayM + 1).padStart(2, '0')}-${String(todayD).padStart(2, '0')}`
+      return all.filter(e => e.localDate === todayStr)
+    }
+
+    if (filterType === 'month') {
+      return all.filter(e => {
+        if (!e.localDate) return false
+        const [y, m] = e.localDate.split('-').map(Number)
+        return y === todayY && m === todayM + 1
+      })
+    }
+
+    if (filterType === 'year') {
+      return all.filter(e => {
+        if (!e.localDate) return false
+        const [y] = e.localDate.split('-').map(Number)
+        return y === todayY
+      })
+    }
+
+    // 'all'
+    return all
+  })()
 
   const location = useLocation()
   const isDashboardPage = location.pathname === '/doctor/dashboard' || location.pathname === '/doctor/'

@@ -29,30 +29,31 @@ const initializeSocket = (server) => {
 
   io = new Server(server, {
     cors: {
-      origin: isDevelopment
-        ? (origin, callback) => {
-          // Allow all localhost origins in development
-          if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1') || allowedOrigins.includes(origin)) {
-            callback(null, true);
-          } else {
-            callback(new Error('Not allowed by CORS'));
-          }
+      origin: (origin, callback) => {
+        const allowedOrigins = [
+          process.env.FRONTEND_URL || "http://localhost:3000",
+          "https://healwayx.vercel.app",
+          "https://www.healwayx.vercel.app",
+          "http://172.26.201.42:3000",
+          "http://localhost:3000",
+          "http://127.0.0.1:3000",
+          "https://zjbmtdgq-3000.inc1.devtunnels.ms"
+        ];
+
+        if (!origin || allowedOrigins.includes(origin) ||
+          (isDevelopment && (origin.includes('localhost') || origin.includes('127.0.0.1')))) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
         }
-        : (origin, callback) => {
-          // In production, check against allowed origins
-          if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-          } else {
-            callback(new Error('Not allowed by CORS'));
-          }
-        },
+      },
       methods: ['GET', 'POST', 'OPTIONS'],
       credentials: true,
       allowedHeaders: ['Authorization', 'Content-Type'],
     },
-    allowEIO3: true, // Allow Engine.IO v3 clients
-    pingTimeout: 60000, // 60 seconds
-    pingInterval: 25000, // 25 seconds
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    transports: ['websocket', 'polling'], // Explicitly allow both
   });
 
   console.log('🔌 Socket.IO initialized with CORS origins:', isDevelopment ? 'All localhost origins (development)' : allowedOrigins);

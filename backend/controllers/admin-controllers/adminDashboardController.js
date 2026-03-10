@@ -24,7 +24,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
   thisMonthEnd.setHours(23, 59, 59, 999);
 
   const { getCommissionRate } = require('../../utils/commissionConfig');
-  const doctorRate = getCommissionRate('doctor');
+  const doctorRate = await getCommissionRate('doctor');
 
   const [
     totalUsers,

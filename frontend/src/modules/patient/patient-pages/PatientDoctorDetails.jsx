@@ -15,6 +15,9 @@ import {
   IoInformationCircleOutline,
   IoStar,
   IoImageOutline,
+  IoMedicalOutline,
+  IoLanguageOutline,
+  IoSchoolOutline,
 } from "react-icons/io5";
 import {
   Modal,
@@ -422,6 +425,7 @@ const PatientDoctorDetails = () => {
             phone: doctorData.phone || doctorData.clinicDetails?.phone || "N/A",
             fees: doctorData.fees || {},
             availabilitySlots: doctorData.availabilitySlots || null,
+            services: doctorData.services || [],
             consultationModes: doctorData.consultationModes || [],
             averageConsultationMinutes:
               doctorData.averageConsultationMinutes || 20,
@@ -2438,9 +2442,95 @@ const PatientDoctorDetails = () => {
           </div>
         </div>
 
-        <div className="mt-6 pt-6 border-t border-slate-200">
-          <h2 className="text-lg font-semibold text-slate-900 mb-3">About</h2>
-          <p className="text-sm text-slate-600">{doctor.about}</p>
+        {/* More Details Section */}
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-slate-100 pt-8">
+          <div className="space-y-6">
+            {/* About */}
+            <div className="space-y-3">
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <IoInformationCircleOutline className="h-5 w-5 text-primary" />
+                About
+              </h2>
+              <p className="text-sm leading-relaxed text-slate-600">
+                {doctor.about || 'No description available for this doctor.'}
+              </p>
+            </div>
+
+            {/* Specialties & Services */}
+            {((Array.isArray(doctor.services) && doctor.services.length > 0) || doctor.specialty) && (
+              <div className="space-y-3">
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <IoMedicalOutline className="h-5 w-5 text-emerald-500" />
+                  Specialties & Services
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {doctor.specialty && (
+                    <span className="inline-flex items-center rounded-xl bg-primary/5 px-3 py-1.5 text-xs font-bold text-primary border border-primary/10">
+                      {doctor.specialty}
+                    </span>
+                  )}
+                  {Array.isArray(doctor.services) && doctor.services.map((service, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 border border-emerald-100"
+                    >
+                      {service}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-6">
+            {/* Languages */}
+            {Array.isArray(doctor.languages) && doctor.languages.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <IoLanguageOutline className="h-5 w-5 text-indigo-500" />
+                  Languages
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {doctor.languages.map((lang, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center rounded-xl bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 border border-indigo-100"
+                    >
+                      {lang}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Education & Experience */}
+            {(doctor.education || doctor.experience) && (
+              <div className="space-y-3">
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <IoSchoolOutline className="h-5 w-5 text-amber-500" />
+                  Education & Experience
+                </h3>
+                <div className="space-y-2">
+                  {doctor.education && (
+                    <div className="flex items-start gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                      <div className="mt-0.5">
+                        <IoCheckmarkCircle className="h-4 w-4 text-slate-400" />
+                      </div>
+                      <span className="text-sm font-medium text-slate-700">{doctor.education}</span>
+                    </div>
+                  )}
+                  {doctor.experience && (
+                    <div className="flex items-start gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                      <div className="mt-0.5">
+                        <IoCheckmarkCircle className="h-4 w-4 text-slate-400" />
+                      </div>
+                      <span className="text-sm font-medium text-slate-700">{doctor.experience} Experience</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Hospital/Clinic Images Gallery */}

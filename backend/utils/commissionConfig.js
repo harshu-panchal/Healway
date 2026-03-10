@@ -1,35 +1,40 @@
-/**
- * Commission Configuration Utility
- * Reads commission rates from environment variables with defaults
- */
+const AdminSettings = require('../models/AdminSettings');
+
+const DEFAULT_DOCTOR_COMMISSION_RATE = 0.1; // 10% as decimal
 
 /**
- * Get commission rate for a provider type
+ * Get commission rate for a provider type from AdminSettings.
+ * Falls back to a safe default (10%) if settings are missing or invalid.
  * @param {string} providerType - 'doctor'
- * @returns {number} Commission rate as decimal (e.g., 0.1 = 10% calculated from 10/100)
+ * @returns {Promise<number>} Commission rate as decimal (e.g., 0.1 = 10%)
  */
-const getCommissionRate = (providerType) => {
-  let rate;
-  switch (providerType) {
-    case 'doctor':
-      // Treat the value as percentage (e.g., 10 for 10%)
-      rate = parseFloat(process.env.DOCTOR_COMMISSION_RATE) || 10;
-      break;
+const getCommissionRate = async (providerType) => {
+  try {
+    switch (providerType) {
+      case 'doctor': {
+        const rate = await AdminSettings.getDoctorCommissionRate();
+        return typeof rate === 'number' && Number.isFinite(rate)
+          ? rate
+          : DEFAULT_DOCTOR_COMMISSION_RATE;
+      }
 
-    default:
-      rate = 10; // Default 10%
+      default:
+        return DEFAULT_DOCTOR_COMMISSION_RATE;
+    }
+  } catch (error) {
+    console.error('Error loading commission rate from AdminSettings, using default 10%:', error);
+    return DEFAULT_DOCTOR_COMMISSION_RATE;
   }
-  return rate / 100;
 };
 
 /**
  * Calculate provider earning after commission
  * @param {number} totalAmount - Total amount
  * @param {string} providerType - 'doctor'
- * @returns {object} { earning, commission }
+ * @returns {Promise<object>} { earning, commission, commissionRate }
  */
-const calculateProviderEarning = (totalAmount, providerType) => {
-  const commissionRate = getCommissionRate(providerType);
+const calculateProviderEarning = async (totalAmount, providerType) => {
+  const commissionRate = await getCommissionRate(providerType);
   const commission = totalAmount * commissionRate;
   const earning = totalAmount - commission;
 

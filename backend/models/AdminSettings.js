@@ -1,4 +1,4 @@
-﻿const mongoose = require('mongoose');
+const mongoose = require('mongoose');
 
 const adminSettingsSchema = new mongoose.Schema(
   {
@@ -74,6 +74,31 @@ adminSettingsSchema.statics.getSettings = async function () {
     settings = await this.create({});
   }
   return settings;
+};
+
+// Helper: Get doctor commission rate as decimal (e.g. 0.1 for 10%)
+// Falls back to 10% if not configured or invalid, without using environment variables.
+adminSettingsSchema.statics.getDoctorCommissionRate = async function () {
+  const settings = await this.getSettings();
+
+  const rawRate =
+    settings.paymentSettings &&
+    settings.paymentSettings.commissionRate &&
+    settings.paymentSettings.commissionRate.doctor;
+
+  let rate = Number(rawRate);
+
+  // If not set or invalid, default to 10%
+  if (!Number.isFinite(rate) || rate <= 0) {
+    rate = 0.1;
+  }
+
+  // If someone stored percentage (e.g. 10 instead of 0.1), normalize it
+  if (rate > 1) {
+    rate = rate / 100;
+  }
+
+  return rate;
 };
 
 const AdminSettings = mongoose.model('AdminSettings', adminSettingsSchema);

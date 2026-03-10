@@ -54,7 +54,7 @@ exports.getRevenueOverview = asyncHandler(async (req, res) => {
   const { startDate, endDate } = getDateRange(period);
 
   const { getCommissionRate } = require('../../utils/commissionConfig');
-  const doctorRate = getCommissionRate('doctor');
+  const doctorRate = await getCommissionRate('doctor');
 
   // Build date filter for appointments
   const appointmentFilter = { paymentStatus: 'paid' };
@@ -212,7 +212,7 @@ exports.getProviderRevenue = asyncHandler(async (req, res) => {
   }
 
   const { getCommissionRate } = require('../../utils/commissionConfig');
-  const doctorRate = getCommissionRate('doctor');
+  const doctorRate = await getCommissionRate('doctor');
 
   // Build date filter for appointments
   const appointmentFilter = { paymentStatus: 'paid' };
