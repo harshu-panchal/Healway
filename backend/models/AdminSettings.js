@@ -69,9 +69,18 @@ const adminSettingsSchema = new mongoose.Schema(
 
 // Ensure only one settings document exists
 adminSettingsSchema.statics.getSettings = async function () {
-  let settings = await this.findOne();
+  // Always get the first document to avoid issues with multiple settings docs
+  let settings = await this.findOne().sort({ createdAt: 1 });
+
   if (!settings) {
     settings = await this.create({});
+  } else {
+    // If we have more than one, clean up others to avoid non-deterministic behavior
+    // This is a self-healing measure to ensure only ONE settings record exists
+    const count = await this.countDocuments();
+    if (count > 1) {
+      await this.deleteMany({ _id: { $ne: settings._id } });
+    }
   }
   return settings;
 };

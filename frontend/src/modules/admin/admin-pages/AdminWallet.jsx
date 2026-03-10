@@ -20,7 +20,17 @@ import {
   IoArrowUpOutline,
   IoCalendarOutline,
 } from 'react-icons/io5'
-import { getAdminWalletOverview, getProviderSummaries, getWithdrawals, updateWithdrawalStatus, getAdminWalletBalance, getAdminWalletTransactions, getAdminSettings, updateAdminSettings } from '../admin-services/adminService'
+import {
+  getAdminWalletOverview,
+  getProviderSummaries,
+  getWithdrawals,
+  updateWithdrawalStatus,
+  getAdminWalletBalance,
+  getAdminWalletTransactions,
+  getAdminSettings,
+  updateAdminSettings,
+  updateDoctorCommissionRate
+} from '../admin-services/adminService'
 import { useToast } from '../../../contexts/ToastContext'
 
 // Default wallet overview - initialize with zeros to avoid showing mock data
@@ -141,29 +151,43 @@ const AdminWallet = () => {
   const [error, setError] = useState(null)
   const [earningsPeriod, setEarningsPeriod] = useState('all') // all, daily, weekly, monthly, yearly
   const [providerPeriod, setProviderPeriod] = useState('all') // Period filter for provider cards
-  const [commissionRate, setCommissionRate] = useState('10') // percentage string for doctor commission
+  const [commissionRate, setCommissionRate] = useState('') // percentage string - initialize empty to see if fetch works
   const [isSavingCommission, setIsSavingCommission] = useState(false)
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true)
 
   // Load commission settings once (avoid polling /admin/settings repeatedly)
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const settingsData = await getAdminSettings()
-        if (settingsData && settingsData.data) {
-          const doctorRate = settingsData.data.paymentSettings?.commissionRate?.doctor
-          const effectiveRate =
-            typeof doctorRate === 'number' && !Number.isNaN(doctorRate) && doctorRate > 0
-              ? doctorRate
-              : 0.1
+  const fetchSettings = async () => {
+    try {
+      setIsLoadingSettings(true)
+      const settingsData = await getAdminSettings()
+      console.log('📦 Fetched Admin Settings:', settingsData)
 
-          setCommissionRate(String(Math.round(effectiveRate * 100)))
-        }
-      } catch (err) {
-        console.error('Error fetching admin settings:', err)
-        // Do not toast here to avoid noise; wallet can work with default 10%
+      // Handle both wrapped { data: { ... } } and unwrapped { ... } responses
+      const data = settingsData?.data || settingsData
+      if (data) {
+        const doctorRate = data.paymentSettings?.commissionRate?.doctor
+        console.log('📊 Extracted Doctor Rate:', doctorRate)
+
+        const effectiveRate =
+          typeof doctorRate === 'number' && !Number.isNaN(doctorRate) && doctorRate > 0
+            ? doctorRate
+            : 0.1 // Default to 10% if missing
+
+        const rateInPercent = String(Math.round(effectiveRate * 100))
+        console.log('✅ Setting Commission UI to:', rateInPercent)
+        setCommissionRate(rateInPercent)
+      } else {
+        console.warn('⚠️ No data found in settings response')
       }
+    } catch (err) {
+      console.error('❌ Error fetching admin settings:', err)
+      toast.error('Failed to load commission settings')
+    } finally {
+      setIsLoadingSettings(false)
     }
+  }
 
+  useEffect(() => {
     fetchSettings()
   }, [])
 
@@ -352,14 +376,10 @@ const AdminWallet = () => {
 
     try {
       setIsSavingCommission(true)
-      await updateAdminSettings({
-        paymentSettings: {
-          commissionRate: {
-            doctor: numeric / 100,
-          },
-        },
-      })
+      await updateDoctorCommissionRate(numeric)
       toast.success('Commission rate updated successfully')
+      // Re-fetch fresh settings to verify
+      await fetchSettings()
     } catch (err) {
       console.error('Error updating commission rate:', err)
       toast.error(err.message || 'Failed to update commission rate')
@@ -684,7 +704,8 @@ const AdminWallet = () => {
                 type="number"
                 min="1"
                 max="99"
-                value={commissionRate}
+                value={isLoadingSettings ? '...' : commissionRate}
+                disabled={isLoadingSettings || isSavingCommission}
                 onChange={(e) => setCommissionRate(e.target.value)}
                 className="w-20 rounded-lg border border-emerald-200 bg-white px-2 py-1 text-xs text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />

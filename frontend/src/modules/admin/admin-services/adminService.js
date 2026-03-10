@@ -386,12 +386,14 @@ export const updateAdminPassword = async (passwordData) => {
  */
 export const getAdminSettings = async () => {
   const now = Date.now()
-  if (settingsCache && (now - settingsCacheTime < SETTINGS_CACHE_DURATION)) {
-    return settingsCache
-  }
+  // Disable caching for settings during debugging to ensure fresh values
+  // if (settingsCache && (now - settingsCacheTime < SETTINGS_CACHE_DURATION)) {
+  //   return settingsCache
+  // }
 
   try {
-    const response = await apiClient.get('/admin/settings')
+    // Add timestamp to bust any browser-level caching for settings
+    const response = await apiClient.get(`/admin/settings?t=${now}`)
     settingsCache = response.data
     settingsCacheTime = now
     return settingsCache
@@ -402,7 +404,7 @@ export const getAdminSettings = async () => {
 }
 
 /**
- * Update admin settings
+ * Update admin settings (generic)
  */
 export const updateAdminSettings = async (settings) => {
   try {
@@ -413,6 +415,22 @@ export const updateAdminSettings = async (settings) => {
     return response.data
   } catch (error) {
     console.error('Error updating admin settings:', error)
+    throw error
+  }
+}
+
+/**
+ * Update doctor commission rate specifically
+ */
+export const updateDoctorCommissionRate = async (rate) => {
+  try {
+    const response = await apiClient.patch('/admin/settings/commission', { rate })
+    // Invalidate cache
+    settingsCache = null
+    settingsCacheTime = 0
+    return response.data
+  } catch (error) {
+    console.error('Error updating commission rate:', error)
     throw error
   }
 }
@@ -748,6 +766,7 @@ export default {
   updateAdminPassword,
   getAdminSettings,
   updateAdminSettings,
+  updateDoctorCommissionRate,
   logoutAdmin,
   forgotPassword,
   verifyPasswordOtp,

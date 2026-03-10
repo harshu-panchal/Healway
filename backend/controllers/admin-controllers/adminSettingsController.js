@@ -14,42 +14,54 @@ exports.getSettings = asyncHandler(async (req, res) => {
 // PATCH /api/admin/settings
 exports.updateSettings = asyncHandler(async (req, res) => {
   const updateData = req.body;
-
   const settings = await AdminSettings.getSettings();
-  const mergedData = {
-    ...updateData,
-  };
 
+  // Handle nested object merges manually to ensure Mongoose detects changes
   if (updateData.platformSettings) {
-    mergedData.platformSettings = {
+    const freshPlatform = {
       ...(settings.platformSettings?.toObject?.() || settings.platformSettings || {}),
       ...updateData.platformSettings,
     };
+    settings.platformSettings = freshPlatform;
+    settings.markModified('platformSettings');
   }
 
   if (updateData.paymentSettings) {
-    mergedData.paymentSettings = {
+    const freshPayment = {
       ...(settings.paymentSettings?.toObject?.() || settings.paymentSettings || {}),
       ...updateData.paymentSettings,
     };
+    settings.paymentSettings = freshPayment;
+    settings.markModified('paymentSettings');
   }
 
   if (updateData.notificationSettings) {
-    mergedData.notificationSettings = {
+    const freshNotification = {
       ...(settings.notificationSettings?.toObject?.() || settings.notificationSettings || {}),
       ...updateData.notificationSettings,
     };
+    settings.notificationSettings = freshNotification;
+    settings.markModified('notificationSettings');
   }
 
   if (updateData.legalContent) {
-    mergedData.legalContent = {
+    const freshLegal = {
       ...(settings.legalContent?.toObject?.() || settings.legalContent || {}),
       ...updateData.legalContent,
       lastUpdatedAt: new Date(),
     };
+    settings.legalContent = freshLegal;
+    settings.markModified('legalContent');
   }
 
-  Object.assign(settings, mergedData);
+  // Handle remaining top-level fields
+  const handled = ['platformSettings', 'paymentSettings', 'notificationSettings', 'legalContent'];
+  Object.keys(updateData).forEach(key => {
+    if (!handled.includes(key)) {
+      settings[key] = updateData[key];
+    }
+  });
+
   await settings.save();
 
   return res.status(200).json({
@@ -98,10 +110,16 @@ exports.updateCommissionRate = asyncHandler(async (req, res) => {
   }
 
   const settings = await AdminSettings.getSettings();
-  settings.paymentSettings = settings.paymentSettings || {};
-  settings.paymentSettings.commissionRate = settings.paymentSettings.commissionRate || {};
-  settings.paymentSettings.commissionRate.doctor = normalized;
+
+  // Set value explicitly using nested path for better Mongoose tracking
+  settings.set('paymentSettings.commissionRate.doctor', normalized);
+
+  // Mark multiple levels as modified to be absolutely certain
+  settings.markModified('paymentSettings');
+  settings.markModified('paymentSettings.commissionRate');
+
   await settings.save();
+  console.log(`✅ Doctor commission updated to: ${normalized * 100}% (Decimal: ${normalized})`);
 
   return res.status(200).json({
     success: true,
