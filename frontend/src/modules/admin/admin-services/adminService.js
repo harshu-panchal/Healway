@@ -787,6 +787,61 @@ export default {
   getSupportTicketById,
   respondToSupportTicket,
   updateSupportTicketStatus,
+  // Location Management
+  getStates: async () => {
+    try {
+      const response = await apiClient.get('/location/state')
+      return response.data
+    } catch (error) {
+      console.error('Error fetching states:', error)
+      throw error
+    }
+  },
+  createState: async (stateData) => {
+    try {
+      const response = await apiClient.post('/location/state', stateData)
+      return response.data
+    } catch (error) {
+      console.error('Error creating state:', error)
+      throw error
+    }
+  },
+  getCitiesByState: async (stateId) => {
+    try {
+      const response = await apiClient.get(`/location/city/${stateId}`)
+      return response.data
+    } catch (error) {
+      console.error('Error fetching cities:', error)
+      throw error
+    }
+  },
+  createCity: async (cityData) => {
+    try {
+      const response = await apiClient.post('/location/city', cityData)
+      return response.data
+    } catch (error) {
+      console.error('Error creating city:', error)
+      throw error
+    }
+  },
+  deleteState: async (stateId) => {
+    try {
+      const response = await apiClient.delete(`/location/state/${stateId}`)
+      return response.data
+    } catch (error) {
+      console.error('Error deleting state:', error)
+      throw error
+    }
+  },
+  deleteCity: async (cityId) => {
+    try {
+      const response = await apiClient.delete(`/location/city/${cityId}`)
+      return response.data
+    } catch (error) {
+      console.error('Error deleting city:', error)
+      throw error
+    }
+  },
   getAllSpecialties: async () => {
     try {
       const response = await apiClient.get('/admin/specialties')

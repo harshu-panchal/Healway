@@ -30,6 +30,8 @@ import {
   storeDoctorTokens,
   getSpecialties,
   getServices,
+  getStates,
+  getCitiesByState,
   requestPatientLoginOtp,
   loginPatientFromDoctor,
   signupPatientFromDoctor,
@@ -65,8 +67,8 @@ const DoctorLogin = () => {
   const location = useLocation()
   const toast = useToast()
 
-  const [mode, setMode] = useState('login') // 'login' | 'signup'
-  const [userRole, setUserRole] = useState('patient') // 'doctor' | 'patient'
+  const [mode, setMode] = useState(() => localStorage.getItem('doctorAuthMode') || 'login') // 'login' | 'signup'
+  const [userRole, setUserRole] = useState(() => localStorage.getItem('doctorAuthRole') || 'patient') // 'doctor' | 'patient'
 
   // OTP-based login data states (shared for both doctor/patient roles)
   const [doctorLoginData, setDoctorLoginData] = useState(() =>
@@ -81,7 +83,7 @@ const DoctorLogin = () => {
   const [isSendingOtp, setIsSendingOtp] = useState(false)
 
   // Signup step state
-  const [signupStep, setSignupStep] = useState(1)
+  const [signupStep, setSignupStep] = useState(() => Number(localStorage.getItem('doctorSignupStep')) || 1)
   const totalSignupSteps = 3
 
 
@@ -98,6 +100,10 @@ const DoctorLogin = () => {
   const [specializationSearchTerm, setSpecializationSearchTerm] = useState('')
   const [availableSpecializations, setAvailableSpecializations] = useState([])
   const specializationInputRef = useRef(null)
+
+  // Location states
+  const [statesList, setStatesList] = useState([])
+  const [citiesList, setCitiesList] = useState([])
   const specializationDropdownRef = useRef(null)
 
   // Services multi-select state
@@ -141,7 +147,10 @@ const DoctorLogin = () => {
     termsAccepted: false,
     isDoctor: true,
   }
-  const [doctorSignupData, setDoctorSignupData] = useState(initialDoctorSignupState)
+  const [doctorSignupData, setDoctorSignupData] = useState(() => {
+    const saved = localStorage.getItem('doctorSignupData')
+    return saved ? JSON.parse(saved) : initialDoctorSignupState
+  })
 
   // Patient signup state
   const initialPatientSignupState = {
@@ -151,10 +160,39 @@ const DoctorLogin = () => {
     phone: '',
     termsAccepted: false,
   }
-  const [patientSignupData, setPatientSignupData] = useState(initialPatientSignupState)
+  const [patientSignupData, setPatientSignupData] = useState(() => {
+    const saved = localStorage.getItem('patientSignupData')
+    return saved ? JSON.parse(saved) : initialPatientSignupState
+  })
 
+  // Sync state to localStorage
+  useEffect(() => {
+    localStorage.setItem('doctorAuthMode', mode)
+  }, [mode])
 
+  useEffect(() => {
+    localStorage.setItem('doctorAuthRole', userRole)
+  }, [userRole])
 
+  useEffect(() => {
+    localStorage.setItem('doctorSignupStep', signupStep)
+  }, [signupStep])
+
+  useEffect(() => {
+    localStorage.setItem('doctorSignupData', JSON.stringify(doctorSignupData))
+  }, [doctorSignupData])
+
+  useEffect(() => {
+    localStorage.setItem('patientSignupData', JSON.stringify(patientSignupData))
+  }, [patientSignupData])
+
+  const clearAuthSession = () => {
+    localStorage.removeItem('doctorAuthMode')
+    localStorage.removeItem('doctorAuthRole')
+    localStorage.removeItem('doctorSignupStep')
+    localStorage.removeItem('doctorSignupData')
+    localStorage.removeItem('patientSignupData')
+  }
 
   const isLogin = mode === 'login'
 
@@ -242,13 +280,14 @@ const DoctorLogin = () => {
     setDoctorLoginData(getInitialLoginStateForRole(role))
   }
 
-  // Fetch specialties and services on mount
+  // Fetch specialties, services and states on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [specialtiesRes, servicesRes] = await Promise.all([
+        const [specialtiesRes, servicesRes, statesRes] = await Promise.all([
           getSpecialties(),
-          getServices()
+          getServices(),
+          getStates()
         ])
         if (specialtiesRes) {
           setAvailableSpecializations(specialtiesRes.map(s => s.name))
@@ -256,12 +295,35 @@ const DoctorLogin = () => {
         if (servicesRes) {
           setAvailableServices(servicesRes.map(s => s.name))
         }
+        if (statesRes) {
+          setStatesList(statesRes || [])
+        }
       } catch (error) {
         console.error('Error fetching signup data:', error)
       }
     }
     fetchData()
   }, [])
+
+  // Fetch cities when state changes
+  useEffect(() => {
+    const fetchCities = async () => {
+      if (doctorSignupData.clinicDetails.address.state) {
+        const selectedState = statesList.find(s => s.name === doctorSignupData.clinicDetails.address.state)
+        if (selectedState) {
+          try {
+            const cities = await getCitiesByState(selectedState._id)
+            setCitiesList(cities || [])
+          } catch (error) {
+            console.error('Failed to fetch cities:', error)
+          }
+        }
+      } else {
+        setCitiesList([])
+      }
+    }
+    fetchCities()
+  }, [doctorSignupData.clinicDetails.address.state, statesList])
 
   // Filtered specializations for dropdown
   const filteredSpecializations = useMemo(() => {
@@ -469,6 +531,7 @@ const DoctorLogin = () => {
           setOtpSent(false)
           setOtpTimer(0)
           setIsSubmitting(false)
+          clearAuthSession()
           navigate('/patient/dashboard', { replace: true })
         } else {
           toast.error(response?.message || 'Login failed. Please try again.')
@@ -503,6 +566,7 @@ const DoctorLogin = () => {
           setOtpSent(false)
           setOtpTimer(0)
           setIsSubmitting(false)
+          clearAuthSession()
           navigate('/doctor/dashboard', { replace: true })
         } else {
           toast.error(response?.message || 'Login failed. Please try again.')
@@ -579,6 +643,7 @@ const DoctorLogin = () => {
 
       if (response) {
         toast.success('Account created successfully! Please login with OTP to continue.')
+        clearAuthSession()
         setPatientSignupData(initialPatientSignupState)
         setMode('login')
         // Pre-fill phone for convenience
@@ -973,6 +1038,7 @@ const DoctorLogin = () => {
 
       if (response) {
         toast.success('Registration submitted successfully! Please wait for admin approval.')
+        clearAuthSession()
         setDoctorSignupData(initialDoctorSignupState)
         setSignupStep(1)
         setMode('login')
@@ -2145,29 +2211,53 @@ const DoctorLogin = () => {
                               <label htmlFor="clinicDetails.address.city" className="text-sm font-semibold text-slate-700">
                                 City
                               </label>
-                              <input
+                              <select
                                 id="clinicDetails.address.city"
                                 name="clinicDetails.address.city"
+                                required
+                                disabled={!doctorSignupData.clinicDetails.address.state}
                                 value={doctorSignupData.clinicDetails.address.city}
                                 onChange={handleDoctorSignupChange}
-                                placeholder="Mumbai"
-                                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-slate-50 disabled:text-slate-400"
                                 style={{ '--tw-ring-color': 'var(--color-primary-border)' }}
-                              />
+                              >
+                                <option value="">Select City</option>
+                                {citiesList.map(city => (
+                                  <option key={city._id} value={city.name}>{city.name}</option>
+                                ))}
+                              </select>
                             </div>
                             <div className="flex flex-col gap-1.5">
                               <label htmlFor="clinicDetails.address.state" className="text-sm font-semibold text-slate-700">
                                 State
                               </label>
-                              <input
+                              <select
                                 id="clinicDetails.address.state"
                                 name="clinicDetails.address.state"
+                                required
                                 value={doctorSignupData.clinicDetails.address.state}
-                                onChange={handleDoctorSignupChange}
-                                placeholder="Maharashtra"
+                                onChange={(e) => {
+                                  // Update state and clear city
+                                  handleDoctorSignupChange(e)
+                                  setDoctorSignupData(prev => ({
+                                    ...prev,
+                                    clinicDetails: {
+                                      ...prev.clinicDetails,
+                                      address: {
+                                        ...prev.clinicDetails.address,
+                                        city: ''
+                                      }
+                                    }
+                                  }))
+                                }}
                                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                                 style={{ '--tw-ring-color': 'var(--color-primary-border)' }}
-                              />
+                              >
+                                <option value="">Select State</option>
+                                {statesList.map(state => (
+                                  <option key={state._id} value={state.name}>{state.name}</option>
+                                ))}
+                              </select>
                             </div>
                             <div className="flex flex-col gap-1.5">
                               <label htmlFor="clinicDetails.address.postalCode" className="text-sm font-semibold text-slate-700">

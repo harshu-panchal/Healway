@@ -177,6 +177,8 @@ const apiRequest = async (endpoint, options = {}, module = 'admin') => {
     endpoint.includes('/patients/specialties') ||
     endpoint.includes('/specialties') ||
     endpoint.includes('/services') ||
+    endpoint.includes('/location/state') ||
+    endpoint.includes('/location/city') ||
     endpoint.includes('/public/legal')) &&
     !endpoint.includes('/admin/')
 
@@ -198,22 +200,23 @@ const apiRequest = async (endpoint, options = {}, module = 'admin') => {
   const isFormData = options.body instanceof FormData
 
   // Build headers
-  let headers = {};
-  if (isAuthEndpoint || isPublicDiscoveryEndpoint) {
-    if (!isFormData) {
-      headers = { 'Content-Type': 'application/json', ...options.headers };
-    } else {
-      headers = { ...options.headers };
-    }
-  } else {
-    const authHeaders = getAuthHeaders(module, {});
-    if (!isFormData) {
-      headers = { ...authHeaders, ...options.headers };
-    } else {
-      headers = { ...authHeaders, ...options.headers };
-      delete headers['Content-Type'];
-    }
+  const authHeaders = getAuthHeaders(module, {});
+  let headers = {
+    ...authHeaders,
+    ...options.headers,
+  };
+
+  // If it's pure auth endpoint, we might not want tokens?
+  // But usually sending it doesn't hurt.
+  // However, for FormData, we MUST NOT set Content-Type
+  if (isFormData) {
+    delete headers['Content-Type'];
+  } else if (!headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
   }
+
+  // If it is explicitly an auth endpoint OR public discovery, and we are missing token,
+  // we still shouldn't have thrown. We already handled the throw block above.
 
   const config = {
     method: options.method || 'GET',

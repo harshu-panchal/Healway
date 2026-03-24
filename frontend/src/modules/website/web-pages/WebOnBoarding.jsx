@@ -22,7 +22,7 @@ import {
 } from 'react-icons/fa'
 import { useToast } from '../../../contexts/ToastContext'
 import { signupPatient } from '../../patient/patient-services/patientService'
-import { signupDoctor } from '../../doctor/doctor-services/doctorService'
+import { signupDoctor, getStates, getCitiesByState } from '../../doctor/doctor-services/doctorService'
 
 import WebFooter from '../web-components/WebFooter'
 import onboardingImage from '../../../assets/images/img4.png'
@@ -85,6 +85,45 @@ const WebOnBoarding = () => {
   const [doctorData, setDoctorData] = useState(initialDoctorState)
   const [doctorDocuments, setDoctorDocuments] = useState([]) // Array of {file, preview, id}
   const [clinicImages, setClinicImages] = useState([]) // Array of {file, preview, id} for clinic images
+  
+  const [statesList, setStatesList] = useState([])
+  const [citiesList, setCitiesList] = useState([])
+
+  // Fetch states on mount
+  useEffect(() => {
+    const fetchStates = async () => {
+      try {
+        const states = await getStates()
+        setStatesList(states || [])
+      } catch (error) {
+        console.error('Failed to fetch states:', error)
+      }
+    }
+    fetchStates()
+  }, [])
+
+  // Fetch cities when state changes
+  useEffect(() => {
+    const fetchCities = async () => {
+      if (doctorData.clinicDetails.address.state) {
+        // Find state ID from name if we stored name, or just use ID if we store ID
+        // But the backend expects string. 
+        // For the dropdown to work efficiently, we should find the ID of the selected state.
+        const selectedState = statesList.find(s => s.name === doctorData.clinicDetails.address.state)
+        if (selectedState) {
+          try {
+            const cities = await getCitiesByState(selectedState._id)
+            setCitiesList(cities || [])
+          } catch (error) {
+            console.error('Failed to fetch cities:', error)
+          }
+        }
+      } else {
+        setCitiesList([])
+      }
+    }
+    fetchCities()
+  }, [doctorData.clinicDetails.address.state, statesList])
 
 
   // Document upload handlers
@@ -336,16 +375,23 @@ const WebOnBoarding = () => {
 
     if (name.startsWith('clinicDetails.address.')) {
       const key = name.split('.')[2]
-      setDoctorData((prev) => ({
-        ...prev,
-        clinicDetails: {
-          ...prev.clinicDetails,
-          address: {
-            ...prev.clinicDetails.address,
-            [key]: value,
+      setDoctorData((prev) => {
+        const nextAddress = {
+          ...prev.clinicDetails.address,
+          [key]: value,
+        }
+        // If state changed, reset city
+        if (key === 'state') {
+          nextAddress.city = ''
+        }
+        return {
+          ...prev,
+          clinicDetails: {
+            ...prev.clinicDetails,
+            address: nextAddress,
           },
-        },
-      }))
+        }
+      })
       return
     }
 
@@ -695,6 +741,40 @@ const WebOnBoarding = () => {
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">Final Consultation Fee</span>
                     <span className="text-xl font-bold text-primary">₹{doctorData.consultationFee || '0'}</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">State *</label>
+                      <select 
+                        name="clinicDetails.address.state" 
+                        required 
+                        value={doctorData.clinicDetails.address.state} 
+                        onChange={handleDoctorChange} 
+                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm appearance-none bg-white"
+                      >
+                        <option value="">Select State</option>
+                        {statesList.map(state => (
+                          <option key={state._id} value={state.name}>{state.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">City *</label>
+                      <select 
+                        name="clinicDetails.address.city" 
+                        required 
+                        disabled={!doctorData.clinicDetails.address.state}
+                        value={doctorData.clinicDetails.address.city} 
+                        onChange={handleDoctorChange} 
+                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm appearance-none bg-white disabled:bg-slate-50 disabled:text-slate-400"
+                      >
+                        <option value="">Select City</option>
+                        {citiesList.map(city => (
+                          <option key={city._id} value={city.name}>{city.name}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   <div className="space-y-1.5">

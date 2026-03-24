@@ -238,6 +238,7 @@ app.use(
 
 
 // Admin Routes
+app.use("/api/location", require("./routes/admin-routes/location.routes"));
 app.use("/api/admin", require("./routes/admin-routes/providers.routes"));
 app.use("/api/admin", require("./routes/admin-routes/users.routes"));
 app.use(

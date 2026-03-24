@@ -1,4 +1,4 @@
-﻿import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
@@ -85,6 +85,7 @@ const AdminSupport = lazy(() => import('./modules/admin/admin-pages/AdminSupport
 const AdminVerification = lazy(() => import('./modules/admin/admin-pages/AdminVerification'))
 const AdminAnnouncements = lazy(() => import('./modules/admin/admin-pages/AdminAnnouncements'))
 const AdminSpecialization = lazy(() => import('./modules/admin/admin-pages/AdminSpecialization'))
+const AdminLocationManagement = lazy(() => import('./modules/admin/admin-pages/AdminLocationManagement'))
 const AdminServices = lazy(() => import('./modules/admin/admin-pages/AdminServices.jsx'))
 const AdminForgotPassword = lazy(() => import('./modules/admin/admin-pages/AdminForgotPassword'))
 const AdminVerifyOTP = lazy(() => import('./modules/admin/admin-pages/AdminVerifyOTP'))
@@ -220,6 +221,9 @@ function AdminRoutes() {
           } />
           <Route path="/specialization" element={
             <Suspense fallback={<PageLoader />}><ProtectedRoute module="admin"><AdminSpecialization /></ProtectedRoute></Suspense>
+          } />
+          <Route path="/locations" element={
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="admin"><AdminLocationManagement /></ProtectedRoute></Suspense>
           } />
           <Route path="/services" element={
             <Suspense fallback={<PageLoader />}><ProtectedRoute module="admin"><AdminServices /></ProtectedRoute></Suspense>

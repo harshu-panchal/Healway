@@ -1015,4 +1015,27 @@ export const loginPatientFromDoctor = async (credentials) => {
 export const storePatientTokensFromDoctor = (tokens, remember = true) => {
   storeTokens('patient', tokens, remember)
 }
+export const getStates = async () => {
+  try {
+    const response = await apiClient.get('/location/state')
+    return response.data
+  } catch (error) {
+    console.error('Error fetching states:', error)
+    throw error
+  }
+}
 
+/**
+ * Get cities by state
+ * @param {string} stateId
+ * @returns {Promise<object>}
+ */
+export const getCitiesByState = async (stateId) => {
+  try {
+    const response = await apiClient.get(`/location/city/${stateId}`)
+    return response.data
+  } catch (error) {
+    console.error('Error fetching cities:', error)
+    throw error
+  }
+}

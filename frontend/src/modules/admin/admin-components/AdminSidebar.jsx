@@ -8,6 +8,7 @@ import {
   IoHelpCircleOutline,
   IoMegaphoneOutline,
   IoDocumentTextOutline,
+  IoLocationOutline,
 } from 'react-icons/io5'
 
 const sidebarNavItems = [
@@ -16,6 +17,7 @@ const sidebarNavItems = [
   { id: 'doctors', label: 'Doctors', to: '/admin/doctors', Icon: IoMedicalOutline },
   { id: 'patients', label: 'Patients', to: '/admin/users', Icon: IoPeopleOutline },
   { id: 'specialization', label: 'Specialization', to: '/admin/specialization', Icon: IoPeopleOutline },
+  { id: 'locations', label: 'Location Management', to: '/admin/locations', Icon: IoLocationOutline },
   { id: 'service', label: 'Services', to: '/admin/services', Icon: IoMegaphoneOutline },
   { id: 'wallet', label: 'Wallet', to: '/admin/wallet', Icon: IoWalletOutline },
   { id: 'announcements', label: 'Announcements', to: '/admin/announcements', Icon: IoMegaphoneOutline },
