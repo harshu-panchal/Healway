@@ -6,13 +6,13 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
 const firebaseConfig = {
-    apiKey: 'AIzaSyDxpwSq-JxBSmUzhNm_qE6fnL76sO4uwC8',
-    authDomain: 'healway-16134.firebaseapp.com',
-    projectId: 'healway-16134',
-    storageBucket: 'healway-16134.firebasestorage.app',
-    messagingSenderId: '276142838633',
-    appId: '1:276142838633:web:1eb69b0ed503d61978a3f8',
-    measurementId: 'G-P60G0WRQ6N',
+    apiKey: '__VITE_FIREBASE_API_KEY__',
+    authDomain: '__VITE_FIREBASE_AUTH_DOMAIN__',
+    projectId: '__VITE_FIREBASE_PROJECT_ID__',
+    storageBucket: '__VITE_FIREBASE_STORAGE_BUCKET__',
+    messagingSenderId: '__VITE_FIREBASE_MESSAGING_SENDER_ID__',
+    appId: '__VITE_FIREBASE_APP_ID__',
+    measurementId: '__VITE_FIREBASE_MEASUREMENT_ID__',
 };
 
 try {

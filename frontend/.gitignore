@@ -60,3 +60,6 @@ temp/
 
 # custom
 logs
+
+# generated files (contain injected credentials — never commit)
+public/firebase-messaging-sw.js
