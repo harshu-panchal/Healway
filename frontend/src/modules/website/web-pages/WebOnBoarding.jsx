@@ -297,17 +297,12 @@ const WebOnBoarding = () => {
         phone: patientData.phone,
       }
 
-      const response = await signupPatient(payload)
+      await signupPatient(payload)
 
-      if (response.success) {
-        toast.success('Registration successful! Redirecting to home...')
-        setTimeout(() => {
-          navigate('/')
-        }, 1500)
-      } else {
-        toast.error(response.message || 'Registration failed. Please try again.')
-        setIsSubmitting(false)
-      }
+      toast.success('Registration successful! Redirecting to home...')
+      setTimeout(() => {
+        navigate('/')
+      }, 1500)
     } catch (error) {
       console.error('Signup error:', error)
       toast.error(error.message || 'An error occurred. Please try again.')
