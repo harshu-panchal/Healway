@@ -335,12 +335,19 @@ const DoctorLogin = () => {
   }
 
   const handleRoleChange = (role) => {
-    const nextPath = role === 'patient' ? '/patient/login' : '/doctor/login'
+    const params = new URLSearchParams(location.search)
+    params.delete('role')
+    if (role === 'patient') {
+      params.set('role', 'patient')
+    }
+
+    const query = params.toString()
+    const nextPath = `/doctor/login${query ? `?${query}` : ''}`
     if (typeof window !== 'undefined') {
       localStorage.setItem('doctorAuthRole', role)
     }
     if (location.pathname !== nextPath) {
-      navigate(`${nextPath}${location.search || ''}`, { replace: true })
+      navigate(nextPath, { replace: true })
       return
     }
     setUserRole(role)
