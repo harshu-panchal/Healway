@@ -128,6 +128,41 @@ const formatAvailability = (availability) => {
   return formattedGroups.join("; ");
 };
 
+const formatEducation = (education, qualification = "") => {
+  if (Array.isArray(education)) {
+    const formatted = education
+      .map((edu) => {
+        if (!edu) return "";
+        if (typeof edu === "string") return edu;
+        if (typeof edu === "object") {
+          const parts = [];
+          if (edu.institution) parts.push(edu.institution);
+          if (edu.degree) parts.push(edu.degree);
+          if (edu.year) parts.push(`(${edu.year})`);
+          return parts.join(" - ");
+        }
+        return String(edu);
+      })
+      .filter(Boolean);
+
+    return formatted.length > 0 ? formatted.join(", ") : qualification || "MBBS";
+  }
+
+  if (education && typeof education === "object") {
+    const parts = [];
+    if (education.institution) parts.push(education.institution);
+    if (education.degree) parts.push(education.degree);
+    if (education.year) parts.push(`(${education.year})`);
+    return parts.join(" - ") || qualification || "MBBS";
+  }
+
+  if (typeof education === "string" && education.trim()) {
+    return education.trim();
+  }
+
+  return qualification || "MBBS";
+};
+
 // Get available dates filtered by doctor's working days
 const getAvailableDates = (doctor, mode) => {
   if (!doctor) return [];
@@ -419,8 +454,10 @@ const PatientDoctorDetails = () => {
               doctorData.documents?.profileImage ||
               `https://ui-avatars.com/api/?name=${encodeURIComponent(doctorData.firstName && doctorData.lastName ? `${doctorData.firstName} ${doctorData.lastName}` : doctorData.firstName || "Doctor")}&background=0077C2&color=fff&size=128&bold=true`,
             languages: doctorData.languages || ["English"],
-            education:
-              doctorData.qualification || doctorData.education || "MBBS",
+            education: formatEducation(
+              doctorData.education,
+              doctorData.qualification,
+            ),
             about: doctorData.bio || doctorData.about || "",
             phone: doctorData.phone || doctorData.clinicDetails?.phone || "N/A",
             fees: doctorData.fees || {},

@@ -24,6 +24,7 @@ import {
   IoMegaphoneOutline,
   IoVideocamOutline,
   IoCallOutline,
+  IoEyeOutline,
   IoChevronDownOutline,
   IoCloseOutline,
 } from 'react-icons/io5'
@@ -414,6 +415,14 @@ const PatientDashboard = () => {
     navigate(`/patient/doctors/${doctorId}?book=true`)
   }
 
+  const handleViewDoctor = (doctorId) => {
+    if (!doctorId) {
+      toast.error('Doctor information is not available. Please try again.')
+      return
+    }
+    navigate(`/patient/doctors/${doctorId}`)
+  }
+
   const handleSidebarToggle = () => {
     if (isSidebarOpen) {
       handleSidebarClose()
@@ -757,16 +766,29 @@ const PatientDashboard = () => {
                           </p>
                         )}
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleBookDoctor(doctorId, inPersonFee)
-                        }}
-                        className="bg-primary text-white font-bold px-3 py-2 rounded-lg text-[10px] uppercase tracking-wider transition-all duration-300 shadow-md shadow-primary/20 hover:bg-primary-dark active:scale-95 flex items-center gap-1.5"
-                      >
-                        <span>Book Now</span>
-                        <IoArrowForwardOutline className="h-3 w-3" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleViewDoctor(doctorId)
+                          }}
+                          aria-label="View doctor profile"
+                          className="h-10 w-10 shrink-0 rounded-lg border border-slate-200 bg-white text-slate-600 transition-all duration-300 shadow-sm hover:bg-slate-50 hover:text-primary active:scale-95 flex items-center justify-center"
+                        >
+                          <IoEyeOutline className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleBookDoctor(doctorId, inPersonFee)
+                          }}
+                          className="bg-primary text-white font-bold px-3 py-2 rounded-lg text-[10px] uppercase tracking-wider transition-all duration-300 shadow-md shadow-primary/20 hover:bg-primary-dark active:scale-95 flex items-center gap-1.5"
+                        >
+                          <span>Book Now</span>
+                          <IoArrowForwardOutline className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1092,25 +1114,32 @@ const PatientDashboard = () => {
                       </div>
                     </div>
 
-                    {/* Book Button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        const fee = doctor.fees?.inPerson?.final !== undefined ? doctor.fees.inPerson.final : (doctor.consultationFee || doctor.fee || 0);
-                        handleBookDoctor(doctorId, fee)
-                      }}
-                      className="w-full text-white font-bold py-3 px-4 rounded-lg text-sm transition-colors shadow-sm bg-primary hover:bg-primary-dark active:bg-[#004c86]"
-                    >
-                      {(() => {
-                        const inPersonFee = doctor.fees?.inPerson?.final !== undefined ? doctor.fees.inPerson.final : (doctor.consultationFee || doctor.fee || 0);
-                        const inPersonOriginal = doctor.fees?.inPerson?.original || doctor.original_fees || 0;
-                        return (
-                          <>
-                            Book Now
-                          </>
-                        );
-                      })()}
-                    </button>
+                    {/* Action Buttons */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleViewDoctor(doctorId)
+                        }}
+                        className="h-[40px] px-4 rounded-lg text-sm font-bold transition-colors shadow-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 active:bg-slate-100 flex items-center justify-center gap-1.5"
+                      >
+                        <IoEyeOutline className="h-3.5 w-3.5" />
+                        <span>View</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const fee = doctor.fees?.inPerson?.final !== undefined ? doctor.fees.inPerson.final : (doctor.consultationFee || doctor.fee || 0);
+                          handleBookDoctor(doctorId, fee)
+                        }}
+                        className="h-[40px] px-4 rounded-lg text-sm font-bold transition-colors shadow-sm bg-primary text-white hover:bg-primary-dark active:bg-[#004c86] flex items-center justify-center gap-1.5"
+                      >
+                        <IoCalendarOutline className="h-3.5 w-3.5" />
+                        <span>Book Now</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
