@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Safe-area offsets for APK / mobile WebView shells */
+:root {
+  --app-safe-top: env(safe-area-inset-top, 0px);
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* Prevent zoom on mobile & hide scrollbar globally */
 html,
 body {

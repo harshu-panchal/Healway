@@ -109,7 +109,7 @@ function PatientRoutes() {
     <NotificationProvider module="patient">
       {!isLoginPage && <PatientNavbar />}
       {!isLoginPage && <IncomingCallNotification />}
-      <main className={isLoginPage ? '' : 'px-4 pb-24 pt-20 sm:px-6'}>
+      <main className={isLoginPage ? '' : 'px-4 pb-[calc(6rem+var(--app-safe-bottom))] pt-[calc(5rem+var(--app-safe-top))] sm:px-6'}>
         <Routes>
           <Route path="/" element={
             token ? <ProtectedRoute module="patient"><Navigate to="/patient/dashboard" replace /></ProtectedRoute> : <Navigate to="/patient/login" replace />
@@ -198,7 +198,7 @@ function AdminRoutes() {
   return (
     <NotificationProvider module="admin">
       {isAuthenticated && <AdminNavbar />}
-      <main className={isPublicAdminPage ? '' : 'px-4 pb-24 pt-28 sm:px-6 lg:ml-64 transition-all duration-300'}>
+      <main className={isPublicAdminPage ? '' : 'px-4 pb-[calc(6rem+var(--app-safe-bottom))] pt-[calc(7rem+var(--app-safe-top))] sm:px-6 lg:ml-64 transition-all duration-300'}>
         <Routes>
           {/* Public route - Login page */}
           <Route path="/login" element={
@@ -323,7 +323,7 @@ function DoctorRoutes() {
       {/* Call Popup - For doctors to join WebRTC */}
       {!isPublicDoctorPage && <CallPopup />}
 
-      <main className={isPublicDoctorPage ? '' : 'px-4 pb-24 pt-20 sm:px-6 lg:px-8 lg:pt-24 lg:pb-8 lg:min-h-screen lg:flex lg:flex-col'}>
+      <main className={isPublicDoctorPage ? '' : 'px-4 pb-[calc(6rem+var(--app-safe-bottom))] pt-[calc(5rem+var(--app-safe-top))] sm:px-6 lg:px-8 lg:pb-8 lg:pt-24 lg:min-h-screen lg:flex lg:flex-col'}>
         <div className="max-w-7xl mx-auto w-full lg:flex-1">
           <Routes>
             <Route

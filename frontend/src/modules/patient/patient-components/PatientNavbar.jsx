@@ -92,7 +92,7 @@ const PatientNavbar = () => {
     <>
       {/* Top Header - Hidden on dashboard and login pages */}
       {!isDashboardPage && !isLoginPage && (
-        <header className="fixed inset-x-0 top-0 z-50 flex items-center justify-between bg-white/95 px-4 py-3 backdrop-blur shadow md:px-6">
+        <header className="fixed inset-x-0 top-0 z-50 flex items-center justify-between bg-white/95 px-4 pt-[calc(0.75rem+var(--app-safe-top))] pb-3 backdrop-blur shadow md:px-6">
           <div className="flex items-center">
             <img
               src={healwayLogo}
@@ -151,7 +151,7 @@ const PatientNavbar = () => {
 
       {/* Mobile Bottom Navbar - Uses navItems (excludes Support) */}
       {!isLoginPage && (
-        <nav className="fixed inset-x-0 bottom-0 z-50 flex items-center justify-around gap-1 border-t border-slate-200 bg-white/95 px-3 py-2 backdrop-blur md:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-50 flex items-center justify-around gap-1 border-t border-slate-200 bg-white/95 px-3 pt-2 pb-[calc(0.5rem+var(--app-safe-bottom))] backdrop-blur md:hidden">
           {navItems.map(({ id, label, to, Icon }) => (
             <NavLink
               key={id}

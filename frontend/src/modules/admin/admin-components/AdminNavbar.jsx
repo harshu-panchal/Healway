@@ -59,7 +59,7 @@ const AdminNavbar = () => {
       <header 
         className="fixed left-0 right-0 top-0 z-30 bg-white border-b border-slate-200 shadow-sm lg:left-64"
       >
-        <div className="px-4 pt-5 pb-4 md:px-6">
+        <div className="px-4 pt-[calc(1.25rem+var(--app-safe-top))] pb-4 md:px-6">
           {/* Top Section - Admin Info */}
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3 flex-1">
