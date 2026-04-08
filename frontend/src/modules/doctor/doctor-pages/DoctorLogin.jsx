@@ -23,6 +23,7 @@ import {
   IoSearchOutline,
 } from 'react-icons/io5'
 import { useToast } from '../../../contexts/ToastContext'
+import { getAuthToken } from '../../../utils/apiClient'
 import {
   requestLoginOtp as requestDoctorOtp,
   loginDoctor,
@@ -66,13 +67,31 @@ const DoctorLogin = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const toast = useToast()
+  const roleFromPath = useMemo(() => {
+    if (location.pathname.startsWith('/patient')) return 'patient'
+    return 'doctor'
+  }, [location.pathname])
+
+  // If already authenticated, skip the unified login page (unless explicitly forced)
+  useEffect(() => {
+    const forceLogin = new URLSearchParams(location.search).get('force') === '1'
+    if (forceLogin) return
+
+    const doctorToken = getAuthToken('doctor')
+    const patientToken = getAuthToken('patient')
+    const adminToken = getAuthToken('admin')
+
+    if (doctorToken) return navigate('/doctor/dashboard', { replace: true })
+    if (patientToken) return navigate('/patient/dashboard', { replace: true })
+    if (adminToken) return navigate('/admin/dashboard', { replace: true })
+  }, [location.search, navigate])
 
   const [mode, setMode] = useState(() => localStorage.getItem('doctorAuthMode') || 'login') // 'login' | 'signup'
-  const [userRole, setUserRole] = useState(() => localStorage.getItem('doctorAuthRole') || 'patient') // 'doctor' | 'patient'
+  const [userRole, setUserRole] = useState(() => roleFromPath) // 'doctor' | 'patient'
 
   // OTP-based login data states (shared for both doctor/patient roles)
   const [doctorLoginData, setDoctorLoginData] = useState(() =>
-    getInitialLoginStateForRole('patient')
+    getInitialLoginStateForRole(roleFromPath)
   )
 
 
@@ -174,6 +193,17 @@ const DoctorLogin = () => {
     localStorage.setItem('doctorAuthRole', userRole)
   }, [userRole])
 
+  // Keep role in sync with route (/patient/login vs /doctor/login)
+  useEffect(() => {
+    if (userRole === roleFromPath) return
+    setUserRole(roleFromPath)
+    setOtpSent(false)
+    setOtpTimer(0)
+    setIsSubmitting(false)
+    setSignupStep(1)
+    setDoctorLoginData(getInitialLoginStateForRole(roleFromPath))
+  }, [roleFromPath, userRole])
+
   useEffect(() => {
     localStorage.setItem('doctorSignupStep', signupStep)
   }, [signupStep])
@@ -271,6 +301,14 @@ const DoctorLogin = () => {
   }
 
   const handleRoleChange = (role) => {
+    const nextPath = role === 'patient' ? '/patient/login' : '/doctor/login'
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('doctorAuthRole', role)
+    }
+    if (location.pathname !== nextPath) {
+      navigate(`${nextPath}${location.search || ''}`, { replace: true })
+      return
+    }
     setUserRole(role)
     // Reset states when switching roles
     setOtpSent(false)
