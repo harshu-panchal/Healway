@@ -33,7 +33,6 @@ const PatientPrescriptions = lazy(() => import('./modules/patient/patient-pages/
 const PatientSpecialties = lazy(() => import('./modules/patient/patient-pages/PatientSpecialties'))
 const PatientSpecialtyDoctors = lazy(() => import('./modules/patient/patient-pages/PatientSpecialtyDoctors'))
 const PatientUpcomingSchedules = lazy(() => import('./modules/patient/patient-pages/PatientUpcomingSchedules'))
-const PatientLogin = lazy(() => import('./modules/patient/patient-pages/PatientLogin'))
 const PatientTransactions = lazy(() => import('./modules/patient/patient-pages/PatientTransactions'))
 const PatientTransactionDetail = lazy(() => import('./modules/patient/patient-pages/PatientTransactionDetail'))
 const PatientAppointments = lazy(() => import('./modules/patient/patient-pages/PatientAppointments'))
@@ -101,9 +100,9 @@ function PatientRoutes() {
   const isLoginPage = location.pathname === '/patient/login'
   const token = getAuthToken('patient')
 
-  // If not authenticated and not on login page, redirect to unified doctor login
+  // If not authenticated and not on login page, redirect to patient login
   if (!token && !isLoginPage) {
-    return <Navigate to="/doctor/login" replace />
+    return <Navigate to="/patient/login" replace />
   }
 
   return (
@@ -113,64 +112,64 @@ function PatientRoutes() {
       <main className={isLoginPage ? '' : 'px-4 pb-24 pt-20 sm:px-6'}>
         <Routes>
           <Route path="/" element={
-            token ? <ProtectedRoute module="patient" redirectTo="/doctor/login"><Navigate to="/patient/dashboard" replace /></ProtectedRoute> : <Navigate to="/doctor/login" replace />
+            token ? <ProtectedRoute module="patient"><Navigate to="/patient/dashboard" replace /></ProtectedRoute> : <Navigate to="/patient/login" replace />
           } />
-          {/* Redirect /patient/login to unified login page */}
+          {/* Patient login (uses the shared auth page) */}
           <Route path="/login" element={
-            <Navigate to="/doctor/login" replace />
+            <Suspense fallback={<PageLoader />}><DoctorLogin /></Suspense>
           } />
           <Route path="/dashboard" element={
-            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient" redirectTo="/doctor/login"><PatientDashboard /></ProtectedRoute></Suspense>
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><PatientDashboard /></ProtectedRoute></Suspense>
           } />
           {/* Specific route must come before general route */}
           <Route path="/doctors/:id" element={
-            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient" redirectTo="/doctor/login"><PatientDoctorDetails /></ProtectedRoute></Suspense>
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><PatientDoctorDetails /></ProtectedRoute></Suspense>
           } />
           <Route path="/doctors" element={
-            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient" redirectTo="/doctor/login"><PatientDoctors /></ProtectedRoute></Suspense>
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><PatientDoctors /></ProtectedRoute></Suspense>
           } />
 
           <Route path="/profile" element={
-            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient" redirectTo="/doctor/login"><PatientProfile /></ProtectedRoute></Suspense>
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><PatientProfile /></ProtectedRoute></Suspense>
           } />
           <Route path="/locations" element={
-            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient" redirectTo="/doctor/login"><PatientLocations /></ProtectedRoute></Suspense>
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><PatientLocations /></ProtectedRoute></Suspense>
           } />
           <Route path="/prescriptions" element={
-            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient" redirectTo="/doctor/login"><PatientPrescriptions /></ProtectedRoute></Suspense>
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><PatientPrescriptions /></ProtectedRoute></Suspense>
           } />
           <Route path="/specialties" element={
-            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient" redirectTo="/doctor/login"><PatientSpecialties /></ProtectedRoute></Suspense>
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><PatientSpecialties /></ProtectedRoute></Suspense>
           } />
           <Route path="/specialties/:specialtyId/doctors" element={
-            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient" redirectTo="/doctor/login"><PatientSpecialtyDoctors /></ProtectedRoute></Suspense>
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><PatientSpecialtyDoctors /></ProtectedRoute></Suspense>
           } />
           <Route path="/upcoming-schedules" element={
-            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient" redirectTo="/doctor/login"><PatientUpcomingSchedules /></ProtectedRoute></Suspense>
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><PatientUpcomingSchedules /></ProtectedRoute></Suspense>
           } />
 
           <Route path="/transactions" element={
-            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient" redirectTo="/doctor/login"><PatientTransactions /></ProtectedRoute></Suspense>
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><PatientTransactions /></ProtectedRoute></Suspense>
           } />
           <Route path="/transactions/:id" element={
-            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient" redirectTo="/doctor/login"><PatientTransactionDetail /></ProtectedRoute></Suspense>
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><PatientTransactionDetail /></ProtectedRoute></Suspense>
           } />
           <Route path="/appointments" element={
-            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient" redirectTo="/doctor/login"><PatientAppointments /></ProtectedRoute></Suspense>
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><PatientAppointments /></ProtectedRoute></Suspense>
           } />
           <Route path="/announcements" element={
-            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient" redirectTo="/doctor/login"><PatientAnnouncements /></ProtectedRoute></Suspense>
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><PatientAnnouncements /></ProtectedRoute></Suspense>
           } />
 
 
           <Route path="/support" element={
-            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient" redirectTo="/doctor/login"><PatientSupport /></ProtectedRoute></Suspense>
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><PatientSupport /></ProtectedRoute></Suspense>
           } />
           <Route path="/notifications" element={
-            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient" redirectTo="/doctor/login"><NotificationsPage /></ProtectedRoute></Suspense>
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><NotificationsPage /></ProtectedRoute></Suspense>
           } />
           <Route path="*" element={
-            token ? <ProtectedRoute module="patient" redirectTo="/doctor/login"><Navigate to="/patient/dashboard" replace /></ProtectedRoute> : <Navigate to="/doctor/login" replace />
+            token ? <ProtectedRoute module="patient"><Navigate to="/patient/dashboard" replace /></ProtectedRoute> : <Navigate to="/patient/login" replace />
           } />
         </Routes>
         {/* Call Popup - Only for patients */}
@@ -287,16 +286,26 @@ function AdminRoutes() {
 
 function DoctorRoutes() {
   const location = useLocation()
+  const forceLogin = new URLSearchParams(location.search).get('force') === '1'
   const isPublicDoctorPage = [
     '/doctor/login',
     '/doctor/signup',
     '/doctor/terms-of-service',
     '/doctor/privacy-policy',
   ].includes(location.pathname)
-  const token = getAuthToken('doctor')
+  const doctorToken = getAuthToken('doctor')
+  const patientToken = getAuthToken('patient')
+  const adminToken = getAuthToken('admin')
 
-  // If authenticated and on login/signup page, redirect to dashboard
-  if (token && (location.pathname === '/doctor/login' || location.pathname === '/doctor/signup')) {
+  // If already authenticated and on login page, redirect to the right dashboard
+  if (!forceLogin && location.pathname === '/doctor/login') {
+    if (doctorToken) return <Navigate to="/doctor/dashboard" replace />
+    if (patientToken) return <Navigate to="/patient/dashboard" replace />
+    if (adminToken) return <Navigate to="/admin/dashboard" replace />
+  }
+
+  // If already authenticated as a doctor and on signup page, redirect to dashboard
+  if (!forceLogin && location.pathname === '/doctor/signup' && doctorToken) {
     return <Navigate to="/doctor/dashboard" replace />
   }
 
@@ -320,7 +329,7 @@ function DoctorRoutes() {
             <Route
               path="/"
               element={
-                token ? (
+                doctorToken ? (
                   <ProtectedRoute module="doctor">
                     <Navigate to="/doctor/dashboard" replace />
                   </ProtectedRoute>
@@ -561,7 +570,7 @@ function DoctorRoutes() {
             <Route
               path="*"
               element={
-                <Navigate to={token ? "/doctor/dashboard" : "/doctor/login"} replace />
+                <Navigate to={doctorToken ? "/doctor/dashboard" : "/doctor/login"} replace />
               }
             />
           </Routes>

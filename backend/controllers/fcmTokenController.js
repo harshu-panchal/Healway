@@ -2,6 +2,39 @@ const { sendPushNotification } = require('../services/firebaseAdminService');
 
 const MAX_TOKENS = 10;
 
+const extractAccessToken = (req) => {
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+        return req.headers.authorization.split(' ')[1];
+    }
+
+    if (req.cookies && req.cookies.token) {
+        return req.cookies.token;
+    }
+
+    return null;
+};
+
+const formatAuthUser = (user, role) => {
+    const firstName = user.firstName ? String(user.firstName).trim() : '';
+    const lastName = user.lastName ? String(user.lastName).trim() : '';
+    const fullName = `${firstName} ${lastName}`.trim();
+
+    const status = (() => {
+        if (typeof user.status === 'string' && user.status.trim()) return user.status.trim();
+        if (Object.prototype.hasOwnProperty.call(user, 'isActive')) return user.isActive ? 'Active' : 'Inactive';
+        return undefined;
+    })();
+
+    return {
+        id: String(user._id || user.id),
+        name: fullName || user.name,
+        phone: user.phone,
+        email: user.email,
+        walletAmount: typeof user.walletBalance === 'number' ? user.walletBalance : 0,
+        status,
+    };
+};
+
 /**
  * Get the correct user model based on role
  */
@@ -24,8 +57,7 @@ function getUserModel(role) {
 const saveToken = async (req, res) => {
     try {
         const { token, platform = 'web' } = req.body;
-        const userId = req.user._id || req.user.id;
-        const role = req.auth.role; // set by auth middleware via req.auth = { id, role }
+        const role = req.auth?.role; // set by auth middleware via req.auth = { id, role }
 
         if (!token) {
             return res.status(400).json({ success: false, message: 'FCM token is required' });
@@ -35,14 +67,9 @@ const saveToken = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Platform must be web or mobile' });
         }
 
-        const UserModel = getUserModel(role);
-        if (!UserModel) {
-            return res.status(400).json({ success: false, message: 'Invalid user role' });
-        }
-
-        const user = await UserModel.findById(userId);
+        const user = req.user;
         if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found' });
+            return res.status(401).json({ success: false, message: 'Authentication required' });
         }
 
         const tokenField = platform === 'web' ? 'fcmTokens' : 'fcmTokenMobile';
@@ -64,7 +91,15 @@ const saveToken = async (req, res) => {
             await user.save();
         }
 
-        return res.json({ success: true, message: 'FCM token saved successfully' });
+        // Keep response shape consistent with the mobile app's login contract.
+        return res.json({
+            success: true,
+            message: 'Login successful',
+            data: {
+                token: extractAccessToken(req),
+                user: formatAuthUser(user, role),
+            },
+        });
     } catch (error) {
         console.error('Error saving FCM token:', error);
         return res.status(500).json({ success: false, message: 'Failed to save FCM token' });
