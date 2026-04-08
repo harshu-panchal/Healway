@@ -2,7 +2,7 @@
   "name": "Healway - Healthcare Platform",
   "short_name": "Healway",
   "description": "Healthcare platform for patients, doctors, pharmacies, and laboratories",
-  "start_url": "/",
+  "start_url": "/patient/login",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#11496c",

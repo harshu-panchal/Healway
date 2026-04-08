@@ -622,7 +622,20 @@ function DefaultRedirect() {
     return <Navigate to="/admin/dashboard" replace />
   }
 
-  // Default to landing page for unauthenticated users
+  const isStandaloneApp =
+    typeof window !== 'undefined' &&
+    (
+      window.matchMedia?.('(display-mode: standalone)')?.matches ||
+      window.navigator.standalone === true
+    )
+
+  // On installed/mobile app launches, default to patient login.
+  // Keep the public website landing page unchanged for browser visits.
+  if (isStandaloneApp) {
+    return <Navigate to="/patient/login" replace />
+  }
+
+  // Default to landing page for unauthenticated browser users
   return (
     <>
       <WebNavbar />
@@ -676,17 +689,18 @@ function App() {
               <Suspense fallback={<PageLoader />}><WebOnBoarding /></Suspense>
             } />
 
-            {/* Public legal pages used by signup flows */}
-            <Route path="/terms" element={
-              <Suspense fallback={<PageLoader />}><TermsOfService role="patient" /></Suspense>
-            } />
-            <Route path="/privacy" element={
-              <Suspense fallback={<PageLoader />}><PrivacyPolicy role="patient" /></Suspense>
-            } />
+          {/* Public legal pages used by signup flows */}
+          <Route path="/terms" element={
+            <Suspense fallback={<PageLoader />}><TermsOfService role="patient" /></Suspense>
+          } />
+          <Route path="/privacy" element={
+            <Suspense fallback={<PageLoader />}><PrivacyPolicy role="patient" /></Suspense>
+          } />
+          <Route path="/login" element={<Navigate to="/patient/login" replace />} />
 
-            {/* Default route - show landing page or redirect if authenticated */}
-            <Route path="/" element={<DefaultRedirect />} />
-          </Routes>
+          {/* Default route - show landing page or redirect if authenticated */}
+          <Route path="/" element={<DefaultRedirect />} />
+        </Routes>
         </div>
         <ToastContainer
           position="top-right"
