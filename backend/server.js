@@ -6,7 +6,8 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
 const os = require("os");
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const connectDB = require("./config/db");
 const { limiter: rateLimiter } = require("./middleware/rateLimiter");
@@ -32,7 +33,7 @@ app.use(
         "https://www.healwayx.vercel.app",
         "http://172.26.201.42:3000",
         "https://zjbmtdgq-3000.inc1.devtunnels.ms",
-        "https://healwayy.com"
+        "https://healway.com"
       ];
 
       // Allow requests with no origin (like mobile apps or curl requests)

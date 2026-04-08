@@ -62,6 +62,8 @@ const getInitialLoginStateForRole = (role) => {
   }
 }
 
+const OTP_LENGTH = 4
+
 const DoctorLogin = () => {
   const navigate = useNavigate()
   const location = useLocation()
@@ -394,9 +396,9 @@ const DoctorLogin = () => {
     if (!/^\d*$/.test(value)) return // Only allow digits
 
     const currentData = getCurrentLoginData()
-    const otpArray = (currentData.otp || '').split('').slice(0, 6)
+    const otpArray = (currentData.otp || '').split('').slice(0, OTP_LENGTH)
     otpArray[index] = value.slice(-1) // Take only last character
-    const newOtp = otpArray.join('').padEnd(6, ' ').slice(0, 6).replace(/\s/g, '')
+    const newOtp = otpArray.join('').padEnd(OTP_LENGTH, ' ').slice(0, OTP_LENGTH).replace(/\s/g, '')
 
     setCurrentLoginData({
       ...currentData,
@@ -404,7 +406,7 @@ const DoctorLogin = () => {
     })
 
     // Auto-focus next input
-    if (value && index < 5 && otpInputRefs.current[index + 1]) {
+    if (value && index < OTP_LENGTH - 1 && otpInputRefs.current[index + 1]) {
       otpInputRefs.current[index + 1].focus()
     }
   }
@@ -412,16 +414,16 @@ const DoctorLogin = () => {
   // Handle OTP paste
   const handleOtpPaste = (e) => {
     e.preventDefault()
-    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
-    if (pastedData.length === 6) {
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH)
+    if (pastedData.length === OTP_LENGTH) {
       const currentData = getCurrentLoginData()
       setCurrentLoginData({
         ...currentData,
         otp: pastedData,
       })
       // Focus last input
-      if (otpInputRefs.current[5]) {
-        otpInputRefs.current[5].focus()
+      if (otpInputRefs.current[OTP_LENGTH - 1]) {
+        otpInputRefs.current[OTP_LENGTH - 1].focus()
       }
     }
   }
@@ -494,8 +496,8 @@ const DoctorLogin = () => {
     }
 
     // Verify OTP
-    if (!loginData.otp || loginData.otp.length !== 6) {
-      toast.error('Please enter the 6-digit OTP')
+    if (!loginData.otp || loginData.otp.length !== OTP_LENGTH) {
+      toast.error('Please enter the 4-digit OTP')
       return
     }
 
@@ -1041,6 +1043,7 @@ const DoctorLogin = () => {
         clearAuthSession()
         setDoctorSignupData(initialDoctorSignupState)
         setSignupStep(1)
+        setIsSubmitting(false)
         setMode('login')
       } else {
         toast.error(response.message || 'Signup failed. Please try again.')
@@ -1220,7 +1223,7 @@ const DoctorLogin = () => {
                       Enter OTP
                     </label>
                     <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
-                      {[0, 1, 2, 3, 4, 5].map((index) => (
+                      {Array.from({ length: OTP_LENGTH }, (_, index) => index).map((index) => (
                         <input
                           key={index}
                           ref={(el) => (otpInputRefs.current[index] = el)}

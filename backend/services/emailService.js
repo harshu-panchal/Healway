@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-const { APPROVAL_STATUS } = require('../utils/constants');
+const { APPROVAL_STATUS, OTP_CONFIG } = require('../utils/constants');
 
 let cachedTransporter;
 
@@ -195,8 +195,8 @@ const sendPasswordResetOtpEmail = async ({ role, email, otp }) => {
   return sendEmail({
     to: email,
     subject: `Password reset OTP for ${readableRole} account | Healway`,
-    text: `Hello ${readableRole},\n\nUse the following OTP to reset your Healway password: ${otp}.\nThis OTP will expire in ${process.env.PASSWORD_RESET_OTP_EXPIRY_MINUTES || 10} minutes.\n\nIf you did not request this, please contact support immediately.\n\nThank you,\nTeam Healway`,
-    html: `<p>Hello ${readableRole},</p><p>Use the following OTP to reset your <strong>Healway</strong> password: <strong>${otp}</strong>.</p><p>This OTP will expire in ${process.env.PASSWORD_RESET_OTP_EXPIRY_MINUTES || 10
+    text: `Hello ${readableRole},\n\nUse the following OTP to reset your Healway password: ${otp}.\nThis OTP will expire in ${OTP_CONFIG.OTP_EXPIRY_MINUTES} minutes.\n\nIf you did not request this, please contact support immediately.\n\nThank you,\nTeam Healway`,
+    html: `<p>Hello ${readableRole},</p><p>Use the following OTP to reset your <strong>Healway</strong> password: <strong>${otp}</strong>.</p><p>This OTP will expire in ${OTP_CONFIG.OTP_EXPIRY_MINUTES
       } minutes.</p><p>If you did not request this, please contact support immediately.</p><p>Thank you,<br/>Team Healway</p>`,
   });
 };

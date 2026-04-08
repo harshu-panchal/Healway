@@ -1,14 +1,16 @@
 const { getModelForRole, ROLES } = require('../utils/getModelForRole');
-const { PASSWORD_RESET_CONFIG, APPROVAL_STATUS } = require('../utils/constants');
+const { OTP_CONFIG, APPROVAL_STATUS } = require('../utils/constants');
 const {
   generateOtp,
   hashOtp,
   verifyOtpHash,
 } = require('../utils/otpService');
 const { sendMobileOtp } = require('./smsService');
-
-// In-memory store for OTPs (Replacing Redis)
-const otpStore = new Map();
+const {
+  setOtpRecord,
+  getOtpRecord,
+  deleteOtpRecord,
+} = require('./otpStore');
 
 const findUserByPhone = async (role, phone) => {
   const Model = getModelForRole(role);
@@ -69,24 +71,28 @@ const requestLoginOtp = async ({ role, phone }) => {
     throw error;
   }
 
-  const otp = process.env.NODE_ENV === 'development' ? '123456' : generateOtp();
+  const otp = generateOtp(OTP_CONFIG.OTP_LENGTH);
   const otpHash = await hashOtp(otp);
 
-  const expiryMinutes = PASSWORD_RESET_CONFIG.OTP_EXPIRY_MINUTES || 10;
+  const expiryMinutes = OTP_CONFIG.OTP_EXPIRY_MINUTES;
   const expiresAt = Date.now() + (expiryMinutes * 60 * 1000);
 
   const otpData = {
     otpHash,
     attempts: 0,
-    maxAttempts: PASSWORD_RESET_CONFIG.MAX_ATTEMPTS || 5,
+    maxAttempts: OTP_CONFIG.MAX_ATTEMPTS,
     expiresAt,
   };
 
   const key = `${role}:${normalizedPhone}`;
-  otpStore.set(key, otpData);
+  await setOtpRecord(key, otpData, expiryMinutes * 60 * 1000);
 
-  // Send OTP via SMS
-  await sendMobileOtp({ phone: normalizedPhone, otp, role });
+  try {
+    await sendMobileOtp({ phone: normalizedPhone, otp, role });
+  } catch (error) {
+    await deleteOtpRecord(key);
+    throw error;
+  }
 
   return {
     message: 'OTP sent to registered mobile number.',
@@ -106,7 +112,7 @@ const verifyLoginOtp = async ({ role, phone, otp }) => {
   }
 
   const key = `${role}:${normalizedPhone}`;
-  const record = otpStore.get(key);
+  const record = await getOtpRecord(key);
 
   if (!record) {
     const error = new Error('No login OTP request found or OTP expired. Please request a new OTP.');
@@ -116,14 +122,14 @@ const verifyLoginOtp = async ({ role, phone, otp }) => {
 
   // Check expiry
   if (Date.now() > record.expiresAt) {
-    otpStore.delete(key);
+    await deleteOtpRecord(key);
     const error = new Error('OTP has expired. Please request a new OTP.');
     error.status = 400;
     throw error;
   }
 
   if (record.attempts >= record.maxAttempts) {
-    otpStore.delete(key);
+    await deleteOtpRecord(key);
     const error = new Error('Maximum OTP attempts exceeded. Please request a new OTP.');
     error.status = 429;
     throw error;
@@ -133,7 +139,8 @@ const verifyLoginOtp = async ({ role, phone, otp }) => {
 
   if (!isMatch) {
     record.attempts += 1;
-    otpStore.set(key, record);
+    const remainingTtlMs = Math.max(1000, record.expiresAt - Date.now());
+    await setOtpRecord(key, record, remainingTtlMs);
 
     const error = new Error('Invalid OTP. Please try again.');
     error.status = 400;
@@ -144,7 +151,7 @@ const verifyLoginOtp = async ({ role, phone, otp }) => {
   const user = await findUserByPhone(role, normalizedPhone);
 
   if (!user) {
-    otpStore.delete(key);
+    await deleteOtpRecord(key);
     const error = new Error('Account not found.');
     error.status = 404;
     throw error;
@@ -155,7 +162,7 @@ const verifyLoginOtp = async ({ role, phone, otp }) => {
   await user.save({ validateBeforeSave: false });
 
   // Delete OTP record after successful verification
-  otpStore.delete(key);
+  await deleteOtpRecord(key);
 
   return {
     user,

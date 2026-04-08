@@ -81,12 +81,9 @@ exports.registerPatient = asyncHandler(async (req, res) => {
   });
 
 
-  // Send OTP to phone for verification
-  const result = await requestLoginOtp({ role: ROLES.PATIENT, phone });
-
   return res.status(201).json({
     success: true,
-    message: 'Account created. OTP sent to your mobile number. Please verify to complete registration.',
+    message: 'Account created successfully. Please login to continue.',
     data: {
       patient: {
         _id: patient._id,
@@ -95,7 +92,7 @@ exports.registerPatient = asyncHandler(async (req, res) => {
         email: patient.email,
         phone: patient.phone,
       },
-      phone: result.phone,
+      phone: patient.phone,
     },
   });
 });

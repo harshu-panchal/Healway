@@ -35,9 +35,12 @@ const authRateLimiter = rateLimit({
   },
   skipSuccessfulRequests: false,
   skip: (req, res) => {
-    return process.env.NODE_ENV === 'development' ||
+    const isProduction = process.env.NODE_ENV === 'production';
+    return !isProduction && (
+      process.env.NODE_ENV === 'development' ||
       process.env.NODE_ENV === 'test' ||
-      process.env.DISABLE_AUTH_RATE_LIMIT === 'true';
+      process.env.DISABLE_AUTH_RATE_LIMIT === 'true'
+    );
   },
 });
 
@@ -55,14 +58,17 @@ const passwordResetRateLimiter = rateLimit({
     message: 'Too many password reset attempts, please try again after an hour.',
   },
   skip: (req, res) => {
-    return process.env.NODE_ENV === 'development' ||
-      process.env.DISABLE_AUTH_RATE_LIMIT === 'true';
+    const isProduction = process.env.NODE_ENV === 'production';
+    return !isProduction && (
+      process.env.NODE_ENV === 'development' ||
+      process.env.DISABLE_AUTH_RATE_LIMIT === 'true'
+    );
   },
 });
 
 // Rate limiter for OTP requests
-const otpWindowMs = Number(process.env.OTP_WINDOW_MS) || 5 * 60 * 1000; // 5 minutes
-const otpMax = Number(process.env.OTP_MAX) || 3;
+const otpWindowMs = Number(process.env.OTP_RATE_LIMIT_WINDOW_MS) || 5 * 60 * 1000; // 5 minutes
+const otpMax = Number(process.env.OTP_RATE_LIMIT_MAX) || 3;
 
 const otpRateLimiter = rateLimit({
   windowMs: otpWindowMs,
@@ -75,8 +81,11 @@ const otpRateLimiter = rateLimit({
   },
   skipSuccessfulRequests: false,
   skip: (req, res) => {
-    return process.env.NODE_ENV === 'development' ||
-      process.env.DISABLE_AUTH_RATE_LIMIT === 'true';
+    const isProduction = process.env.NODE_ENV === 'production';
+    return !isProduction && (
+      process.env.NODE_ENV === 'development' ||
+      process.env.DISABLE_OTP_RATE_LIMIT === 'true'
+    );
   },
 });
 

@@ -26,6 +26,8 @@ const initialSignupState = {
   termsAccepted: false,
 }
 
+const OTP_LENGTH = 4
+
 const PatientLogin = () => {
   const navigate = useNavigate()
   const location = useLocation()
@@ -111,9 +113,9 @@ const PatientLogin = () => {
   const handleOtpChange = (index, value) => {
     if (!/^\d*$/.test(value)) return // Only allow digits
 
-    const otpArray = (loginData.otp || '').split('').slice(0, 6)
+    const otpArray = (loginData.otp || '').split('').slice(0, OTP_LENGTH)
     otpArray[index] = value.slice(-1) // Take only last character
-    const newOtp = otpArray.join('').padEnd(6, ' ').slice(0, 6).replace(/\s/g, '')
+    const newOtp = otpArray.join('').padEnd(OTP_LENGTH, ' ').slice(0, OTP_LENGTH).replace(/\s/g, '')
 
     setLoginData({
       ...loginData,
@@ -121,7 +123,7 @@ const PatientLogin = () => {
     })
 
     // Auto-focus next input
-    if (value && index < 5 && otpInputRefs.current[index + 1]) {
+    if (value && index < OTP_LENGTH - 1 && otpInputRefs.current[index + 1]) {
       otpInputRefs.current[index + 1].focus()
     }
   }
@@ -129,15 +131,15 @@ const PatientLogin = () => {
   // Handle OTP paste
   const handleOtpPaste = (e) => {
     e.preventDefault()
-    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
-    if (pastedData.length === 6) {
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH)
+    if (pastedData.length === OTP_LENGTH) {
       setLoginData({
         ...loginData,
         otp: pastedData,
       })
       // Focus last input
-      if (otpInputRefs.current[5]) {
-        otpInputRefs.current[5].focus()
+      if (otpInputRefs.current[OTP_LENGTH - 1]) {
+        otpInputRefs.current[OTP_LENGTH - 1].focus()
       }
     }
   }
@@ -230,14 +232,14 @@ const PatientLogin = () => {
   const handleSignupOtpChange = (index, value) => {
     if (!/^\d*$/.test(value)) return // Only allow digits
 
-    const otpArray = (signupOtp || '').split('').slice(0, 6)
+    const otpArray = (signupOtp || '').split('').slice(0, OTP_LENGTH)
     otpArray[index] = value.slice(-1) // Take only last character
-    const newOtp = otpArray.join('').padEnd(6, ' ').slice(0, 6).replace(/\s/g, '')
+    const newOtp = otpArray.join('').padEnd(OTP_LENGTH, ' ').slice(0, OTP_LENGTH).replace(/\s/g, '')
 
     setSignupOtp(newOtp)
 
     // Auto-focus next input
-    if (value && index < 5 && signupOtpInputRefs.current[index + 1]) {
+    if (value && index < OTP_LENGTH - 1 && signupOtpInputRefs.current[index + 1]) {
       signupOtpInputRefs.current[index + 1].focus()
     }
   }
@@ -245,12 +247,12 @@ const PatientLogin = () => {
   // Handle signup OTP paste
   const handleSignupOtpPaste = (e) => {
     e.preventDefault()
-    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
-    if (pastedData.length === 6) {
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH)
+    if (pastedData.length === OTP_LENGTH) {
       setSignupOtp(pastedData)
       // Focus last input
-      if (signupOtpInputRefs.current[5]) {
-        signupOtpInputRefs.current[5].focus()
+      if (signupOtpInputRefs.current[OTP_LENGTH - 1]) {
+        signupOtpInputRefs.current[OTP_LENGTH - 1].focus()
       }
     }
   }
@@ -273,8 +275,8 @@ const PatientLogin = () => {
     }
 
     // Verify OTP
-    if (!loginData.otp || loginData.otp.length !== 6) {
-      toast.error('Please enter the 6-digit OTP')
+    if (!loginData.otp || loginData.otp.length !== OTP_LENGTH) {
+      toast.error('Please enter the 4-digit OTP')
       return
     }
 
@@ -322,7 +324,7 @@ const PatientLogin = () => {
     event.preventDefault()
     if (isSubmitting) return
 
-    // If OTP not sent, create account and send OTP
+    // Create account and redirect to login
     if (!signupOtpSent) {
       if (!signupData.termsAccepted) {
         toast.error('Please accept the terms to continue.')
@@ -365,9 +367,16 @@ const PatientLogin = () => {
         })
 
         if (response) {
-          setSignupOtpSent(true)
-          setSignupOtpTimer(60) // 60 seconds timer
-          toast.success('Account created! OTP sent to your mobile number')
+          toast.success('Account created successfully. Please login to continue.')
+          setMode('login')
+          setLoginData({
+            phone: signupData.phone,
+            otp: '',
+            remember: true,
+          })
+          setSignupOtpSent(false)
+          setSignupOtpTimer(0)
+          setSignupOtp('')
           setIsSubmitting(false)
         } else {
           toast.error('Signup failed. Please try again.')
@@ -381,35 +390,7 @@ const PatientLogin = () => {
       return
     }
 
-    // Verify OTP and complete signup
-    if (!signupOtp || signupOtp.length !== 6) {
-      toast.error('Please enter the 6-digit OTP')
-      return
-    }
-
-    setIsSubmitting(true)
-
-    try {
-      const response = await loginPatient({
-        phone: signupData.phone,
-        otp: signupOtp,
-      })
-
-      if (response && response.tokens) {
-        storePatientTokens(response.tokens, true)
-        toast.success('Account verified successfully! Redirecting...')
-        // Register FCM token after signup (fire-and-forget)
-        registerFCMToken('patient', true).catch(() => { })
-        navigate('/patient/dashboard', { replace: true })
-      } else {
-        toast.error('OTP verification failed. Please try again.')
-        setIsSubmitting(false)
-      }
-    } catch (error) {
-      console.error('OTP verification error:', error)
-      toast.error(error.message || 'An error occurred. Please try again.')
-      setIsSubmitting(false)
-    }
+    return
   }
 
   // Resend signup OTP
@@ -550,7 +531,7 @@ const PatientLogin = () => {
                       Enter OTP
                     </label>
                     <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
-                      {[0, 1, 2, 3, 4, 5].map((index) => (
+                      {Array.from({ length: OTP_LENGTH }, (_, index) => index).map((index) => (
                         <input
                           key={index}
                           ref={(el) => (otpInputRefs.current[index] = el)}
@@ -794,7 +775,7 @@ const PatientLogin = () => {
                         </>
                       ) : (
                         <>
-                          Create Account & Send OTP
+                          Create Account
                           <IoArrowForwardOutline className="h-5 w-5" aria-hidden="true" />
                         </>
                       )}
@@ -813,7 +794,7 @@ const PatientLogin = () => {
                     <div className="text-center mb-4">
                       <h3 className="text-lg font-bold text-slate-900 mb-2">Verify Your Mobile Number</h3>
                       <p className="text-sm text-slate-600">
-                        We've sent a 6-digit OTP to <span className="font-semibold text-slate-900">{signupData.phone}</span>
+                      We've sent a 4-digit OTP to <span className="font-semibold text-slate-900">{signupData.phone}</span>
                       </p>
                     </div>
 
@@ -822,7 +803,7 @@ const PatientLogin = () => {
                         Enter OTP
                       </label>
                       <div className="flex gap-2 justify-center" onPaste={handleSignupOtpPaste}>
-                        {[0, 1, 2, 3, 4, 5].map((index) => (
+                        {Array.from({ length: OTP_LENGTH }, (_, index) => index).map((index) => (
                           <input
                             key={index}
                             ref={(el) => {
@@ -872,7 +853,7 @@ const PatientLogin = () => {
 
                     <button
                       type="submit"
-                      disabled={isSubmitting || signupOtp.length !== 6}
+                      disabled={isSubmitting || signupOtp.length !== OTP_LENGTH}
                       className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primary text-base font-semibold text-white shadow-md shadow-[rgba(0,119,194,0.25)] transition hover:bg-[var(--color-primary-dark)] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
                       style={{ boxShadow: '0 4px 6px -1px rgba(0, 119, 194, 0.25)' }}
                     >

@@ -10,6 +10,12 @@ const APPROVAL_STATUS = {
   REJECTED: 'rejected',
 };
 
+const OTP_CONFIG = {
+  OTP_LENGTH: Number(process.env.OTP_LENGTH) || 4,
+  OTP_EXPIRY_MINUTES: Number(process.env.OTP_EXPIRY_MINUTES) || 5,
+  MAX_ATTEMPTS: Number(process.env.OTP_MAX_ATTEMPTS) || 5,
+};
+
 const WITHDRAWAL_STATUS = {
   PENDING: 'pending',
   APPROVED: 'approved',
@@ -25,9 +31,7 @@ const JOB_NAMES = {
 };
 
 const PASSWORD_RESET_CONFIG = {
-  OTP_LENGTH: 6,
-  OTP_EXPIRY_MINUTES: Number(process.env.PASSWORD_RESET_OTP_EXPIRY_MINUTES) || 10,
-  MAX_ATTEMPTS: Number(process.env.PASSWORD_RESET_MAX_ATTEMPTS) || 5,
+  ...OTP_CONFIG,
   RESET_TOKEN_EXPIRY_MINUTES: Number(process.env.PASSWORD_RESET_TOKEN_EXPIRY_MINUTES) || 30,
 };
 
@@ -36,6 +40,7 @@ module.exports = {
   APPROVAL_STATUS,
   WITHDRAWAL_STATUS,
   JOB_NAMES,
+  OTP_CONFIG,
   PASSWORD_RESET_CONFIG,
 };
 
