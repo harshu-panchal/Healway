@@ -2,51 +2,19 @@ const { Server } = require('socket.io');
 const { verifyAccessToken } = require('../utils/tokenService');
 const { getModelForRole } = require('../utils/getModelForRole');
 const Appointment = require('../models/Appointment');
+const { buildAllowedOrigins, createCorsOriginChecker } = require('./cors');
 
 let io;
 
 const initializeSocket = (server) => {
-  // Determine allowed origins
-  // Build a comprehensive list of allowed origins
-  const baseOrigins = process.env.SOCKET_IO_CORS_ORIGIN
-    ? process.env.SOCKET_IO_CORS_ORIGIN.split(',').map(origin => origin.trim())
-    : process.env.FRONTEND_URL
-      ? [process.env.FRONTEND_URL]
-      : ['http://localhost:3000', 'http://127.0.0.1:3000'];
-
-  // Add production domains if not already included
-  const productionOrigins = [
-    'https://healwayx.vercel.app',
-    'https://www.healwayx.vercel.app',
-    'https://zjbmtdgq-3000.inc1.devtunnels.ms',
-  ];
-
-  // Combine and deduplicate origins
-  const allowedOrigins = [...new Set([...baseOrigins, ...productionOrigins])];
+  const allowedOrigins = buildAllowedOrigins();
 
   // In development, allow all localhost origins
   const isDevelopment = process.env.NODE_ENV !== 'production';
 
   io = new Server(server, {
     cors: {
-      origin: (origin, callback) => {
-        const allowedOrigins = [
-          process.env.FRONTEND_URL || "http://localhost:3000",
-          "https://healwayx.vercel.app",
-          "https://www.healwayx.vercel.app",
-          "http://172.26.201.42:3000",
-          "http://localhost:3000",
-          "http://127.0.0.1:3000",
-          "https://zjbmtdgq-3000.inc1.devtunnels.ms"
-        ];
-
-        if (!origin || allowedOrigins.includes(origin) ||
-          (isDevelopment && (origin.includes('localhost') || origin.includes('127.0.0.1')))) {
-          callback(null, true);
-        } else {
-          callback(new Error('Not allowed by CORS'));
-        }
-      },
+      origin: createCorsOriginChecker({ label: 'Socket.IO CORS' }),
       methods: ['GET', 'POST', 'OPTIONS'],
       credentials: true,
       allowedHeaders: ['Authorization', 'Content-Type'],

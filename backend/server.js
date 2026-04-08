@@ -10,6 +10,7 @@ const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const connectDB = require("./config/db");
+const { createCorsOriginChecker } = require("./config/cors");
 const { limiter: rateLimiter } = require("./middleware/rateLimiter");
 const { initializeSocket } = require("./config/socket");
 const { getWorker } = require("./config/mediasoup");
@@ -26,36 +27,7 @@ app.use(
 ); // Security headers (includes XSS protection)
 app.use(
   cors({
-    origin: (origin, callback) => {
-      const allowedOrigins = [
-        process.env.FRONTEND_URL || "http://localhost:3000",
-        "https://healwayx.vercel.app",
-        "https://www.healwayx.vercel.app",
-        "http://172.26.201.42:3000",
-        "https://zjbmtdgq-3000.inc1.devtunnels.ms",
-        "https://healway.com"
-      ];
-
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) {
-        return callback(null, true);
-      }
-
-      // Check if origin is in allowed list
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        // In development, allow localhost origins
-        if (
-          process.env.NODE_ENV !== "production" &&
-          (origin.includes("localhost") || origin.includes("127.0.0.1"))
-        ) {
-          callback(null, true);
-        } else {
-          callback(new Error("Not allowed by CORS"));
-        }
-      }
-    },
+    origin: createCorsOriginChecker({ label: "HTTP CORS" }),
     credentials: true,
   })
 );
