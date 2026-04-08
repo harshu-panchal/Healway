@@ -1067,7 +1067,7 @@ const DoctorLogin = () => {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-linear-to-br from-slate-50 via-white to-slate-50">
+    <div className="relative flex min-h-[100dvh] flex-col bg-linear-to-br from-slate-50 via-white to-slate-50">
       {/* Subtle background pattern */}
       <div className="absolute inset-0 -z-10 opacity-40">
         <div className="absolute left-0 top-0 h-64 w-64 rounded-full bg-[rgba(0,119,194,0.08)] blur-3xl" />
@@ -2524,8 +2524,8 @@ const DoctorLogin = () => {
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-slate-100 bg-white/95 backdrop-blur mt-auto">
-        <div className="mx-auto flex max-w-md flex-col items-center gap-2 px-4 py-4 text-center text-xs text-slate-500">
+      <footer className="relative z-10 mt-auto border-t border-slate-100 bg-white/95 backdrop-blur px-4 pt-4 pb-[calc(3rem+var(--app-safe-bottom))]">
+        <div className="mx-auto flex max-w-md flex-col items-center gap-2 text-center text-xs text-slate-500">
           <span>Secure access powered by Healway</span>
         </div>
       </footer>
