@@ -69,34 +69,6 @@ const DoctorLogin = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const toast = useToast()
-  const isStandaloneApp = useMemo(() => {
-    if (typeof window === 'undefined') return false
-
-    const userAgent = window.navigator?.userAgent || ''
-
-    return (
-      window.matchMedia?.('(display-mode: standalone)')?.matches ||
-      window.navigator.standalone === true ||
-      window.Capacitor?.isNativePlatform?.() === true ||
-      userAgent.includes('WebView') ||
-      /\bwv\b/i.test(userAgent)
-    )
-  }, [])
-
-  const routeRole = useMemo(() => {
-    if (location.pathname.startsWith('/patient')) return 'patient'
-    return 'doctor'
-  }, [location.pathname])
-
-  const explicitRole = useMemo(() => {
-    const roleParam = new URLSearchParams(location.search).get('role')
-    if (roleParam === 'patient' || roleParam === 'doctor') {
-      return roleParam
-    }
-    return null
-  }, [location.search])
-
-  const initialRole = explicitRole || (isStandaloneApp && location.pathname.startsWith('/doctor') ? 'patient' : routeRole)
 
   // If already authenticated, skip the unified login page (unless explicitly forced)
   useEffect(() => {
@@ -113,11 +85,11 @@ const DoctorLogin = () => {
   }, [location.search, navigate])
 
   const [mode, setMode] = useState(() => localStorage.getItem('doctorAuthMode') || 'login') // 'login' | 'signup'
-  const [userRole, setUserRole] = useState(() => initialRole) // 'doctor' | 'patient'
+  const [userRole, setUserRole] = useState(() => 'patient') // 'doctor' | 'patient'
 
   // OTP-based login data states (shared for both doctor/patient roles)
   const [doctorLoginData, setDoctorLoginData] = useState(() =>
-    getInitialLoginStateForRole(initialRole)
+    getInitialLoginStateForRole('patient')
   )
 
 
@@ -216,29 +188,6 @@ const DoctorLogin = () => {
   }, [mode])
 
   useEffect(() => {
-    localStorage.setItem('doctorAuthRole', userRole)
-  }, [userRole])
-
-  // Keep role in sync with route (/patient/login vs /doctor/login),
-  // but let standalone APK launches default to patient on the doctor route.
-  useEffect(() => {
-    if (isStandaloneApp && location.pathname === '/doctor/login' && !explicitRole) {
-      return
-    }
-
-    const resolvedRole = explicitRole || routeRole
-
-    if (userRole === resolvedRole) return
-
-    setUserRole(resolvedRole)
-    setOtpSent(false)
-    setOtpTimer(0)
-    setIsSubmitting(false)
-    setSignupStep(1)
-    setDoctorLoginData(getInitialLoginStateForRole(resolvedRole))
-  }, [explicitRole, isStandaloneApp, location.pathname, routeRole, userRole])
-
-  useEffect(() => {
     localStorage.setItem('doctorSignupStep', signupStep)
   }, [signupStep])
 
@@ -252,7 +201,6 @@ const DoctorLogin = () => {
 
   const clearAuthSession = () => {
     localStorage.removeItem('doctorAuthMode')
-    localStorage.removeItem('doctorAuthRole')
     localStorage.removeItem('doctorSignupStep')
     localStorage.removeItem('doctorSignupData')
     localStorage.removeItem('patientSignupData')
@@ -335,21 +283,6 @@ const DoctorLogin = () => {
   }
 
   const handleRoleChange = (role) => {
-    const params = new URLSearchParams(location.search)
-    params.delete('role')
-    if (role === 'patient') {
-      params.set('role', 'patient')
-    }
-
-    const query = params.toString()
-    const nextPath = `/doctor/login${query ? `?${query}` : ''}`
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('doctorAuthRole', role)
-    }
-    if (location.pathname !== nextPath) {
-      navigate(nextPath, { replace: true })
-      return
-    }
     setUserRole(role)
     // Reset states when switching roles
     setOtpSent(false)

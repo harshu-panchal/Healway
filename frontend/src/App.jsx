@@ -102,7 +102,7 @@ function PatientRoutes() {
 
   // If not authenticated and not on login page, redirect to patient login
   if (!token && !isLoginPage) {
-    return <Navigate to="/doctor/login?role=patient" replace />
+    return <Navigate to="/doctor/login" replace />
   }
 
   return (
@@ -112,11 +112,11 @@ function PatientRoutes() {
       <main className={isLoginPage ? '' : 'px-4 pb-[calc(6rem+var(--app-safe-bottom))] pt-[calc(5rem+var(--app-safe-top))] sm:px-6'}>
         <Routes>
           <Route path="/" element={
-            token ? <ProtectedRoute module="patient"><Navigate to="/patient/dashboard" replace /></ProtectedRoute> : <Navigate to="/doctor/login?role=patient" replace />
+            token ? <ProtectedRoute module="patient"><Navigate to="/patient/dashboard" replace /></ProtectedRoute> : <Navigate to="/doctor/login" replace />
           } />
           {/* Patient login (uses the shared auth page) */}
           <Route path="/login" element={
-            <Navigate to="/doctor/login?role=patient" replace />
+            <Navigate to="/doctor/login" replace />
           } />
           <Route path="/dashboard" element={
             <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><PatientDashboard /></ProtectedRoute></Suspense>
@@ -169,7 +169,7 @@ function PatientRoutes() {
             <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><NotificationsPage /></ProtectedRoute></Suspense>
           } />
           <Route path="*" element={
-            token ? <ProtectedRoute module="patient"><Navigate to="/patient/dashboard" replace /></ProtectedRoute> : <Navigate to="/doctor/login?role=patient" replace />
+            token ? <ProtectedRoute module="patient"><Navigate to="/patient/dashboard" replace /></ProtectedRoute> : <Navigate to="/doctor/login" replace />
           } />
         </Routes>
         {/* Call Popup - Only for patients */}
@@ -632,7 +632,7 @@ function DefaultRedirect() {
   // On installed/mobile app launches, default to patient login.
   // Keep the public website landing page unchanged for browser visits.
   if (isStandaloneApp) {
-    return <Navigate to="/doctor/login?role=patient" replace />
+    return <Navigate to="/doctor/login" replace />
   }
 
   // Default to landing page for unauthenticated browser users
@@ -696,7 +696,7 @@ function App() {
           <Route path="/privacy" element={
             <Suspense fallback={<PageLoader />}><PrivacyPolicy role="patient" /></Suspense>
           } />
-          <Route path="/login" element={<Navigate to="/doctor/login?role=patient" replace />} />
+          <Route path="/login" element={<Navigate to="/doctor/login" replace />} />
 
           {/* Default route - show landing page or redirect if authenticated */}
           <Route path="/" element={<DefaultRedirect />} />
