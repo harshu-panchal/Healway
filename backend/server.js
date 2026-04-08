@@ -31,8 +31,8 @@ app.use(
         "https://healwayx.vercel.app",
         "https://www.healwayx.vercel.app",
         "http://172.26.201.42:3000",
-        "https://zjbmtdgq-3000.inc1.devtunnels.ms"
-
+        "https://zjbmtdgq-3000.inc1.devtunnels.ms",
+        "https://healwayy.com"
       ];
 
       // Allow requests with no origin (like mobile apps or curl requests)
