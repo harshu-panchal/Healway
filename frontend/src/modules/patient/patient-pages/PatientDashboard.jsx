@@ -112,6 +112,7 @@ const PatientDashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const toggleButtonRef = useRef(null)
   const searchContainerRef = useRef(null)
+  const didPrefillProfileCityRef = useRef(false)
   const [selectedSpecialty, setSelectedSpecialty] = useState(null) // For filtering doctors by specialization
   const [selectedCity, setSelectedCity] = useState(null) // For filtering doctors by city
 
@@ -155,7 +156,8 @@ const PatientDashboard = () => {
 
       // Handle profile response (non-critical, don't block UI)
       if (profileResponse.status === 'fulfilled' && profileResponse.value) {
-        const patient = profileResponse.value.patient || profileResponse.value
+        const profilePayload = profileResponse.value.data || profileResponse.value
+        const patient = profilePayload.patient || profilePayload
         setProfile({
           address: patient.address || {},
         })
@@ -356,10 +358,21 @@ const PatientDashboard = () => {
   }, [dashboardData, announcements, unreadCount])
 
   const displayedDoctors = hasSearchOrFilters ? searchResultDoctors : doctors
+  const profileCity = profile?.address?.city?.trim() || ''
+
+  useEffect(() => {
+    if (didPrefillProfileCityRef.current || selectedCity || !profileCity) return
+
+    setSelectedCity(profileCity)
+    didPrefillProfileCityRef.current = true
+  }, [profileCity, selectedCity])
 
   // Extract unique cities from doctors for the city filter
   const availableCities = useMemo(() => {
     const citySet = new Set()
+    if (profileCity) {
+      citySet.add(profileCity)
+    }
     displayedDoctors.forEach((doctor) => {
       const city = doctor.clinicDetails?.address?.city || doctor.city || ''
       if (city.trim()) {
@@ -367,7 +380,7 @@ const PatientDashboard = () => {
       }
     })
     return Array.from(citySet).sort()
-  }, [displayedDoctors])
+  }, [displayedDoctors, profileCity])
 
   const filteredDoctors = useMemo(() => {
     if (!displayedDoctors || !Array.isArray(displayedDoctors)) return []

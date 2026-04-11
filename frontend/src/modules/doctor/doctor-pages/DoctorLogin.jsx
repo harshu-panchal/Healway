@@ -65,7 +65,7 @@ const getInitialLoginStateForRole = (role) => {
 
 const OTP_LENGTH = 4
 
-const DoctorLogin = () => {
+const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' }) => {
   const navigate = useNavigate()
   const location = useLocation()
   const toast = useToast()
@@ -84,8 +84,8 @@ const DoctorLogin = () => {
     if (adminToken) return navigate('/admin/dashboard', { replace: true })
   }, [location.search, navigate])
 
-  const [mode, setMode] = useState(() => localStorage.getItem('doctorAuthMode') || 'login') // 'login' | 'signup'
-  const [userRole, setUserRole] = useState(() => 'patient') // 'doctor' | 'patient'
+  const [mode, setMode] = useState(() => initialMode || localStorage.getItem('doctorAuthMode') || 'login') // 'login' | 'signup'
+  const [userRole, setUserRole] = useState(() => initialRole) // 'doctor' | 'patient'
 
   // OTP-based login data states (shared for both doctor/patient roles)
   const [doctorLoginData, setDoctorLoginData] = useState(() =>
@@ -1067,17 +1067,19 @@ const DoctorLogin = () => {
   }
 
   return (
-    <div className="relative flex min-h-[100dvh] flex-col bg-linear-to-br from-slate-50 via-white to-slate-50">
+    <div className={embedded ? 'relative flex flex-col' : 'relative flex min-h-[100dvh] flex-col bg-linear-to-br from-slate-50 via-white to-slate-50'}>
       {/* Subtle background pattern */}
-      <div className="absolute inset-0 -z-10 opacity-40">
-        <div className="absolute left-0 top-0 h-64 w-64 rounded-full bg-[rgba(0,119,194,0.08)] blur-3xl" />
-        <div className="absolute right-0 bottom-0 h-96 w-96 rounded-full bg-[rgba(0,119,194,0.06)] blur-3xl" />
-      </div>
+      {!embedded && (
+        <div className="absolute inset-0 -z-10 opacity-40">
+          <div className="absolute left-0 top-0 h-64 w-64 rounded-full bg-[rgba(0,119,194,0.08)] blur-3xl" />
+          <div className="absolute right-0 bottom-0 h-96 w-96 rounded-full bg-[rgba(0,119,194,0.06)] blur-3xl" />
+        </div>
+      )}
 
       {/* Main Content - Centered on mobile */}
-      <main className="flex flex-1 flex-col items-center justify-center px-4 py-6 sm:px-6 sm:py-8">
+      <main className={embedded ? 'flex flex-col items-center justify-start' : 'flex flex-1 flex-col items-center justify-center px-4 py-6 sm:px-6 sm:py-8'}>
         {/* Form Section - Centered with max width */}
-        <div className="w-full max-w-md mx-auto">
+        <div className={embedded ? 'w-full max-w-2xl mx-auto rounded-3xl bg-white p-6 shadow-2xl sm:p-8' : 'w-full max-w-md mx-auto'}>
           {/* Title */}
           <div className="mb-8 text-center">
             <h2 className="text-3xl font-bold text-slate-900 mb-2">
@@ -2430,7 +2432,7 @@ const DoctorLogin = () => {
                         <span>
                           I have read and agree to Healway's{' '}
                           <Link
-                            to="/terms"
+                            to="/doctor/terms-of-service"
                             state={{
                               fromPath: location.pathname,
                               restoreAuthView: { mode: 'signup', userRole: 'doctor', signupStep },
@@ -2441,7 +2443,7 @@ const DoctorLogin = () => {
                           </Link>{' '}
                           and{' '}
                           <Link
-                            to="/privacy"
+                            to="/doctor/privacy-policy"
                             state={{
                               fromPath: location.pathname,
                               restoreAuthView: { mode: 'signup', userRole: 'doctor', signupStep },
@@ -2520,15 +2522,23 @@ const DoctorLogin = () => {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {embedded && (
+            <footer className="mt-6 border-t border-slate-100 pt-4 text-center text-xs text-slate-500">
+              <span>Secure access powered by Healway</span>
+            </footer>
+          )}
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 mt-auto border-t border-slate-100 bg-white/95 backdrop-blur px-4 pt-4 pb-[calc(3rem+var(--app-safe-bottom))]">
-        <div className="mx-auto flex max-w-md flex-col items-center gap-2 text-center text-xs text-slate-500">
-          <span>Secure access powered by Healway</span>
-        </div>
-      </footer>
+      {!embedded && (
+        <footer className="relative z-10 mt-auto border-t border-slate-100 bg-white/95 backdrop-blur px-4 pt-4 pb-[calc(3rem+var(--app-safe-bottom))]">
+          <div className="mx-auto flex max-w-md flex-col items-center gap-2 text-center text-xs text-slate-500">
+            <span>Secure access powered by Healway</span>
+          </div>
+        </footer>
+      )}
     </div>
   )
 }

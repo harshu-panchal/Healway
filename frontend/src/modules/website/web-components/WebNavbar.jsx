@@ -4,7 +4,6 @@ import {
   IoMenuOutline,
   IoCloseOutline,
   IoHomeOutline,
-  IoCallOutline,
   IoPersonAddOutline,
 } from 'react-icons/io5'
 import { FaUserMd } from 'react-icons/fa'
@@ -54,7 +53,6 @@ const WebNavbar = () => {
     { label: 'Home', to: '/', icon: IoHomeOutline },
     { label: 'For Patients', to: '#features', icon: null },
     { label: 'For Doctors', to: '#doctors', icon: FaUserMd },
-    { label: 'Contact', to: '#contact', icon: IoCallOutline },
   ]
 
   const handleNavClick = (e, to) => {
