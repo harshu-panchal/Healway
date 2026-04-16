@@ -1,5 +1,23 @@
 const rateLimit = require('express-rate-limit');
 
+const DEFAULT_LOGIN_OTP_PHONE = '7724817688';
+
+const normalizePhone = (phone) => {
+  if (!phone) return null;
+
+  let cleaned = String(phone).replace(/\D/g, '');
+
+  if (cleaned.startsWith('0') && cleaned.length > 10) {
+    cleaned = cleaned.substring(1);
+  }
+
+  return cleaned;
+};
+
+const isDefaultOtpLoginRequest = (req) => (
+  normalizePhone(req?.body?.phone) === DEFAULT_LOGIN_OTP_PHONE
+);
+
 // General rate limiter - Increased limits for development
 const windowMs = Number(process.env.RATE_LIMIT_WINDOW_MS) || 60 * 1000; // 1 minute
 const defaultMax = process.env.NODE_ENV === 'production' ? 120 : 1000;
@@ -36,6 +54,9 @@ const authRateLimiter = rateLimit({
   skipSuccessfulRequests: false,
   skip: (req, res) => {
     const isProduction = process.env.NODE_ENV === 'production';
+    if (isDefaultOtpLoginRequest(req)) {
+      return true;
+    }
     return !isProduction && (
       process.env.NODE_ENV === 'development' ||
       process.env.NODE_ENV === 'test' ||
@@ -82,6 +103,9 @@ const otpRateLimiter = rateLimit({
   skipSuccessfulRequests: false,
   skip: (req, res) => {
     const isProduction = process.env.NODE_ENV === 'production';
+    if (isDefaultOtpLoginRequest(req)) {
+      return true;
+    }
     return !isProduction && (
       process.env.NODE_ENV === 'development' ||
       process.env.DISABLE_OTP_RATE_LIMIT === 'true'
