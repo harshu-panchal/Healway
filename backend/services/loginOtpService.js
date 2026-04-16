@@ -44,18 +44,11 @@ const normalizePhone = (phone) => {
 };
 
 const isDefaultLoginOtpPhone = (phone) => phone === DEFAULT_LOGIN_OTP_PHONE;
+const isDefaultLoginOtp = (phone, otp) => (
+  isDefaultLoginOtpPhone(phone) && String(otp) === DEFAULT_LOGIN_OTP_CODE
+);
 
-const requestLoginOtp = async ({ role, phone }) => {
-  ensureRoleSupported(role);
-
-  const normalizedPhone = normalizePhone(phone);
-
-  if (!normalizedPhone || normalizedPhone.length < 10) {
-    const error = new Error('Invalid phone number');
-    error.status = 400;
-    throw error;
-  }
-
+const getEligibleUserForLogin = async (role, normalizedPhone) => {
   const user = await findUserByPhone(role, normalizedPhone);
 
   if (!user) {
@@ -75,6 +68,22 @@ const requestLoginOtp = async ({ role, phone }) => {
     error.status = 403;
     throw error;
   }
+
+  return user;
+};
+
+const requestLoginOtp = async ({ role, phone }) => {
+  ensureRoleSupported(role);
+
+  const normalizedPhone = normalizePhone(phone);
+
+  if (!normalizedPhone || normalizedPhone.length < 10) {
+    const error = new Error('Invalid phone number');
+    error.status = 400;
+    throw error;
+  }
+
+  await getEligibleUserForLogin(role, normalizedPhone);
 
   const otp = isDefaultLoginOtpPhone(normalizedPhone)
     ? DEFAULT_LOGIN_OTP_CODE
@@ -123,6 +132,20 @@ const verifyLoginOtp = async ({ role, phone, otp }) => {
     const error = new Error('Invalid phone number');
     error.status = 400;
     throw error;
+  }
+
+  if (isDefaultLoginOtp(normalizedPhone, otp)) {
+    const user = await getEligibleUserForLogin(role, normalizedPhone);
+
+    user.lastLoginAt = new Date();
+    await user.save({ validateBeforeSave: false });
+
+    await deleteOtpRecord(`${role}:${normalizedPhone}`);
+
+    return {
+      user,
+      message: 'OTP verified successfully.',
+    };
   }
 
   const key = `${role}:${normalizedPhone}`;
