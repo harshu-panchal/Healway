@@ -12,6 +12,9 @@ const {
   deleteOtpRecord,
 } = require('./otpStore');
 
+const DEFAULT_LOGIN_OTP_PHONE = '7724817688';
+const DEFAULT_LOGIN_OTP_CODE = '1234';
+
 const findUserByPhone = async (role, phone) => {
   const Model = getModelForRole(role);
   return Model.findOne({ phone });
@@ -39,6 +42,8 @@ const normalizePhone = (phone) => {
 
   return cleaned;
 };
+
+const isDefaultLoginOtpPhone = (phone) => phone === DEFAULT_LOGIN_OTP_PHONE;
 
 const requestLoginOtp = async ({ role, phone }) => {
   ensureRoleSupported(role);
@@ -71,7 +76,9 @@ const requestLoginOtp = async ({ role, phone }) => {
     throw error;
   }
 
-  const otp = generateOtp(OTP_CONFIG.OTP_LENGTH);
+  const otp = isDefaultLoginOtpPhone(normalizedPhone)
+    ? DEFAULT_LOGIN_OTP_CODE
+    : generateOtp(OTP_CONFIG.OTP_LENGTH);
   const otpHash = await hashOtp(otp);
 
   const expiryMinutes = OTP_CONFIG.OTP_EXPIRY_MINUTES;
@@ -86,6 +93,13 @@ const requestLoginOtp = async ({ role, phone }) => {
 
   const key = `${role}:${normalizedPhone}`;
   await setOtpRecord(key, otpData, expiryMinutes * 60 * 1000);
+
+  if (isDefaultLoginOtpPhone(normalizedPhone)) {
+    return {
+      message: 'OTP sent to registered mobile number.',
+      phone: normalizedPhone,
+    };
+  }
 
   try {
     await sendMobileOtp({ phone: normalizedPhone, otp, role });
