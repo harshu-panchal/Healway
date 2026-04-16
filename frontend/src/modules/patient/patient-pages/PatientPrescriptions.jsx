@@ -7,6 +7,7 @@ import {
 } from '../patient-services/patientService'
 import { getFileUrl } from '../../../utils/apiClient'
 import Pagination from '../../../components/Pagination'
+import { openDoctorBooking } from '../patient-utils/bookingNavigation'
 import {
   IoDocumentTextOutline,
   IoCalendarOutline,
@@ -698,7 +699,7 @@ const PatientPrescriptions = () => {
       const firstDoctorId = selectedDoctors[0]
       handleCloseShareModal()
       // Navigate to doctor details page with booking modal open
-      navigate(`/patient/doctors/${firstDoctorId}?book=true`)
+      openDoctorBooking(navigate, firstDoctorId)
     }
   }
 

@@ -1,21 +1,19 @@
 import { useState, useEffect } from 'react'
 import {
   IoSearchOutline,
-  IoFilterOutline,
   IoPersonOutline,
   IoMailOutline,
   IoCallOutline,
   IoCalendarOutline,
   IoCheckmarkCircleOutline,
   IoCloseCircleOutline,
-  IoEllipsisVerticalOutline,
   IoCreateOutline,
   IoAddOutline,
   IoTrashOutline,
   IoCloseOutline,
 } from 'react-icons/io5'
 import { useToast } from '../../../contexts/ToastContext'
-import { getUsers, updateUserStatus, deleteUser } from '../admin-services/adminService'
+import { createUser, getUsers, updateUserStatus, deleteUser } from '../admin-services/adminService'
 import Pagination from '../../../components/Pagination'
 
 const AdminUsers = () => {
@@ -31,11 +29,52 @@ const AdminUsers = () => {
   const itemsPerPage = 10
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingUser, setEditingUser] = useState(null)
+  const [isSaving, setIsSaving] = useState(false)
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
+    dateOfBirth: '',
+    gender: '',
+    bloodGroup: '',
+    address: {
+      line1: '',
+      line2: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      country: 'India',
+    },
+    emergencyContact: {
+      name: '',
+      phone: '',
+      relation: '',
+    },
+    status: 'active',
+  })
+
+  const getEmptyUserForm = () => ({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    dateOfBirth: '',
+    gender: '',
+    bloodGroup: '',
+    address: {
+      line1: '',
+      line2: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      country: 'India',
+    },
+    emergencyContact: {
+      name: '',
+      phone: '',
+      relation: '',
+    },
     status: 'active',
   })
 
@@ -174,13 +213,7 @@ const AdminUsers = () => {
   // CRUD Operations
   const handleCreate = () => {
     setEditingUser(null)
-    setFormData({
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      status: 'active',
-    })
+    setFormData(getEmptyUserForm())
     setShowEditModal(true)
   }
 
@@ -191,34 +224,66 @@ const AdminUsers = () => {
       lastName: user.lastName,
       email: user.email,
       phone: user.phone,
+      dateOfBirth: '',
+      gender: '',
+      bloodGroup: '',
+      address: getEmptyUserForm().address,
+      emergencyContact: getEmptyUserForm().emergencyContact,
       status: user.status,
     })
     setShowEditModal(true)
   }
 
   const handleSave = async () => {
+    if (isSaving) return
+
     if (editingUser) {
       // Update existing user status
       try {
+        setIsSaving(true)
         await updateUserStatus(editingUser.id, formData.status)
         toast.success('User status updated successfully')
         await loadUsers()
         setShowEditModal(false)
         setEditingUser(null)
-        setFormData({
-          firstName: '',
-          lastName: '',
-          email: '',
-          phone: '',
-          status: 'active',
-        })
+        setFormData(getEmptyUserForm())
       } catch (error) {
         console.error('Error updating user:', error)
         toast.error(error.message || 'Failed to update user')
+      } finally {
+        setIsSaving(false)
       }
     } else {
-      // Create new user - not implemented in backend yet
-      toast.warning('User creation not yet implemented')
+      if (!formData.firstName.trim() || !formData.email.trim() || !formData.phone.trim()) {
+        toast.warning('Please fill first name, email, and phone.')
+        return
+      }
+
+      try {
+        setIsSaving(true)
+        await createUser({
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
+          dateOfBirth: formData.dateOfBirth || undefined,
+          gender: formData.gender || undefined,
+          bloodGroup: formData.bloodGroup || undefined,
+          address: formData.address,
+          emergencyContact: formData.emergencyContact,
+          isActive: formData.status === 'active',
+        })
+        toast.success('Patient added successfully')
+        await loadUsers()
+        setShowEditModal(false)
+        setEditingUser(null)
+        setFormData(getEmptyUserForm())
+      } catch (error) {
+        console.error('Error creating user:', error)
+        toast.error(error.message || 'Failed to add patient')
+      } finally {
+        setIsSaving(false)
+      }
     }
   }
 
@@ -236,6 +301,30 @@ const AdminUsers = () => {
   }
 
   const handleInputChange = (field, value) => {
+    if (field.startsWith('address.')) {
+      const key = field.replace('address.', '')
+      setFormData(prev => ({
+        ...prev,
+        address: {
+          ...prev.address,
+          [key]: value,
+        },
+      }))
+      return
+    }
+
+    if (field.startsWith('emergencyContact.')) {
+      const key = field.replace('emergencyContact.', '')
+      setFormData(prev => ({
+        ...prev,
+        emergencyContact: {
+          ...prev.emergencyContact,
+          [key]: value,
+        },
+      }))
+      return
+    }
+
     setFormData(prev => ({
       ...prev,
       [field]: value,
@@ -250,6 +339,14 @@ const AdminUsers = () => {
           <h1 className="text-2xl font-bold text-slate-900">Patients Management</h1>
           <p className="mt-0.5 text-sm text-slate-600">Manage all registered patients</p>
         </div>
+        <button
+          type="button"
+          onClick={handleCreate}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark active:scale-[0.98]"
+        >
+          <IoAddOutline className="h-4 w-4" />
+          Add Patient
+        </button>
       </header>
 
       {/* Search */}
@@ -473,6 +570,132 @@ const AdminUsers = () => {
                 />
               </div>
 
+              {!editingUser && (
+                <>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Date of Birth
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.dateOfBirth}
+                        onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Gender
+                      </label>
+                      <select
+                        value={formData.gender}
+                        onChange={(e) => handleInputChange('gender', e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        <option value="">Select gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                        <option value="prefer_not_to_say">Prefer not to say</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Blood Group
+                    </label>
+                    <select
+                      value={formData.bloodGroup}
+                      onChange={(e) => handleInputChange('bloodGroup', e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="">Select blood group</option>
+                      {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'UNKNOWN'].map(group => (
+                        <option key={group} value={group}>{group}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <h3 className="mb-3 text-sm font-semibold text-slate-800">Address</h3>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <input
+                        type="text"
+                        value={formData.address.line1}
+                        onChange={(e) => handleInputChange('address.line1', e.target.value)}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary sm:col-span-2"
+                        placeholder="Address line 1"
+                      />
+                      <input
+                        type="text"
+                        value={formData.address.line2}
+                        onChange={(e) => handleInputChange('address.line2', e.target.value)}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary sm:col-span-2"
+                        placeholder="Address line 2"
+                      />
+                      <input
+                        type="text"
+                        value={formData.address.city}
+                        onChange={(e) => handleInputChange('address.city', e.target.value)}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                        placeholder="City"
+                      />
+                      <input
+                        type="text"
+                        value={formData.address.state}
+                        onChange={(e) => handleInputChange('address.state', e.target.value)}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                        placeholder="State"
+                      />
+                      <input
+                        type="text"
+                        value={formData.address.postalCode}
+                        onChange={(e) => handleInputChange('address.postalCode', e.target.value)}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                        placeholder="Postal code"
+                      />
+                      <input
+                        type="text"
+                        value={formData.address.country}
+                        onChange={(e) => handleInputChange('address.country', e.target.value)}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                        placeholder="Country"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <h3 className="mb-3 text-sm font-semibold text-slate-800">Emergency Contact</h3>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <input
+                        type="text"
+                        value={formData.emergencyContact.name}
+                        onChange={(e) => handleInputChange('emergencyContact.name', e.target.value)}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                        placeholder="Name"
+                      />
+                      <input
+                        type="tel"
+                        value={formData.emergencyContact.phone}
+                        onChange={(e) => handleInputChange('emergencyContact.phone', e.target.value)}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                        placeholder="Phone"
+                      />
+                      <input
+                        type="text"
+                        value={formData.emergencyContact.relation}
+                        onChange={(e) => handleInputChange('emergencyContact.relation', e.target.value)}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                        placeholder="Relation"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
                   Status *
@@ -501,9 +724,10 @@ const AdminUsers = () => {
               </button>
               <button
                 onClick={handleSave}
-                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0e3a52]"
+                disabled={isSaving}
+                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0e3a52] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {editingUser ? 'Update' : 'Create'}
+                {isSaving ? 'Saving...' : editingUser ? 'Update' : 'Create Patient'}
               </button>
             </div>
           </div>

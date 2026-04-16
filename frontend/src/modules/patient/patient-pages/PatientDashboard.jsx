@@ -44,6 +44,7 @@ import {
 import NotificationBell from '../../../components/NotificationBell'
 import { getFileUrl } from '../../../utils/apiClient'
 import { getSocket } from '../../../utils/socketClient'
+import { openDoctorBooking } from '../patient-utils/bookingNavigation'
 
 // Category cards configuration (values will be populated from API)
 const categoryCardsConfig = [
@@ -425,7 +426,8 @@ const PatientDashboard = () => {
       toast.error('Doctor information is not available. Please try again.')
       return
     }
-    navigate(`/patient/doctors/${doctorId}?book=true`)
+
+    openDoctorBooking(navigate, doctorId)
   }
 
   const handleViewDoctor = (doctorId) => {

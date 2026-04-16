@@ -1,6 +1,25 @@
 const asyncHandler = require('../../middleware/asyncHandler');
 const Patient = require('../../models/Patient');
 
+const parseName = ({ firstName, lastName, name }) => {
+  if (firstName) {
+    return {
+      firstName: String(firstName).trim(),
+      lastName: lastName ? String(lastName).trim() : '',
+    };
+  }
+
+  if (name) {
+    const parts = String(name).trim().split(/\s+/);
+    return {
+      firstName: parts.shift(),
+      lastName: parts.join(' '),
+    };
+  }
+
+  return { firstName: undefined, lastName: undefined };
+};
+
 /**
  * Helper to build basic pagination options
  */
@@ -77,6 +96,72 @@ exports.getUsers = asyncHandler(async (req, res) => {
         totalPages: Math.ceil(total / limit) || 1,
       },
     },
+  });
+});
+
+// POST /api/admin/users
+exports.createUser = asyncHandler(async (req, res) => {
+  const {
+    name,
+    firstName,
+    lastName,
+    email,
+    phone,
+    dateOfBirth,
+    gender,
+    bloodGroup,
+    address,
+    emergencyContact,
+    isActive = true,
+  } = req.body;
+
+  const resolvedName = parseName({ name, firstName, lastName });
+  const normalizedEmail = email ? String(email).trim().toLowerCase() : '';
+  const normalizedPhone = phone ? String(phone).trim() : '';
+
+  if (!resolvedName.firstName || !normalizedEmail || !normalizedPhone) {
+    return res.status(400).json({
+      success: false,
+      message: 'Required fields missing. Provide first name, email, and phone.',
+    });
+  }
+
+  const [existingEmail, existingPhone] = await Promise.all([
+    Patient.findOne({ email: normalizedEmail }),
+    Patient.findOne({ phone: normalizedPhone }),
+  ]);
+
+  if (existingEmail) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email already registered.',
+    });
+  }
+
+  if (existingPhone) {
+    return res.status(400).json({
+      success: false,
+      message: 'Phone number already registered.',
+    });
+  }
+
+  const patient = await Patient.create({
+    firstName: resolvedName.firstName,
+    lastName: resolvedName.lastName || '',
+    email: normalizedEmail,
+    phone: normalizedPhone,
+    dateOfBirth: dateOfBirth || undefined,
+    gender: gender || undefined,
+    bloodGroup: bloodGroup || undefined,
+    address: address || undefined,
+    emergencyContact: emergencyContact || undefined,
+    isActive: Boolean(isActive),
+  });
+
+  return res.status(201).json({
+    success: true,
+    message: 'Patient created successfully.',
+    data: patient,
   });
 });
 

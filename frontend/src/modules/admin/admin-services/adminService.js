@@ -2,8 +2,6 @@ import apiClient, { storeTokens, clearTokens } from '../../../utils/apiClient'
 
 // Cache for admin settings to reduce redundant API calls
 let settingsCache = null
-let settingsCacheTime = 0
-const SETTINGS_CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 
 /**
  * Admin login
@@ -184,6 +182,19 @@ export const getUsers = async (filters = {}) => {
 }
 
 /**
+ * Create patient from admin panel
+ */
+export const createUser = async (userData) => {
+  try {
+    const response = await apiClient.post('/admin/users', userData)
+    return response.data
+  } catch (error) {
+    console.error('Error creating user:', error)
+    throw error
+  }
+}
+
+/**
  * Get user by ID
  */
 export const getUserById = async (userId) => {
@@ -231,6 +242,19 @@ export const getDoctors = async (filters = {}) => {
     return response.data
   } catch (error) {
     console.error('Error fetching doctors:', error)
+    throw error
+  }
+}
+
+/**
+ * Create doctor from admin panel
+ */
+export const createDoctor = async (doctorData) => {
+  try {
+    const response = await apiClient.post('/admin/doctors', doctorData)
+    return response.data
+  } catch (error) {
+    console.error('Error creating doctor:', error)
     throw error
   }
 }
@@ -386,16 +410,11 @@ export const updateAdminPassword = async (passwordData) => {
  */
 export const getAdminSettings = async () => {
   const now = Date.now()
-  // Disable caching for settings during debugging to ensure fresh values
-  // if (settingsCache && (now - settingsCacheTime < SETTINGS_CACHE_DURATION)) {
-  //   return settingsCache
-  // }
 
   try {
     // Add timestamp to bust any browser-level caching for settings
     const response = await apiClient.get(`/admin/settings?t=${now}`)
     settingsCache = response.data
-    settingsCacheTime = now
     return settingsCache
   } catch (error) {
     console.error('Error fetching admin settings:', error)
@@ -411,7 +430,6 @@ export const updateAdminSettings = async (settings) => {
     const response = await apiClient.patch('/admin/settings', settings)
     // Invalidate cache on update
     settingsCache = null
-    settingsCacheTime = 0
     return response.data
   } catch (error) {
     console.error('Error updating admin settings:', error)
@@ -427,7 +445,6 @@ export const updateDoctorCommissionRate = async (rate) => {
     const response = await apiClient.patch('/admin/settings/commission', { rate })
     // Invalidate cache
     settingsCache = null
-    settingsCacheTime = 0
     return response.data
   } catch (error) {
     console.error('Error updating commission rate:', error)

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import {
   IoArrowBackOutline,
   IoLocationOutline,
@@ -307,6 +307,7 @@ const calculateApproxTime = (startTime, tokenNumber, avgMinutes = 20) => {
 const PatientDoctorDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const [searchParams] = useSearchParams();
   const [doctor, setDoctor] = useState(defaultDoctor);
@@ -919,7 +920,16 @@ const PatientDoctorDetails = () => {
   // Auto-open booking modal if 'book' or 'reschedule' query parameter is present
   useEffect(() => {
     if (doctor && id) {
-      const rescheduleId = searchParams.get("reschedule");
+      const rescheduleId =
+        searchParams.get("reschedule") ||
+        (location.state?.bookingMode === "reschedule"
+          ? location.state?.rescheduleAppointmentId
+          : null);
+
+      const shouldAutoOpenBooking =
+        searchParams.get("book") === "true" ||
+        location.state?.autoOpenBooking === true;
+
       if (rescheduleId) {
         // Reschedule mode - fetch appointment details to get cancelled session date
         const fetchCancelledAppointmentDate = async () => {
@@ -1025,20 +1035,20 @@ const PatientDoctorDetails = () => {
         setShowBookingModal(true);
         setBookingStep(1);
         fetchCancelledAppointmentDate();
-        // Remove the query parameter from URL
-        navigate(`/patient/doctors/${id}`, { replace: true });
-      } else if (searchParams.get("book") === "true") {
+        // Remove the query parameter or transient navigation state from URL
+        navigate(`/patient/doctors/${id}`, { replace: true, state: null });
+      } else if (shouldAutoOpenBooking) {
         // Normal booking mode
         setIsRescheduling(false);
         setRescheduleAppointmentId(null);
         setCancelledSessionDate(null);
         setShowBookingModal(true);
-        setBookingStep(1);
-        // Remove the query parameter from URL
-        navigate(`/patient/doctors/${id}`, { replace: true });
+        setBookingStep(0);
+        // Remove the query parameter or transient navigation state from URL
+        navigate(`/patient/doctors/${id}`, { replace: true, state: null });
       }
     }
-  }, [doctor, searchParams, navigate, id]);
+  }, [doctor, searchParams, navigate, id, location.state]);
 
   // Load patient prescriptions from API
   const [patientPrescriptions, setPatientPrescriptions] = useState([]);

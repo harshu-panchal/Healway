@@ -4,6 +4,31 @@ const Doctor = require('../../models/Doctor');
 
 const { sendRoleApprovalEmail } = require('../../services/emailService');
 
+const parseName = ({ firstName, lastName, name }) => {
+  if (firstName) {
+    return {
+      firstName: String(firstName).trim(),
+      lastName: lastName ? String(lastName).trim() : '',
+    };
+  }
+
+  if (name) {
+    const parts = String(name).trim().split(/\s+/);
+    return {
+      firstName: parts.shift(),
+      lastName: parts.join(' '),
+    };
+  }
+
+  return { firstName: undefined, lastName: undefined };
+};
+
+const toOptionalNumber = (value) => {
+  if (value === undefined || value === null || value === '') return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+};
+
 /**
  * Helper to build basic pagination options
  */
@@ -86,6 +111,119 @@ exports.getDoctors = asyncHandler(async (req, res) => {
         totalPages: Math.ceil(total / limit) || 1,
       },
     },
+  });
+});
+
+// POST /api/admin/doctors
+exports.createDoctor = asyncHandler(async (req, res) => {
+  const adminId = req.auth?.id;
+  const {
+    name,
+    firstName,
+    lastName,
+    email,
+    phone,
+    gender,
+    specialization,
+    licenseNumber,
+    experienceYears,
+    qualification,
+    bio,
+    languages,
+    services,
+    consultationModes,
+    clinicName,
+    clinicAddress,
+    clinicDetails,
+    consultationFee,
+    original_fees,
+    discount_amount,
+    isDoctor = true,
+  } = req.body;
+
+  const resolvedName = parseName({ name, firstName, lastName });
+  const normalizedEmail = email ? String(email).trim().toLowerCase() : '';
+  const normalizedPhone = phone ? String(phone).trim() : '';
+  const normalizedLicense = licenseNumber ? String(licenseNumber).trim() : '';
+
+  if (
+    !resolvedName.firstName ||
+    !normalizedEmail ||
+    !normalizedPhone ||
+    !gender ||
+    !specialization ||
+    !normalizedLicense
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: 'Required fields missing. Provide first name, email, phone, gender, specialization, and license number.',
+    });
+  }
+
+  const [existingEmail, existingPhone, existingLicense] = await Promise.all([
+    Doctor.findOne({ email: normalizedEmail }),
+    Doctor.findOne({ phone: normalizedPhone }),
+    Doctor.findOne({ licenseNumber: normalizedLicense }),
+  ]);
+
+  if (existingEmail) {
+    return res.status(400).json({ success: false, message: 'Email already registered.' });
+  }
+
+  if (existingPhone) {
+    return res.status(400).json({ success: false, message: 'Phone number already registered.' });
+  }
+
+  if (existingLicense) {
+    return res.status(400).json({ success: false, message: 'License number already registered.' });
+  }
+
+  const clinicPayload = clinicDetails ? { ...clinicDetails } : {};
+  if (clinicName) clinicPayload.name = String(clinicName).trim();
+  if (clinicAddress) clinicPayload.address = clinicAddress;
+
+  const originalFee = toOptionalNumber(original_fees);
+  const discountAmount = toOptionalNumber(discount_amount) || 0;
+  const finalFee = toOptionalNumber(consultationFee);
+  const inPersonOriginal = originalFee ?? finalFee ?? 0;
+  const inPersonFinal = Math.max(0, finalFee ?? (inPersonOriginal - discountAmount));
+
+  const doctor = await Doctor.create({
+    firstName: resolvedName.firstName,
+    lastName: resolvedName.lastName || '',
+    email: normalizedEmail,
+    phone: normalizedPhone,
+    gender,
+    specialization: String(specialization).trim(),
+    licenseNumber: normalizedLicense,
+    experienceYears: toOptionalNumber(experienceYears),
+    qualification: qualification || undefined,
+    bio: bio || undefined,
+    languages: Array.isArray(languages) ? languages.filter(Boolean) : [],
+    services: Array.isArray(services) ? services.filter(Boolean) : [],
+    consultationModes: Array.isArray(consultationModes) ? consultationModes.filter(Boolean) : [],
+    clinicDetails: Object.keys(clinicPayload).length ? clinicPayload : undefined,
+    original_fees: inPersonOriginal,
+    discount_amount: discountAmount,
+    consultationFee: inPersonFinal,
+    fees: {
+      inPerson: {
+        original: inPersonOriginal,
+        discount: discountAmount,
+        final: inPersonFinal,
+      },
+    },
+    isDoctor: Boolean(isDoctor),
+    status: APPROVAL_STATUS.APPROVED,
+    isActive: true,
+    approvedAt: new Date(),
+    approvedBy: adminId,
+  });
+
+  return res.status(201).json({
+    success: true,
+    message: 'Doctor created and approved successfully.',
+    data: doctor,
   });
 });
 

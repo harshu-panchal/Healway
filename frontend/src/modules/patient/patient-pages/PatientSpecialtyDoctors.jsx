@@ -7,10 +7,12 @@ import {
   IoTimeOutline,
   IoCheckmarkCircleOutline,
   IoStar,
+  IoEyeOutline,
 } from 'react-icons/io5'
 import { getSpecialtyDoctors, getDoctors } from '../patient-services/patientService'
 import { useToast } from '../../../contexts/ToastContext'
 import Pagination from '../../../components/Pagination'
+import { openDoctorBooking } from '../patient-utils/bookingNavigation'
 
 const specialtyLabels = {
   'dentist': 'Dentist',
@@ -243,17 +245,30 @@ const PatientSpecialtyDoctors = () => {
                       )}
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        navigate(`/patient/doctors/${doctorId}`)
-                      }}
-                      className="h-[40px] px-4 bg-primary text-white font-bold rounded-xl text-[11px] uppercase tracking-wider transition-all duration-300 shadow-lg shadow-primary/20 hover:bg-primary-dark hover:shadow-xl hover:translate-y-[-1px] active:scale-95 flex items-center justify-center gap-1.5"
-                    >
-                      <span>Book Now</span>
-                      <IoCalendarOutline className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleCardClick(doctorId)
+                        }}
+                        aria-label="View doctor profile"
+                        className="h-[40px] w-[40px] shrink-0 rounded-xl border border-slate-200 bg-white text-slate-600 transition-all duration-300 shadow-sm hover:border-primary/30 hover:bg-slate-50 hover:text-primary active:scale-95 flex items-center justify-center"
+                      >
+                        <IoEyeOutline className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          openDoctorBooking(navigate, doctorId)
+                        }}
+                        className="h-[40px] px-4 bg-primary text-white font-bold rounded-xl text-[11px] uppercase tracking-wider transition-all duration-300 shadow-lg shadow-primary/20 hover:bg-primary-dark hover:shadow-xl hover:translate-y-[-1px] active:scale-95 flex items-center justify-center gap-1.5"
+                      >
+                        <span>Book Now</span>
+                        <IoCalendarOutline className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

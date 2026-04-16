@@ -1,5 +1,6 @@
 const express = require('express');
 const {
+  createUser,
   getUsers,
   getUserById,
   updateUserStatus,
@@ -16,6 +17,7 @@ router.use(protect(ROLES.ADMIN));
 
 // Users (Patients) management
 router.get('/users', getUsers);
+router.post('/users', sanitizeInput, createUser);
 router.get('/users/:id', getUserById);
 router.patch('/users/:id/status', sanitizeInput, updateUserStatus);
 router.delete('/users/:id', deleteUser);

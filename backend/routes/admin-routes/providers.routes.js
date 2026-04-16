@@ -1,5 +1,6 @@
 const express = require('express');
 const {
+  createDoctor,
   getDoctors,
   getDoctorById,
   getDoctorStats,
@@ -19,6 +20,7 @@ router.use(protect(ROLES.ADMIN));
 
 // Doctors management
 router.get('/doctors', getDoctors);
+router.post('/doctors', sanitizeInput, createDoctor);
 router.get('/doctors/:id', getDoctorById);
 router.get('/doctors/:id/stats', getDoctorStats);
 router.patch('/doctors/:id/verify', sanitizeInput, verifyDoctor);
