@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { IoArrowBackOutline, IoDocumentTextOutline } from 'react-icons/io5'
 import { getLegalDocument } from '../../services/legalService'
@@ -6,11 +6,25 @@ import { getLegalDocument } from '../../services/legalService'
 const fallbackContent = {
   terms: `Welcome to Healway. By using this platform, you agree to follow applicable laws, maintain truthful account information, and use services responsibly. Healway may update these terms from time to time. Continued use after updates means you accept those updates.`,
   privacy: `Healway collects and processes account and healthcare-related data to provide core platform services. We apply reasonable security controls and only use data as required for service delivery, compliance, and support. You can contact us for privacy-related requests.`,
+  'contact-us': `Contact Healway support for account help, onboarding support, appointment guidance, and general platform assistance.`,
+  faq: `Frequently asked questions and answers will appear here once updated by the admin.`,
+  'help-center': `Healway help center content will appear here once updated by the admin.`,
 }
 
 const fallbackUpdated = {
   terms: 'January 1, 2025',
   privacy: 'January 1, 2025',
+  'contact-us': 'January 1, 2025',
+  faq: 'January 1, 2025',
+  'help-center': 'January 1, 2025',
+}
+
+const pageTitles = {
+  terms: 'Terms of Service',
+  privacy: 'Privacy Policy',
+  'contact-us': 'Contact Us',
+  faq: 'FAQ',
+  'help-center': 'Help Center',
 }
 
 const formatDate = (value, defaultDate) => {
@@ -27,7 +41,7 @@ const LegalContentPage = ({ type, role }) => {
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  const pageTitle = type === 'terms' ? 'Terms of Service' : 'Privacy Policy'
+  const pageTitle = pageTitles[type] || 'Content Page'
 
   useEffect(() => {
     let isMounted = true
@@ -54,7 +68,7 @@ const LegalContentPage = ({ type, role }) => {
   }, [type, role])
 
   const finalContent = useMemo(() => {
-    return content || fallbackContent[type]
+    return content || fallbackContent[type] || ''
   }, [content, type])
 
   const handleBack = () => {

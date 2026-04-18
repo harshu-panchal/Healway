@@ -3,6 +3,7 @@ const {
   createUser,
   getUsers,
   getUserById,
+  updateUser,
   updateUserStatus,
   deleteUser,
 } = require('../../controllers/admin-controllers/adminUserController');
@@ -19,6 +20,7 @@ router.use(protect(ROLES.ADMIN));
 router.get('/users', getUsers);
 router.post('/users', sanitizeInput, createUser);
 router.get('/users/:id', getUserById);
+router.patch('/users/:id', sanitizeInput, updateUser);
 router.patch('/users/:id/status', sanitizeInput, updateUserStatus);
 router.delete('/users/:id', deleteUser);
 

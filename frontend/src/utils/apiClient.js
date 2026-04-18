@@ -179,7 +179,8 @@ const apiRequest = async (endpoint, options = {}, module = 'admin') => {
     endpoint.includes('/services') ||
     endpoint.includes('/location/state') ||
     endpoint.includes('/location/city') ||
-    endpoint.includes('/public/legal')) &&
+    endpoint.includes('/public/legal') ||
+    endpoint.includes('/public/settings')) &&
     !endpoint.includes('/admin/')
 
   // For protected endpoints (not auth or public discovery), check token before making request

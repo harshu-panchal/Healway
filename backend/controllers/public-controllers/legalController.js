@@ -4,6 +4,9 @@ const AdminSettings = require('../../models/AdminSettings');
 const getNormalizedDocument = (document) => {
   if (document === 'terms') return 'terms';
   if (document === 'privacy') return 'privacy';
+  if (document === 'contact-us') return 'contact-us';
+  if (document === 'faq') return 'faq';
+  if (document === 'help-center') return 'help-center';
   return null;
 };
 
@@ -20,9 +23,16 @@ const resolveContentByRoleAndDocument = (legalContent, role, document) => {
     return legalContent.termsOfService || '';
   }
 
-  if (role === 'doctor' && legalContent.doctorPrivacyPolicy) return legalContent.doctorPrivacyPolicy;
-  if (role === 'patient' && legalContent.patientPrivacyPolicy) return legalContent.patientPrivacyPolicy;
-  return legalContent.privacyPolicy || '';
+  if (document === 'privacy') {
+    if (role === 'doctor' && legalContent.doctorPrivacyPolicy) return legalContent.doctorPrivacyPolicy;
+    if (role === 'patient' && legalContent.patientPrivacyPolicy) return legalContent.patientPrivacyPolicy;
+    return legalContent.privacyPolicy || '';
+  }
+
+  if (document === 'contact-us') return legalContent.contactUs || '';
+  if (document === 'faq') return legalContent.faq || '';
+  if (document === 'help-center') return legalContent.helpCenter || '';
+  return '';
 };
 
 // GET /api/public/legal/:document

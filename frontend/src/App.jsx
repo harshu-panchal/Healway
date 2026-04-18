@@ -71,7 +71,9 @@ const DataProtection = lazy(() => import('./modules/doctor/doctor-pages/DataProt
 const AdminLogin = lazy(() => import('./modules/admin/admin-pages/AdminLogin'))
 const AdminDashboard = lazy(() => import('./modules/admin/admin-pages/AdminDashboard'))
 const AdminUsers = lazy(() => import('./modules/admin/admin-pages/AdminUsers'))
+const AdminUserForm = lazy(() => import('./modules/admin/admin-pages/AdminUserForm'))
 const AdminDoctors = lazy(() => import('./modules/admin/admin-pages/AdminDoctors'))
+const AdminDoctorForm = lazy(() => import('./modules/admin/admin-pages/AdminDoctorForm'))
 const AdminAppointments = lazy(() => import('./modules/admin/admin-pages/AdminAppointments'))
 const AdminRequests = lazy(() => import('./modules/admin/admin-pages/AdminRequests'))
 const AdminRevenue = lazy(() => import('./modules/admin/admin-pages/AdminRevenue'))
@@ -92,6 +94,7 @@ const AdminResetPassword = lazy(() => import('./modules/admin/admin-pages/AdminR
 
 // Shared/Website Pages
 const NotificationsPage = lazy(() => import('./modules/shared/NotificationsPage'))
+const LegalContentPage = lazy(() => import('./modules/shared/LegalContentPage'))
 const Home = lazy(() => import('./modules/website/web-pages/Home'))
 const WebOnBoarding = lazy(() => import('./modules/website/web-pages/WebOnBoarding'))
 
@@ -215,8 +218,20 @@ function AdminRoutes() {
           <Route path="/users" element={
             <Suspense fallback={<PageLoader />}><ProtectedRoute module="admin"><AdminUsers /></ProtectedRoute></Suspense>
           } />
+          <Route path="/users/create" element={
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="admin"><AdminUserForm /></ProtectedRoute></Suspense>
+          } />
+          <Route path="/users/edit/:id" element={
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="admin"><AdminUserForm /></ProtectedRoute></Suspense>
+          } />
           <Route path="/doctors" element={
             <Suspense fallback={<PageLoader />}><ProtectedRoute module="admin"><AdminDoctors /></ProtectedRoute></Suspense>
+          } />
+          <Route path="/doctors/create" element={
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="admin"><AdminDoctorForm /></ProtectedRoute></Suspense>
+          } />
+          <Route path="/doctors/edit/:id" element={
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="admin"><AdminDoctorForm /></ProtectedRoute></Suspense>
           } />
           <Route path="/specialization" element={
             <Suspense fallback={<PageLoader />}><ProtectedRoute module="admin"><AdminSpecialization /></ProtectedRoute></Suspense>
@@ -340,6 +355,11 @@ function DoctorRoutes() {
             />
             <Route path="/login" element={
               <Suspense fallback={<PageLoader />}><DoctorLogin /></Suspense>
+            } />
+            <Route path="/signup" element={
+              <Suspense fallback={<PageLoader />}>
+                <DoctorLogin initialMode="signup" initialRole="doctor" />
+              </Suspense>
             } />
             <Route
               path="/dashboard"
@@ -695,6 +715,15 @@ function App() {
           } />
           <Route path="/privacy" element={
             <Suspense fallback={<PageLoader />}><PrivacyPolicy role="patient" /></Suspense>
+          } />
+          <Route path="/contact-us" element={
+            <Suspense fallback={<PageLoader />}><LegalContentPage type="contact-us" /></Suspense>
+          } />
+          <Route path="/faq" element={
+            <Suspense fallback={<PageLoader />}><LegalContentPage type="faq" /></Suspense>
+          } />
+          <Route path="/help-center" element={
+            <Suspense fallback={<PageLoader />}><LegalContentPage type="help-center" /></Suspense>
           } />
           <Route path="/login" element={<Navigate to="/doctor/login" replace />} />
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import {
   IoSearchOutline,
   IoMedicalOutline,
@@ -19,11 +20,14 @@ import {
   IoStatsChartOutline,
   IoChevronDownOutline,
   IoChevronUpOutline,
+  IoPencilOutline,
+  IoTrashOutline,
+  IoToggleOutline,
+  IoToggle,
 } from 'react-icons/io5'
 import { Reorder, useDragControls } from 'framer-motion'
 import { useToast } from '../../../contexts/ToastContext'
 import {
-  createDoctor,
   getDoctors,
   getDoctorById,
   getDoctorStats,
@@ -31,94 +35,40 @@ import {
   rejectDoctor,
   toggleDoctorFeatured,
   reorderDoctors,
+  deleteDoctor,
+  toggleDoctorStatus,
 } from '../admin-services/adminService'
 import Pagination from '../../../components/Pagination'
 
-// Mock data removed - using real API now
-
 const AdminDoctors = () => {
   const toast = useToast()
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter] = useState('verified')
   const [doctors, setDoctors] = useState([])
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState(null)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [editingDoctor, setEditingDoctor] = useState(null)
-  const [addDoctorStep, setAddDoctorStep] = useState(1)
-  const [isSavingDoctor, setIsSavingDoctor] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
   const [rejectingDoctorId, setRejectingDoctorId] = useState(null)
   const [rejectionReason, setRejectionReason] = useState('')
   const [viewingDoctor, setViewingDoctor] = useState(null)
   const [loadingDoctorDetails, setLoadingDoctorDetails] = useState(false)
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    gender: '',
-    specialization: '',
-    licenseNumber: '',
-    experienceYears: '',
-    qualification: '',
-    bio: '',
-    consultationFee: '',
-    languages: '',
-    services: '',
-    consultationModes: [],
-    clinicName: '',
-    clinicAddress: {
-      line1: '',
-      line2: '',
-      city: '',
-      state: '',
-      postalCode: '',
-      country: 'India',
-    },
-  })
+  
   const [allDoctors, setAllDoctors] = useState([]) // Store all doctors for stats
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalItems, setTotalItems] = useState(0)
   const itemsPerPage = 10
 
-  const getEmptyDoctorForm = () => ({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    gender: '',
-    specialization: '',
-    licenseNumber: '',
-    experienceYears: '',
-    qualification: '',
-    bio: '',
-    consultationFee: '',
-    languages: '',
-    services: '',
-    consultationModes: [],
-    clinicName: '',
-    clinicAddress: {
-      line1: '',
-      line2: '',
-      city: '',
-      state: '',
-      postalCode: '',
-      country: 'India',
-    },
-  })
-
   // Statistics Modal State
   const [selectedDoctor, setSelectedDoctor] = useState(null)
   const [statsFilter, setStatsFilter] = useState('all')
   const [doctorStats, setDoctorStats] = useState(null)
   const [loadingStats, setLoadingStats] = useState(false)
-  const [selectedPatient, setSelectedPatient] = useState(null) // For showing patient appointments
+  const [selectedPatient, setSelectedPatient] = useState(null)
 
-  // Load doctors from API
   useEffect(() => {
-    setCurrentPage(1) // Reset to page 1 when filter/search changes
+    setCurrentPage(1)
   }, [statusFilter, searchTerm])
 
   useEffect(() => {
@@ -129,13 +79,11 @@ const AdminDoctors = () => {
     try {
       setLoading(true)
 
-      // First, load ALL doctors for stats (no filters)
+      // Load ALL doctors for stats
       const allDoctorsResponse = await getDoctors({ page: 1, limit: 1000 })
       if (allDoctorsResponse) {
-        // Helper function to format full address
         const formatFullAddress = (clinicDetails) => {
           if (!clinicDetails) return ''
-
           const parts = []
           if (clinicDetails.address) {
             const addr = clinicDetails.address
@@ -146,7 +94,6 @@ const AdminDoctors = () => {
             if (addr.postalCode) parts.push(addr.postalCode)
             if (addr.country) parts.push(addr.country)
           }
-
           return parts.length > 0 ? parts.join(', ') : ''
         }
 
@@ -158,19 +105,19 @@ const AdminDoctors = () => {
           specialty: doctor.specialization || '',
           clinic: doctor.clinicDetails?.name || '',
           location: formatFullAddress(doctor.clinicDetails),
-          totalConsultations: 0, // TODO: Add when appointments API is ready
+          totalConsultations: 0,
           status: doctor.status === 'approved' ? 'verified' : doctor.status || 'pending',
           isFeatured: !!doctor.isFeatured,
+          isActive: doctor.isActive !== false,
           registeredAt: doctor.createdAt || new Date().toISOString(),
           rejectionReason: doctor.rejectionReason || '',
         }))
         setAllDoctors(allTransformed)
       }
 
-      // Then, load filtered doctors for display with pagination
+      // Load paginated/filtered doctors
       const filters = {}
       if (statusFilter !== 'all') {
-        // Map 'verified' to 'approved' for backend compatibility
         filters.status = statusFilter === 'verified' ? 'approved' : statusFilter
       }
       if (searchTerm && searchTerm.trim()) {
@@ -180,15 +127,12 @@ const AdminDoctors = () => {
       filters.limit = itemsPerPage
 
       const response = await getDoctors(filters)
-
       if (response) {
         const doctorsData = response.items || response || []
         const pagination = response.pagination || {}
 
-        // Helper function to format full address
         const formatFullAddress = (clinicDetails) => {
           if (!clinicDetails) return ''
-
           const parts = []
           if (clinicDetails.address) {
             const addr = clinicDetails.address
@@ -199,7 +143,6 @@ const AdminDoctors = () => {
             if (addr.postalCode) parts.push(addr.postalCode)
             if (addr.country) parts.push(addr.country)
           }
-
           return parts.length > 0 ? parts.join(', ') : ''
         }
 
@@ -211,23 +154,16 @@ const AdminDoctors = () => {
           specialty: doctor.specialization || '',
           clinic: doctor.clinicDetails?.name || '',
           location: formatFullAddress(doctor.clinicDetails),
-          totalConsultations: 0, // TODO: Add when appointments API is ready
+          totalConsultations: 0,
           status: doctor.status === 'approved' ? 'verified' : doctor.status || 'pending',
           isFeatured: !!doctor.isFeatured,
+          isActive: doctor.isActive !== false,
           registeredAt: doctor.createdAt || new Date().toISOString(),
           rejectionReason: doctor.rejectionReason || '',
         }))
-        console.log('📋 Transformed doctors:', transformedDoctors) // Debug log
         setDoctors(transformedDoctors)
-
-        // Update pagination state
         setTotalPages(pagination.totalPages || 1)
         setTotalItems(pagination.total || 0)
-      } else {
-        console.error('❌ Invalid response from API:', response) // Debug log
-        setDoctors([])
-        setTotalPages(1)
-        setTotalItems(0)
       }
     } catch (error) {
       console.error('Error loading doctors:', error)
@@ -241,7 +177,6 @@ const AdminDoctors = () => {
     try {
       setProcessingId(doctorId)
       await verifyDoctor(doctorId)
-
       toast.success('Doctor approved successfully')
       await loadDoctors()
     } catch (error) {
@@ -257,13 +192,43 @@ const AdminDoctors = () => {
       setProcessingId(doctorId)
       const newFeatured = !currentFeatured
       await toggleDoctorFeatured(doctorId, newFeatured)
-
       toast.success(newFeatured ? 'Doctor marked as featured' : 'Doctor removed from featured')
-      // Optimistically update the UI or reload
       setDoctors(prev => prev.map(d => d.id === doctorId ? { ...d, isFeatured: newFeatured } : d))
     } catch (error) {
       console.error('Error toggling featured status:', error)
       toast.error(error.message || 'Failed to update featured status')
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleToggleStatus = async (doctorId, currentStatus) => {
+    try {
+      setProcessingId(doctorId)
+      await toggleDoctorStatus(doctorId)
+      toast.success(`Doctor ${!currentStatus ? 'activated' : 'deactivated'} successfully`)
+      setDoctors(prev => prev.map(d => d.id === doctorId ? { ...d, isActive: !currentStatus } : d))
+    } catch (error) {
+      console.error('Error toggling doctor status:', error)
+      toast.error(error.message || 'Failed to update status')
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleDeleteDoctor = async (doctorId) => {
+    if (!window.confirm('Are you sure you want to delete this doctor? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      setProcessingId(doctorId)
+      await deleteDoctor(doctorId)
+      toast.success('Doctor deleted successfully')
+      await loadDoctors()
+    } catch (error) {
+      console.error('Error deleting doctor:', error)
+      toast.error(error.message || 'Failed to delete doctor')
     } finally {
       setProcessingId(null)
     }
@@ -285,7 +250,6 @@ const AdminDoctors = () => {
     try {
       setProcessingId(rejectingDoctorId)
       await rejectDoctor(rejectingDoctorId, rejectionReason.trim())
-
       toast.success('Doctor rejected successfully')
       await loadDoctors()
       setShowRejectModal(false)
@@ -300,17 +264,13 @@ const AdminDoctors = () => {
   }
 
   const handleReorder = async (newOrder) => {
-    // Optimistically update the UI
     setDoctors(newOrder)
-
     try {
-      // Calculate sortOrder based on position in the list
       const baseOrder = (currentPage - 1) * itemsPerPage
       const orders = newOrder.map((doc, index) => ({
         id: doc.id,
         sortOrder: baseOrder + index,
       }))
-
       await reorderDoctors(orders)
       toast.success('Order updated')
     } catch (error) {
@@ -337,7 +297,6 @@ const AdminDoctors = () => {
     }
   }
 
-  // Fetch doctor statistics
   const fetchDoctorStats = async (doctorId, filter = 'all') => {
     setLoadingStats(true)
     try {
@@ -355,7 +314,6 @@ const AdminDoctors = () => {
     }
   }
 
-  // Handle doctor card click to show statistics
   const handleDoctorStatsClick = async (doctor) => {
     setSelectedDoctor(doctor)
     setStatsFilter('all')
@@ -363,26 +321,22 @@ const AdminDoctors = () => {
     await fetchDoctorStats(doctor.id, 'all')
   }
 
-  // Handle filter change in statistics modal
   const handleStatsFilterChange = async (newFilter) => {
     if (!selectedDoctor) return
     setStatsFilter(newFilter)
     await fetchDoctorStats(selectedDoctor.id, newFilter)
   }
 
-  // Update doctors when search term changes
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (currentPage === 1) {
         loadDoctors()
       } else {
-        setCurrentPage(1) // Reset to page 1 when search changes
+        setCurrentPage(1)
       }
     }, 500)
     return () => clearTimeout(timeoutId)
   }, [searchTerm])
-
-  // No need for client-side filtering - backend handles it
 
   const formatDate = (dateString) => {
     const date = new Date(dateString)
@@ -421,105 +375,6 @@ const AdminDoctors = () => {
     }
   }
 
-
-  // CRUD Operations
-  const handleCreate = () => {
-    setEditingDoctor(null)
-    setFormData(getEmptyDoctorForm())
-    setAddDoctorStep(1)
-    setShowEditModal(true)
-  }
-
-  const handleSave = async () => {
-    if (isSavingDoctor) return
-
-    if (editingDoctor) {
-      toast.warning('Doctor editing is not connected yet.')
-      return
-    }
-
-    if (!formData.firstName.trim() || !formData.email.trim() || !formData.phone.trim()) {
-      toast.warning('Please fill first name, email, and phone.')
-      setAddDoctorStep(1)
-      return
-    }
-
-    if (!formData.specialization.trim() || !formData.gender || !formData.licenseNumber.trim()) {
-      toast.warning('Please fill specialization, gender, and license number.')
-      setAddDoctorStep(2)
-      return
-    }
-
-    try {
-      setIsSavingDoctor(true)
-      await createDoctor({
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        email: formData.email.trim(),
-        phone: formData.phone.trim(),
-        gender: formData.gender,
-        specialization: formData.specialization.trim(),
-        licenseNumber: formData.licenseNumber.trim(),
-        experienceYears: formData.experienceYears || undefined,
-        qualification: formData.qualification.trim() || undefined,
-        bio: formData.bio.trim() || undefined,
-        consultationFee: formData.consultationFee || undefined,
-        languages: formData.languages
-          ? formData.languages.split(',').map(item => item.trim()).filter(Boolean)
-          : [],
-        services: formData.services
-          ? formData.services.split(',').map(item => item.trim()).filter(Boolean)
-          : [],
-        consultationModes: formData.consultationModes,
-        clinicName: formData.clinicName.trim() || undefined,
-        clinicAddress: formData.clinicAddress,
-        isDoctor: true,
-      })
-      toast.success('Doctor added successfully')
-      await loadDoctors()
-      setShowEditModal(false)
-      setEditingDoctor(null)
-      setAddDoctorStep(1)
-      setFormData(getEmptyDoctorForm())
-    } catch (error) {
-      console.error('Error creating doctor:', error)
-      toast.error(error.message || 'Failed to add doctor')
-    } finally {
-      setIsSavingDoctor(false)
-    }
-  }
-
-  const handleDoctorModeToggle = (mode) => {
-    setFormData(prev => {
-      const modes = prev.consultationModes || []
-      return {
-        ...prev,
-        consultationModes: modes.includes(mode)
-          ? modes.filter(item => item !== mode)
-          : [...modes, mode],
-      }
-    })
-  }
-
-  const handleInputChange = (field, value) => {
-    if (field.startsWith('clinicAddress.')) {
-      const key = field.replace('clinicAddress.', '')
-      setFormData(prev => ({
-        ...prev,
-        clinicAddress: {
-          ...prev.clinicAddress,
-          [key]: value,
-        },
-      }))
-      return
-    }
-
-    setFormData(prev => ({
-      ...prev,
-      [field]: value,
-    }))
-  }
-
   return (
     <section className="flex flex-col gap-2 pb-20 pt-0">
       {/* Header */}
@@ -530,7 +385,7 @@ const AdminDoctors = () => {
         </div>
         <button
           type="button"
-          onClick={handleCreate}
+          onClick={() => navigate('/admin/doctors/create')}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark active:scale-[0.98]"
         >
           <IoAddOutline className="h-4 w-4" />
@@ -552,7 +407,7 @@ const AdminDoctors = () => {
         />
       </div>
 
-      {/* Stats Summary - Clickable Cards */}
+      {/* Stats Summary */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Verified Doctors</p>
@@ -592,6 +447,8 @@ const AdminDoctors = () => {
                 doctor={doctor}
                 getStatusBadge={getStatusBadge}
                 handleToggleFeatured={handleToggleFeatured}
+                handleToggleStatus={handleToggleStatus}
+                handleDeleteDoctor={handleDeleteDoctor}
                 processingId={processingId}
                 handleViewDoctor={handleViewDoctor}
                 handleDoctorStatsClick={handleDoctorStatsClick}
@@ -599,6 +456,7 @@ const AdminDoctors = () => {
                 handleApprove={handleApprove}
                 handleRejectClick={handleRejectClick}
                 formatDate={formatDate}
+                navigate={navigate}
               />
             ))}
           </Reorder.Group>
@@ -619,27 +477,27 @@ const AdminDoctors = () => {
         </div>
       )}
 
-      {/* Edit/Create Modal */}
-      {showEditModal && (
+      {/* Reject Doctor Modal */}
+      {showRejectModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           onClick={() => {
-            setShowEditModal(false)
-            setEditingDoctor(null)
+            setShowRejectModal(false)
+            setRejectingDoctorId(null)
+            setRejectionReason('')
           }}
         >
           <div
-            className="w-full max-w-lg rounded-xl border border-slate-200 bg-white shadow-xl"
+            className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-              <h2 className="text-lg font-semibold text-slate-900">
-                {editingDoctor ? 'Edit Doctor' : 'Add New Doctor'}
-              </h2>
+              <h2 className="text-lg font-semibold text-slate-900">Reject Doctor</h2>
               <button
                 onClick={() => {
-                  setShowEditModal(false)
-                  setEditingDoctor(null)
+                  setShowRejectModal(false)
+                  setRejectingDoctorId(null)
+                  setRejectionReason('')
                 }}
                 className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               >
@@ -647,530 +505,188 @@ const AdminDoctors = () => {
               </button>
             </div>
 
-            <div className="p-4 max-h-[70vh] overflow-y-auto">
-              <div className="mb-5 grid grid-cols-3 gap-2">
-                {[
-                  { step: 1, label: 'Basic' },
-                  { step: 2, label: 'Professional' },
-                  { step: 3, label: 'Clinic' },
-                ].map(item => (
-                  <button
-                    key={item.step}
-                    type="button"
-                    onClick={() => setAddDoctorStep(item.step)}
-                    className={`rounded-xl border px-3 py-2 text-xs font-bold transition ${
-                      addDoctorStep === item.step
-                        ? 'border-primary bg-primary text-white'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    Step {item.step}: {item.label}
-                  </button>
-                ))}
+            <div className="p-4 space-y-4">
+              <div>
+                <p className="text-sm text-slate-600 mb-3">
+                  Please provide a reason for rejecting this doctor. This reason will be visible to the doctor.
+                </p>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Rejection Reason *
+                </label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Enter the reason for rejection..."
+                  rows={4}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 resize-none"
+                />
+                {!rejectionReason.trim() && (
+                  <p className="mt-1 text-xs text-red-600">Reason is required</p>
+                )}
               </div>
-
-              {addDoctorStep === 1 && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">First Name *</label>
-                      <input
-                        type="text"
-                        value={formData.firstName}
-                        onChange={(e) => handleInputChange('firstName', e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                        placeholder="John"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Last Name</label>
-                      <input
-                        type="text"
-                        value={formData.lastName}
-                        onChange={(e) => handleInputChange('lastName', e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                        placeholder="Doe"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Email *</label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="doctor@example.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Phone *</label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange('phone', e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="9876543210"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {addDoctorStep === 2 && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Specialization *</label>
-                    <input
-                      type="text"
-                      value={formData.specialization}
-                      onChange={(e) => handleInputChange('specialization', e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Cardiology"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Gender *</label>
-                      <select
-                        value={formData.gender}
-                        onChange={(e) => handleInputChange('gender', e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                      >
-                        <option value="">Select gender</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
-                        <option value="prefer_not_to_say">Prefer not to say</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">License Number *</label>
-                      <input
-                        type="text"
-                        value={formData.licenseNumber}
-                        onChange={(e) => handleInputChange('licenseNumber', e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                        placeholder="Medical license number"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Experience (Years)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={formData.experienceYears}
-                        onChange={(e) => handleInputChange('experienceYears', e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                        placeholder="5"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Consultation Fee</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={formData.consultationFee}
-                        onChange={(e) => handleInputChange('consultationFee', e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                        placeholder="1000"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Qualification</label>
-                    <input
-                      type="text"
-                      value={formData.qualification}
-                      onChange={(e) => handleInputChange('qualification', e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="MBBS, MD"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Services Provided</label>
-                    <input
-                      type="text"
-                      value={formData.services}
-                      onChange={(e) => handleInputChange('services', e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="General Checkup, Consultation"
-                    />
-                    <p className="mt-1 text-xs text-slate-500">Separate multiple services with commas.</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Consultation Modes</label>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                      {[
-                        { value: 'in_person', label: 'Clinic Visit' },
-                        { value: 'voice_call', label: 'Voice Call' },
-                        { value: 'video_call', label: 'Video Call' },
-                      ].map(mode => (
-                        <label key={mode.value} className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={formData.consultationModes.includes(mode.value)}
-                            onChange={() => handleDoctorModeToggle(mode.value)}
-                            className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
-                          />
-                          {mode.label}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Bio</label>
-                    <textarea
-                      value={formData.bio}
-                      onChange={(e) => handleInputChange('bio', e.target.value)}
-                      rows={3}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Professional background..."
-                    />
-                  </div>
-                </div>
-              )}
-
-              {addDoctorStep === 3 && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Clinic Name</label>
-                    <input
-                      type="text"
-                      value={formData.clinicName}
-                      onChange={(e) => handleInputChange('clinicName', e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="ABC Medical Clinic"
-                    />
-                  </div>
-
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <h3 className="mb-3 text-sm font-semibold text-slate-800">Clinic Address</h3>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <input
-                        type="text"
-                        value={formData.clinicAddress.line1}
-                        onChange={(e) => handleInputChange('clinicAddress.line1', e.target.value)}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary sm:col-span-2"
-                        placeholder="Address line 1"
-                      />
-                      <input
-                        type="text"
-                        value={formData.clinicAddress.line2}
-                        onChange={(e) => handleInputChange('clinicAddress.line2', e.target.value)}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary sm:col-span-2"
-                        placeholder="Address line 2"
-                      />
-                      <input
-                        type="text"
-                        value={formData.clinicAddress.city}
-                        onChange={(e) => handleInputChange('clinicAddress.city', e.target.value)}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                        placeholder="City"
-                      />
-                      <input
-                        type="text"
-                        value={formData.clinicAddress.state}
-                        onChange={(e) => handleInputChange('clinicAddress.state', e.target.value)}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                        placeholder="State"
-                      />
-                      <input
-                        type="text"
-                        value={formData.clinicAddress.postalCode}
-                        onChange={(e) => handleInputChange('clinicAddress.postalCode', e.target.value)}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                        placeholder="Postal code"
-                      />
-                      <input
-                        type="text"
-                        value={formData.clinicAddress.country}
-                        onChange={(e) => handleInputChange('clinicAddress.country', e.target.value)}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                        placeholder="Country"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Languages</label>
-                    <input
-                      type="text"
-                      value={formData.languages}
-                      onChange={(e) => handleInputChange('languages', e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="English, Hindi"
-                    />
-                    <p className="mt-1 text-xs text-slate-500">Separate multiple languages with commas.</p>
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-4 py-3">
               <button
                 onClick={() => {
-                  setShowEditModal(false)
-                  setEditingDoctor(null)
+                  setShowRejectModal(false)
+                  setRejectingDoctorId(null)
+                  setRejectionReason('')
                 }}
                 className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Cancel
               </button>
-              {addDoctorStep > 1 && (
-                <button
-                  type="button"
-                  onClick={() => setAddDoctorStep(step => Math.max(1, step - 1))}
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Back
-                </button>
-              )}
               <button
-                onClick={() => {
-                  if (addDoctorStep < 3) {
-                    setAddDoctorStep(step => Math.min(3, step + 1))
-                  } else {
-                    handleSave()
-                  }
-                }}
-                disabled={isSavingDoctor}
-                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0e3a52] disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={handleReject}
+                disabled={!rejectionReason.trim() || processingId === rejectingDoctorId}
+                className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed"
               >
-                {isSavingDoctor ? 'Saving...' : addDoctorStep < 3 ? 'Continue' : editingDoctor ? 'Update' : 'Create Doctor'}
+                {processingId === rejectingDoctorId ? 'Processing...' : 'Confirm Reject'}
               </button>
             </div>
           </div>
         </div>
-      )
-      }
-
-      {/* Reject Doctor Modal */}
-      {
-        showRejectModal && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-            onClick={() => {
-              setShowRejectModal(false)
-              setRejectingDoctorId(null)
-              setRejectionReason('')
-            }}
-          >
-            <div
-              className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                <h2 className="text-lg font-semibold text-slate-900">Reject Doctor</h2>
-                <button
-                  onClick={() => {
-                    setShowRejectModal(false)
-                    setRejectingDoctorId(null)
-                    setRejectionReason('')
-                  }}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                >
-                  <IoCloseOutline className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="p-4 space-y-4">
-                <div>
-                  <p className="text-sm text-slate-600 mb-3">
-                    Please provide a reason for rejecting this doctor. This reason will be visible to the doctor.
-                  </p>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Rejection Reason *
-                  </label>
-                  <textarea
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    placeholder="Enter the reason for rejection..."
-                    rows={4}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 resize-none"
-                  />
-                  {!rejectionReason.trim() && (
-                    <p className="mt-1 text-xs text-red-600">Reason is required</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-4 py-3">
-                <button
-                  onClick={() => {
-                    setShowRejectModal(false)
-                    setRejectingDoctorId(null)
-                    setRejectionReason('')
-                  }}
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleReject}
-                  disabled={!rejectionReason.trim() || processingId === rejectingDoctorId}
-                  className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed"
-                >
-                  {processingId === rejectingDoctorId ? 'Processing...' : 'Confirm Reject'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )
-      }
+      )}
 
       {/* View Doctor Details Modal */}
-      {
-        viewingDoctor && (
+      {viewingDoctor && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setViewingDoctor(null)}
+        >
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-            onClick={() => setViewingDoctor(null)}
+            className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white shadow-xl max-h-[90vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white shadow-xl max-h-[90vh] overflow-hidden flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                <h2 className="text-lg font-semibold text-slate-900">Doctor Details</h2>
-                <button
-                  onClick={() => setViewingDoctor(null)}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                >
-                  <IoCloseOutline className="h-4 w-4" />
-                </button>
-              </div>
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <h2 className="text-lg font-semibold text-slate-900">Doctor Details</h2>
+              <button
+                onClick={() => setViewingDoctor(null)}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <IoCloseOutline className="h-4 w-4" />
+              </button>
+            </div>
 
-              <div className="p-4 space-y-4 overflow-y-auto flex-1">
-                {loadingDoctorDetails ? (
-                  <div className="flex items-center justify-center py-8">
-                    <p className="text-slate-600">Loading doctor details...</p>
+            <div className="p-4 space-y-4 overflow-y-auto flex-1">
+              {loadingDoctorDetails ? (
+                <div className="flex items-center justify-center py-8">
+                  <p className="text-slate-600">Loading doctor details...</p>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">Basic Information</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-slate-500">Full Name</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">
+                          {`${viewingDoctor.firstName || ''} ${viewingDoctor.lastName || ''}`.trim() || 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Email</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">{viewingDoctor.email || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Phone</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">{viewingDoctor.phone || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Specialization</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">{viewingDoctor.specialization || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Registration Number</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">{viewingDoctor.registrationNumber || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Status</p>
+                        <div className="mt-1">{getStatusBadge(viewingDoctor.status === 'approved' ? 'verified' : viewingDoctor.status || 'pending')}</div>
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <>
-                    {/* Basic Information */}
+
+                  {viewingDoctor.clinicDetails && (
                     <div>
-                      <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">Basic Information</h3>
+                      <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">Clinic Details</h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {viewingDoctor.clinicDetails.name && (
+                          <div>
+                            <p className="text-xs text-slate-500">Clinic Name</p>
+                            <p className="mt-1 text-sm font-semibold text-slate-900">{viewingDoctor.clinicDetails.name}</p>
+                          </div>
+                        )}
+                        {viewingDoctor.clinicDetails.address && (
+                          <div className="sm:col-span-2">
+                            <p className="text-xs text-slate-500">Address</p>
+                            <div className="bg-slate-50 rounded-lg p-3 mt-1">
+                              <p className="text-sm text-slate-900">
+                                {viewingDoctor.clinicDetails.address.line1 || ''}
+                                {viewingDoctor.clinicDetails.address.line2 && `, ${viewingDoctor.clinicDetails.address.line2}`}
+                                {viewingDoctor.clinicDetails.address.city && `, ${viewingDoctor.clinicDetails.address.city}`}
+                                {viewingDoctor.clinicDetails.address.state && `, ${viewingDoctor.clinicDetails.address.state}`}
+                                {viewingDoctor.clinicDetails.address.postalCode && ` - ${viewingDoctor.clinicDetails.address.postalCode}`}
+                                {viewingDoctor.clinicDetails.address.country && `, ${viewingDoctor.clinicDetails.address.country}`}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">Additional Information</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {viewingDoctor.createdAt && (
                         <div>
-                          <p className="text-xs text-slate-500">Full Name</p>
+                          <p className="text-xs text-slate-500">Registered Date</p>
                           <p className="mt-1 text-sm font-semibold text-slate-900">
-                            {`${viewingDoctor.firstName || ''} ${viewingDoctor.lastName || ''}`.trim() || 'N/A'}
+                            {new Date(viewingDoctor.createdAt).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
                           </p>
                         </div>
+                      )}
+                      {viewingDoctor.approvedAt && (
                         <div>
-                          <p className="text-xs text-slate-500">Email</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900">{viewingDoctor.email || 'N/A'}</p>
+                          <p className="text-xs text-slate-500">Approved Date</p>
+                          <p className="mt-1 text-sm font-semibold text-slate-900">
+                            {new Date(viewingDoctor.approvedAt).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </p>
                         </div>
-                        <div>
-                          <p className="text-xs text-slate-500">Phone</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900">{viewingDoctor.phone || 'N/A'}</p>
+                      )}
+                      {viewingDoctor.rejectionReason && (
+                        <div className="sm:col-span-2">
+                          <p className="text-xs text-slate-500">Rejection Reason</p>
+                          <p className="mt-1 text-sm text-red-600 bg-red-50 p-2 rounded-lg">{viewingDoctor.rejectionReason}</p>
                         </div>
-                        <div>
-                          <p className="text-xs text-slate-500">Specialization</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900">{viewingDoctor.specialization || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-slate-500">Registration Number</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900">{viewingDoctor.registrationNumber || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-slate-500">Status</p>
-                          <div className="mt-1">{getStatusBadge(viewingDoctor.status === 'approved' ? 'verified' : viewingDoctor.status || 'pending')}</div>
-                        </div>
-                      </div>
+                      )}
                     </div>
+                  </div>
+                </>
+              )}
+            </div>
 
-                    {/* Clinic Details */}
-                    {viewingDoctor.clinicDetails && (
-                      <div>
-                        <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">Clinic Details</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {viewingDoctor.clinicDetails.name && (
-                            <div>
-                              <p className="text-xs text-slate-500">Clinic Name</p>
-                              <p className="mt-1 text-sm font-semibold text-slate-900">{viewingDoctor.clinicDetails.name}</p>
-                            </div>
-                          )}
-                          {viewingDoctor.clinicDetails.address && (
-                            <div className="sm:col-span-2">
-                              <p className="text-xs text-slate-500">Address</p>
-                              <div className="bg-slate-50 rounded-lg p-3 mt-1">
-                                <p className="text-sm text-slate-900">
-                                  {viewingDoctor.clinicDetails.address.line1 || ''}
-                                  {viewingDoctor.clinicDetails.address.line2 && `, ${viewingDoctor.clinicDetails.address.line2}`}
-                                  {viewingDoctor.clinicDetails.address.city && `, ${viewingDoctor.clinicDetails.address.city}`}
-                                  {viewingDoctor.clinicDetails.address.state && `, ${viewingDoctor.clinicDetails.address.state}`}
-                                  {viewingDoctor.clinicDetails.address.postalCode && ` - ${viewingDoctor.clinicDetails.address.postalCode}`}
-                                  {viewingDoctor.clinicDetails.address.country && `, ${viewingDoctor.clinicDetails.address.country}`}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Additional Details */}
-                    <div>
-                      <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">Additional Information</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {viewingDoctor.createdAt && (
-                          <div>
-                            <p className="text-xs text-slate-500">Registered Date</p>
-                            <p className="mt-1 text-sm font-semibold text-slate-900">
-                              {new Date(viewingDoctor.createdAt).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
-                            </p>
-                          </div>
-                        )}
-                        {viewingDoctor.approvedAt && (
-                          <div>
-                            <p className="text-xs text-slate-500">Approved Date</p>
-                            <p className="mt-1 text-sm font-semibold text-slate-900">
-                              {new Date(viewingDoctor.approvedAt).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
-                            </p>
-                          </div>
-                        )}
-                        {viewingDoctor.rejectionReason && (
-                          <div className="sm:col-span-2">
-                            <p className="text-xs text-slate-500">Rejection Reason</p>
-                            <p className="mt-1 text-sm text-red-600 bg-red-50 p-2 rounded-lg">{viewingDoctor.rejectionReason}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-4 py-3">
-                <button
-                  onClick={() => setViewingDoctor(null)}
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Close
-                </button>
-              </div>
+            <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-4 py-3">
+              <button
+                onClick={() => setViewingDoctor(null)}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Close
+              </button>
             </div>
           </div>
-        )
-      }
+        </div>
+      )}
 
       {/* Doctor Statistics Modal */}
       {selectedDoctor && (
@@ -1248,9 +764,7 @@ const AdminDoctors = () => {
                 </div>
               ) : doctorStats ? (
                 <div className="space-y-4">
-                  {/* Main Stats Cards */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Total Patients */}
                     <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 p-5 rounded-xl border border-blue-200/50 shadow-sm">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500 shadow-lg">
@@ -1266,7 +780,6 @@ const AdminDoctors = () => {
                       </p>
                     </div>
 
-                    {/* Total Appointments */}
                     <div className="bg-gradient-to-br from-green-50 to-green-100/50 p-5 rounded-xl border border-green-200/50 shadow-sm">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-500 shadow-lg">
@@ -1283,7 +796,6 @@ const AdminDoctors = () => {
                     </div>
                   </div>
 
-                  {/* Status Breakdown */}
                   {doctorStats.stats.statusBreakdown && Object.keys(doctorStats.stats.statusBreakdown).length > 0 && (
                     <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
                       <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -1328,7 +840,6 @@ const AdminDoctors = () => {
                     </div>
                   )}
 
-                  {/* Patient List with Appointments */}
                   {doctorStats.patients && doctorStats.patients.length > 0 && (
                     <div className="bg-white p-5 rounded-xl border border-slate-200">
                       <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -1338,7 +849,6 @@ const AdminDoctors = () => {
                       <div className="space-y-3 max-h-96 overflow-y-auto">
                         {doctorStats.patients.map((patient, index) => (
                           <div key={patient.patientId} className="border border-slate-200 rounded-lg overflow-hidden">
-                            {/* Patient Header */}
                             <div
                               className="p-4 bg-slate-50 cursor-pointer hover:bg-slate-100 transition"
                               onClick={() => setSelectedPatient(selectedPatient === patient.patientId ? null : patient.patientId)}
@@ -1356,26 +866,6 @@ const AdminDoctors = () => {
                                       </p>
                                     </div>
                                   </div>
-                                  <div className="grid grid-cols-2 gap-2 text-xs">
-                                    <div className="flex items-center gap-1 text-slate-600">
-                                      <IoMailOutline className="h-3 w-3" />
-                                      <span className="truncate">{patient.email}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1 text-slate-600">
-                                      <IoCallOutline className="h-3 w-3" />
-                                      <span>{patient.phone}</span>
-                                    </div>
-                                    {patient.gender !== 'N/A' && (
-                                      <div className="text-slate-600">
-                                        <span className="font-medium">Gender:</span> {patient.gender}
-                                      </div>
-                                    )}
-                                    {patient.bloodGroup !== 'N/A' && (
-                                      <div className="text-slate-600">
-                                        <span className="font-medium">Blood:</span> {patient.bloodGroup}
-                                      </div>
-                                    )}
-                                  </div>
                                 </div>
                                 <button className="text-slate-400 hover:text-slate-600">
                                   {selectedPatient === patient.patientId ? (
@@ -1387,92 +877,24 @@ const AdminDoctors = () => {
                               </div>
                             </div>
 
-                            {/* Patient Appointments (Expandable) */}
                             {selectedPatient === patient.patientId && (
                               <div className="p-4 bg-white border-t border-slate-200">
-                                <h5 className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2">
-                                  <IoCalendarOutline className="h-3 w-3" />
-                                  Appointments ({patient.appointments.length})
-                                </h5>
                                 <div className="space-y-2">
                                   {patient.appointments.map((apt) => (
                                     <div key={apt.appointmentId} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                                      <div className="flex items-start justify-between mb-2">
-                                        <div className="flex-1">
-                                          <div className="flex items-center gap-2 mb-1">
-                                            <span className="text-xs font-semibold text-slate-900">
-                                              {new Date(apt.appointmentDate).toLocaleDateString('en-US', {
-                                                month: 'short',
-                                                day: 'numeric',
-                                                year: 'numeric'
-                                              })}
-                                            </span>
-                                            <span className="text-xs text-slate-500">•</span>
-                                            <span className="text-xs text-slate-600">{apt.timeSlot}</span>
-                                          </div>
-                                          <div className="flex items-center gap-2">
-                                            {apt.status === 'completed' && (
-                                              <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">
-                                                <IoCheckmarkCircleOutline className="h-3 w-3" />
-                                                Completed
-                                              </span>
-                                            )}
-                                            {apt.status === 'pending' && (
-                                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-                                                <IoTimeOutline className="h-3 w-3" />
-                                                Pending
-                                              </span>
-                                            )}
-                                            {apt.status === 'cancelled' && (
-                                              <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700">
-                                                <IoCloseCircleOutline className="h-3 w-3" />
-                                                Cancelled
-                                              </span>
-                                            )}
-                                            <span className="text-[10px] text-slate-500">
-                                             <b>Consultation Type:</b> {apt.consultationType}
-                                            </span>
-                                          </div>
+                                      <div className="flex items-start justify-between">
+                                        <div>
+                                          <p className="text-xs font-bold text-slate-900">
+                                            {new Date(apt.appointmentDate).toLocaleDateString()} at {apt.timeSlot}
+                                          </p>
+                                          <p className="text-[10px] text-slate-500 uppercase font-semibold mt-1">
+                                            {apt.consultationType} • {apt.status}
+                                          </p>
                                         </div>
                                         <div className="text-right">
                                           <p className="text-xs font-bold text-primary">₹{apt.fee}</p>
-                                          <p className="text-[10px] text-slate-500">{apt.paymentStatus}</p>
                                         </div>
                                       </div>
-
-                                      {apt.symptoms && apt.symptoms.length > 0 && (
-                                        <div className="mt-2 pt-2 border-t border-slate-200">
-                                          <p className="text-[10px] font-semibold text-slate-600 mb-1">Symptoms:</p>
-                                          <p className="text-xs text-slate-700">{apt.symptoms.join(', ')}</p>
-                                        </div>
-                                      )}
-
-                                      {apt.diagnosis && (
-                                        <div className="mt-2 pt-2 border-t border-slate-200">
-                                          <p className="text-[10px] font-semibold text-slate-600 mb-1">Diagnosis:</p>
-                                          <p className="text-xs text-slate-700">{apt.diagnosis}</p>
-                                        </div>
-                                      )}
-
-                                      {apt.prescription && apt.prescription.length > 0 && (
-                                        <div className="mt-2 pt-2 border-t border-slate-200">
-                                          <p className="text-[10px] font-semibold text-slate-600 mb-1">Prescription:</p>
-                                          <div className="space-y-1">
-                                            {apt.prescription.map((med, idx) => (
-                                              <p key={idx} className="text-xs text-slate-700">
-                                                • {med.name || med} {med.dosage && `- ${med.dosage}`}
-                                              </p>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
-
-                                      {apt.notes && (
-                                        <div className="mt-2 pt-2 border-t border-slate-200">
-                                          <p className="text-[10px] font-semibold text-slate-600 mb-1">Notes:</p>
-                                          <p className="text-xs text-slate-700">{apt.notes}</p>
-                                        </div>
-                                      )}
                                     </div>
                                   ))}
                                 </div>
@@ -1483,17 +905,6 @@ const AdminDoctors = () => {
                       </div>
                     </div>
                   )}
-
-                  {/* Empty State */}
-                  {doctorStats.stats.totalAppointments === 0 && (
-                    <div className="text-center py-8 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
-                      <IoCalendarOutline className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                      <p className="text-sm font-medium text-slate-600">No appointments found</p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        {statsFilter === 'today' ? 'No appointments for today' : 'No appointments yet'}
-                      </p>
-                    </div>
-                  )}
                 </div>
               ) : (
                 <div className="text-center py-12">
@@ -1502,7 +913,6 @@ const AdminDoctors = () => {
               )}
             </div>
 
-            {/* Footer */}
             <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-6 py-4 bg-slate-50/50">
               <button
                 onClick={() => {
@@ -1518,7 +928,7 @@ const AdminDoctors = () => {
           </div>
         </div>
       )}
-    </section >
+    </section>
   )
 }
 
@@ -1528,13 +938,16 @@ const DoctorItem = ({
   doctor,
   getStatusBadge,
   handleToggleFeatured,
+  handleToggleStatus,
+  handleDeleteDoctor,
   processingId,
   handleViewDoctor,
   handleDoctorStatsClick,
   loadingDoctorDetails,
   handleApprove,
   handleRejectClick,
-  formatDate
+  formatDate,
+  navigate
 }) => {
   const dragControls = useDragControls()
 
@@ -1603,6 +1016,24 @@ const DoctorItem = ({
                     )}
                   </button>
                 )}
+                {doctor.status === 'verified' && (
+                   <button
+                   type="button"
+                   onClick={() => handleToggleStatus(doctor.id, doctor.isActive)}
+                   disabled={processingId === doctor.id}
+                   className={`flex h-8 w-8 items-center justify-center rounded-full transition-all ${doctor.isActive
+                     ? 'bg-green-100 text-green-600 hover:bg-green-200'
+                     : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                     }`}
+                   title={doctor.isActive ? 'Deactivate Doctor' : 'Activate Doctor'}
+                 >
+                   {doctor.isActive ? (
+                     <IoToggle className="h-5 w-5" />
+                   ) : (
+                     <IoToggleOutline className="h-5 w-5" />
+                   )}
+                 </button>
+                )}
               </div>
               <div className="flex gap-2 mt-2 flex-wrap">
                 <button
@@ -1618,11 +1049,33 @@ const DoctorItem = ({
                   type="button"
                   onClick={() => handleDoctorStatsClick(doctor)}
                   className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-dark transition"
-                  title="View doctor statistics"
                 >
                   <IoStatsChartOutline className="h-3.5 w-3.5" />
                   Stats
                 </button>
+                
+                {doctor.status === 'verified' && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/admin/doctors/edit/${doctor.id}`)}
+                      className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                    >
+                      <IoPencilOutline className="h-3.5 w-3.5" />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteDoctor(doctor.id)}
+                      disabled={processingId === doctor.id}
+                      className="flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:bg-red-300"
+                    >
+                      <IoTrashOutline className="h-3.5 w-3.5" />
+                      Delete
+                    </button>
+                  </>
+                )}
+
                 {doctor.status === 'pending' && (
                   <>
                     <button
@@ -1644,12 +1097,6 @@ const DoctorItem = ({
                   </>
                 )}
               </div>
-              {doctor.status === 'rejected' && doctor.rejectionReason && (
-                <div className="mt-2 rounded-lg bg-red-50 border border-red-200 p-2 max-w-xs">
-                  <p className="text-xs font-semibold text-red-700 mb-1">Rejection Reason:</p>
-                  <p className="text-xs text-red-600">{doctor.rejectionReason}</p>
-                </div>
-              )}
             </div>
           </div>
           <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
@@ -1661,5 +1108,3 @@ const DoctorItem = ({
     </Reorder.Item>
   )
 }
-
-

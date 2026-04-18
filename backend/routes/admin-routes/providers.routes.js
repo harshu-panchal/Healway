@@ -4,6 +4,9 @@ const {
   getDoctors,
   getDoctorById,
   getDoctorStats,
+  updateDoctor,
+  deleteDoctor,
+  toggleDoctorStatus,
   verifyDoctor,
   rejectDoctor,
   toggleFeatured,
@@ -22,10 +25,13 @@ router.use(protect(ROLES.ADMIN));
 router.get('/doctors', getDoctors);
 router.post('/doctors', sanitizeInput, createDoctor);
 router.get('/doctors/:id', getDoctorById);
+router.patch('/doctors/:id', sanitizeInput, updateDoctor);
+router.delete('/doctors/:id', deleteDoctor);
 router.get('/doctors/:id/stats', getDoctorStats);
 router.patch('/doctors/:id/verify', sanitizeInput, verifyDoctor);
 router.patch('/doctors/:id/reject', sanitizeInput, rejectDoctor);
 router.patch('/doctors/:id/toggle-featured', sanitizeInput, toggleFeatured);
+router.patch('/doctors/:id/toggle-status', toggleDoctorStatus);
 router.patch('/doctors/reorder', sanitizeInput, require('../../controllers/admin-controllers/adminProviderController').updateDoctorsOrder);
 
 

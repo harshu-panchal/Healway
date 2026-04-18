@@ -520,6 +520,133 @@ exports.toggleFeatured = asyncHandler(async (req, res) => {
   });
 });
 
+// PATCH /api/admin/doctors/:id
+exports.updateDoctor = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const {
+    name,
+    firstName,
+    lastName,
+    email,
+    phone,
+    gender,
+    specialization,
+    licenseNumber,
+    experienceYears,
+    qualification,
+    bio,
+    languages,
+    services,
+    consultationModes,
+    clinicName,
+    clinicAddress,
+    clinicDetails,
+    consultationFee,
+    original_fees,
+    discount_amount,
+    isActive,
+  } = req.body;
+
+  const doctor = await Doctor.findById(id);
+  if (!doctor) {
+    return res.status(404).json({
+      success: false,
+      message: 'Doctor not found.',
+    });
+  }
+
+  const resolvedName = parseName({ name, firstName, lastName });
+  if (resolvedName.firstName) doctor.firstName = resolvedName.firstName;
+  if (resolvedName.lastName !== undefined) doctor.lastName = resolvedName.lastName;
+
+  if (email) doctor.email = String(email).trim().toLowerCase();
+  if (phone) doctor.phone = String(phone).trim();
+  if (gender) doctor.gender = gender;
+  if (specialization) doctor.specialization = String(specialization).trim();
+  if (licenseNumber) doctor.licenseNumber = String(licenseNumber).trim();
+  if (experienceYears !== undefined) doctor.experienceYears = toOptionalNumber(experienceYears);
+  if (qualification !== undefined) doctor.qualification = qualification;
+  if (bio !== undefined) doctor.bio = bio;
+  if (isActive !== undefined) doctor.isActive = Boolean(isActive);
+
+  if (Array.isArray(languages)) doctor.languages = languages.filter(Boolean);
+  if (Array.isArray(services)) doctor.services = services.filter(Boolean);
+  if (Array.isArray(consultationModes)) doctor.consultationModes = consultationModes.filter(Boolean);
+
+  const clinicPayload = clinicDetails ? { ...clinicDetails } : (doctor.clinicDetails || {});
+  if (clinicName) clinicPayload.name = String(clinicName).trim();
+  if (clinicAddress) clinicPayload.address = clinicAddress;
+  if (Object.keys(clinicPayload).length) doctor.clinicDetails = clinicPayload;
+
+  const originalFee = toOptionalNumber(original_fees);
+  const discountAmount = toOptionalNumber(discount_amount);
+  const finalFee = toOptionalNumber(consultationFee);
+
+  if (originalFee !== undefined) doctor.original_fees = originalFee;
+  if (discountAmount !== undefined) doctor.discount_amount = discountAmount;
+  if (finalFee !== undefined) doctor.consultationFee = finalFee;
+
+  // Update nested fees object if needed
+  if (originalFee !== undefined || discountAmount !== undefined || finalFee !== undefined) {
+    doctor.fees = {
+      ...doctor.fees,
+      inPerson: {
+        original: originalFee ?? doctor.original_fees ?? 0,
+        discount: discountAmount ?? doctor.discount_amount ?? 0,
+        final: finalFee ?? doctor.consultationFee ?? 0,
+      },
+    };
+  }
+
+  await doctor.save({ runValidators: false });
+
+  return res.status(200).json({
+    success: true,
+    message: 'Doctor updated successfully.',
+    data: doctor,
+  });
+});
+
+// DELETE /api/admin/doctors/:id
+exports.deleteDoctor = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const doctor = await Doctor.findByIdAndDelete(id);
+  if (!doctor) {
+    return res.status(404).json({
+      success: false,
+      message: 'Doctor not found.',
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: 'Doctor deleted successfully.',
+  });
+});
+
+// PATCH /api/admin/doctors/:id/toggle-status
+exports.toggleDoctorStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const doctor = await Doctor.findById(id);
+  if (!doctor) {
+    return res.status(404).json({
+      success: false,
+      message: 'Doctor not found.',
+    });
+  }
+
+  doctor.isActive = !doctor.isActive;
+  await doctor.save({ runValidators: false });
+
+  return res.status(200).json({
+    success: true,
+    message: `Doctor ${doctor.isActive ? 'activated' : 'deactivated'} successfully.`,
+    data: { isActive: doctor.isActive },
+  });
+});
+
 // PATCH /api/admin/doctors/reorder
 exports.updateDoctorsOrder = asyncHandler(async (req, res) => {
   const { orders } = req.body; // Array of { id, sortOrder }

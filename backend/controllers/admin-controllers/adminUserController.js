@@ -107,6 +107,7 @@ exports.createUser = asyncHandler(async (req, res) => {
     lastName,
     email,
     phone,
+    password,
     dateOfBirth,
     gender,
     bloodGroup,
@@ -150,6 +151,7 @@ exports.createUser = asyncHandler(async (req, res) => {
     lastName: resolvedName.lastName || '',
     email: normalizedEmail,
     phone: normalizedPhone,
+    password, // Hash will be handled by pre-save middleware in Patient model
     dateOfBirth: dateOfBirth || undefined,
     gender: gender || undefined,
     bloodGroup: bloodGroup || undefined,
@@ -162,6 +164,77 @@ exports.createUser = asyncHandler(async (req, res) => {
     success: true,
     message: 'Patient created successfully.',
     data: patient,
+  });
+});
+
+// PATCH /api/admin/users/:id
+exports.updateUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const {
+    firstName,
+    lastName,
+    email,
+    phone,
+    password,
+    dateOfBirth,
+    gender,
+    bloodGroup,
+    address,
+    emergencyContact,
+    isActive,
+  } = req.body;
+
+  const user = await Patient.findById(id);
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found.',
+    });
+  }
+
+  // Update name/email/phone if provided
+  if (firstName) user.firstName = firstName.trim();
+  if (lastName !== undefined) user.lastName = lastName.trim();
+  
+  if (email && email.toLowerCase() !== user.email) {
+    const existingEmail = await Patient.findOne({ email: email.toLowerCase() });
+    if (existingEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already in use by another user.',
+      });
+    }
+    user.email = email.toLowerCase();
+  }
+
+  if (phone && phone !== user.phone) {
+    const existingPhone = await Patient.findOne({ phone });
+    if (existingPhone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number already in use by another user.',
+      });
+    }
+    user.phone = phone;
+  }
+
+  // Update password if provided
+  if (password) user.password = password;
+
+  // Update other fields
+  if (dateOfBirth !== undefined) user.dateOfBirth = dateOfBirth || undefined;
+  if (gender !== undefined) user.gender = gender || undefined;
+  if (bloodGroup !== undefined) user.bloodGroup = bloodGroup || undefined;
+  if (address !== undefined) user.address = address || undefined;
+  if (emergencyContact !== undefined) user.emergencyContact = emergencyContact || undefined;
+  if (isActive !== undefined) user.isActive = Boolean(isActive);
+
+  await user.save();
+
+  return res.status(200).json({
+    success: true,
+    message: 'User updated successfully.',
+    data: user,
   });
 });
 

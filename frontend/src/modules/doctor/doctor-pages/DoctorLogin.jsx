@@ -604,6 +604,21 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
       setPatientSignupData((prev) => ({ ...prev, [name]: numericValue }))
       return
     }
+
+    // Name validation: Only allow letters and spaces, max 50 chars
+    if (name === 'firstName' || name === 'lastName') {
+      const alphaValue = value.replace(/[^a-zA-Z\s]/g, '').slice(0, 50)
+      setPatientSignupData((prev) => ({ ...prev, [name]: alphaValue }))
+      return
+    }
+
+    // Email validation: max 100 chars
+    if (name === 'email') {
+      const truncatedValue = value.trim().slice(0, 100)
+      setPatientSignupData((prev) => ({ ...prev, [name]: truncatedValue }))
+      return
+    }
+
     setPatientSignupData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
@@ -778,13 +793,57 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
       return
     }
 
+    // Name validation: Only allow letters and spaces, max 50 chars
+    if (name === 'firstName' || name === 'lastName') {
+      const alphaValue = value.replace(/[^a-zA-Z\s]/g, '').slice(0, 50)
+      setDoctorSignupData((prev) => ({
+        ...prev,
+        [name]: alphaValue,
+      }))
+      return
+    }
+
+    // Email validation: max 100 chars
+    if (name === 'email') {
+      const truncatedValue = value.trim().slice(0, 100)
+      setDoctorSignupData((prev) => ({
+        ...prev,
+        [name]: truncatedValue,
+      }))
+      return
+    }
+
+    // Clinic name validation: max 100 chars
+    if (name === 'clinicDetails.name') {
+      const truncatedValue = value.slice(0, 100)
+      setDoctorSignupData((prev) => ({
+        ...prev,
+        clinicDetails: {
+          ...prev.clinicDetails,
+          name: truncatedValue,
+        },
+      }))
+      return
+    }
+
+    // License number: max 50 chars
+    if (name === 'licenseNumber') {
+      const truncatedValue = value.trim().toUpperCase().slice(0, 50)
+      setDoctorSignupData((prev) => ({
+        ...prev,
+        [name]: truncatedValue,
+      }))
+      return
+    }
+
     // Handle consultationFee - preserve exact value as string to avoid precision loss
     if (name === 'consultationFee') {
       // Remove any non-numeric characters except decimal point
       const cleanedValue = value.replace(/[^\d.]/g, '')
-      // Ensure only one decimal point
+      // Ensure only one decimal point and max length for safety
       const parts = cleanedValue.split('.')
-      const finalValue = parts.length > 1 ? parts[0] + '.' + parts.slice(1).join('') : parts[0]
+      let finalValue = parts.length > 1 ? parts[0] + '.' + parts.slice(1).join('') : parts[0]
+      finalValue = finalValue.slice(0, 10) // Reasonable max fee length
       setDoctorSignupData((prev) => ({
         ...prev,
         [name]: finalValue,

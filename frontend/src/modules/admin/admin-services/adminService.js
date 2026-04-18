@@ -126,6 +126,19 @@ export const uploadAnnouncementImage = async (file) => {
   }
 }
 
+export const uploadFooterImage = async (file) => {
+  try {
+    const formData = new FormData()
+    formData.append('image', file)
+
+    const response = await apiClient.upload('/admin/upload/footer-image', formData)
+    return response
+  } catch (error) {
+    console.error('Error uploading footer image:', error)
+    throw error
+  }
+}
+
 /**
  * Store admin tokens after login/signup
  * @param {object} tokens - Tokens object (accessToken, refreshToken)
@@ -208,6 +221,19 @@ export const getUserById = async (userId) => {
 }
 
 /**
+ * Update user from admin panel
+ */
+export const updateUser = async (userId, userData) => {
+  try {
+    const response = await apiClient.patch(`/admin/users/${userId}`, userData)
+    return response.data
+  } catch (error) {
+    console.error('Error updating user:', error)
+    throw error
+  }
+}
+
+/**
  * Update user status
  */
 export const updateUserStatus = async (userId, status) => {
@@ -255,6 +281,45 @@ export const createDoctor = async (doctorData) => {
     return response.data
   } catch (error) {
     console.error('Error creating doctor:', error)
+    throw error
+  }
+}
+
+/**
+ * Update doctor from admin panel
+ */
+export const updateDoctor = async (doctorId, doctorData) => {
+  try {
+    const response = await apiClient.patch(`/admin/doctors/${doctorId}`, doctorData)
+    return response.data
+  } catch (error) {
+    console.error('Error updating doctor:', error)
+    throw error
+  }
+}
+
+/**
+ * Delete doctor
+ */
+export const deleteDoctor = async (doctorId) => {
+  try {
+    const response = await apiClient.delete(`/admin/doctors/${doctorId}`)
+    return response.data
+  } catch (error) {
+    console.error('Error deleting doctor:', error)
+    throw error
+  }
+}
+
+/**
+ * Toggle doctor active status
+ */
+export const toggleDoctorStatus = async (doctorId) => {
+  try {
+    const response = await apiClient.patch(`/admin/doctors/${doctorId}/toggle-status`)
+    return response.data
+  } catch (error) {
+    console.error('Error toggling doctor status:', error)
     throw error
   }
 }
@@ -773,6 +838,10 @@ export default {
   getDoctors,
   getDoctorById,
   getDoctorStats,
+  createDoctor,
+  updateDoctor,
+  deleteDoctor,
+  toggleDoctorStatus,
   verifyDoctor,
   rejectDoctor,
   toggleDoctorFeatured,
@@ -785,6 +854,7 @@ export default {
   updateAdminSettings,
   updateDoctorCommissionRate,
   logoutAdmin,
+  uploadFooterImage,
   forgotPassword,
   verifyPasswordOtp,
   resetPassword,

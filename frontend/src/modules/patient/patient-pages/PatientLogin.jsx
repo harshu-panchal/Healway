@@ -202,22 +202,22 @@ const PatientLogin = () => {
       return
     }
 
-    // Limit name fields
+    // Name validation: Only allow letters and spaces, max 50 chars
     if (name === 'firstName' || name === 'lastName') {
-      const trimmedValue = value.trim().slice(0, 50)
+      const alphaValue = value.replace(/[^a-zA-Z\s]/g, '').slice(0, 50)
       setSignupData((prev) => ({
         ...prev,
-        [name]: trimmedValue,
+        [name]: alphaValue,
       }))
       return
     }
 
-    // Limit email
+    // Email validation: max 100 chars
     if (name === 'email') {
-      const trimmedValue = value.trim().slice(0, 100)
+      const truncatedValue = value.trim().slice(0, 100)
       setSignupData((prev) => ({
         ...prev,
-        [name]: trimmedValue,
+        [name]: truncatedValue,
       }))
       return
     }

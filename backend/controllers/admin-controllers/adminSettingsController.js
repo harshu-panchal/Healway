@@ -54,8 +54,18 @@ exports.updateSettings = asyncHandler(async (req, res) => {
     settings.markModified('legalContent');
   }
 
+  if (updateData.footerSettings) {
+    const freshFooter = {
+      ...(settings.footerSettings?.toObject?.() || settings.footerSettings || {}),
+      ...updateData.footerSettings,
+      lastUpdatedAt: new Date(),
+    };
+    settings.footerSettings = freshFooter;
+    settings.markModified('footerSettings');
+  }
+
   // Handle remaining top-level fields
-  const handled = ['platformSettings', 'paymentSettings', 'notificationSettings', 'legalContent'];
+  const handled = ['platformSettings', 'paymentSettings', 'notificationSettings', 'legalContent', 'footerSettings'];
   Object.keys(updateData).forEach(key => {
     if (!handled.includes(key)) {
       settings[key] = updateData[key];

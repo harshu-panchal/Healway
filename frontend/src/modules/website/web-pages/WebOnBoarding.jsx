@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { IoArrowBackOutline } from 'react-icons/io5'
 import DoctorLogin from '../../doctor/doctor-pages/DoctorLogin'
 import WebFooter from '../web-components/WebFooter'
@@ -6,7 +6,10 @@ import onboardingImage from '../../../assets/images/img4.png'
 import healwayLogo from '../../../assets/logo/healway-logo.png'
 
 const WebOnBoarding = () => {
+  const location = useLocation()
   const navigate = useNavigate()
+  const initialMode = location.state?.initialMode || 'signup'
+  const initialRole = location.state?.initialRole || 'patient'
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -38,7 +41,7 @@ const WebOnBoarding = () => {
               <p className="text-sm text-white/80 sm:text-base">Start your healthcare journey with us</p>
             </div>
 
-            <DoctorLogin embedded initialMode="signup" initialRole="patient" />
+            <DoctorLogin embedded initialMode={initialMode} initialRole={initialRole} />
           </div>
         </div>
       </div>
