@@ -1,4 +1,5 @@
 const Doctor = require('../../models/Doctor');
+const Specialty = require('../../models/Specialty');
 const asyncHandler = require('../../middleware/asyncHandler');
 const { createAccessToken, createRefreshToken, verifyRefreshToken, blacklistToken, decodeToken } = require('../../utils/tokenService');
 const { sendSignupAcknowledgementEmail } = require('../../services/emailService');
@@ -13,6 +14,7 @@ const {
   extractAddressLocation,
 } = require('../../utils/locationUtils');
 const { cloudinaryUpload, uploadFromBuffer, STANDARDS } = require('../../services/fileUploadService');
+const { canDoctorLogin, isTokenRevokedForDoctor } = require('../../utils/doctorAccess');
 
 const parseName = ({ firstName, lastName, name }) => {
   if (firstName) {
@@ -94,29 +96,48 @@ exports.registerDoctor = asyncHandler(async (req, res) => {
 
   const resolvedName = parseName({ name, firstName, lastName });
 
-  if (!resolvedName.firstName || !email || !phone || !specialization || !licenseNumber) {
+  if (!resolvedName.firstName || !email || !phone || !specialization) {
     return res.status(400).json({
       success: false,
-      message: 'Required fields missing. Provide name/firstName, email, phone, specialization, and license number.',
+      message: 'Required fields missing. Provide name/firstName, email, phone, and specialization.',
     });
   }
 
-  const existingEmail = await Doctor.findOne({ email });
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const normalizedPhone = String(phone).trim();
+  const normalizedSpecialization = String(specialization).trim();
+  const normalizedLicenseNumber = licenseNumber ? String(licenseNumber).trim() : '';
+
+  const specialtyExists = await Specialty.findOne({
+    name: normalizedSpecialization,
+    isActive: true,
+  }).lean();
+
+  if (!specialtyExists) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please select a valid specialization from the admin-added list.',
+    });
+  }
+
+  const existingEmail = await Doctor.findOne({ email: normalizedEmail });
 
   if (existingEmail) {
     return res.status(400).json({ success: false, message: 'Email already registered.' });
   }
 
-  const existingPhone = await Doctor.findOne({ phone });
+  const existingPhone = await Doctor.findOne({ phone: normalizedPhone });
 
   if (existingPhone) {
     return res.status(400).json({ success: false, message: 'Phone number already registered.' });
   }
 
-  const existingLicense = await Doctor.findOne({ licenseNumber });
+  if (normalizedLicenseNumber) {
+    const existingLicense = await Doctor.findOne({ licenseNumber: normalizedLicenseNumber });
 
-  if (existingLicense) {
-    return res.status(400).json({ success: false, message: 'License number already registered.' });
+    if (existingLicense) {
+      return res.status(400).json({ success: false, message: 'License number already registered.' });
+    }
   }
 
   let clinicPayload = clinicDetails ? { ...clinicDetails } : {};
@@ -501,10 +522,10 @@ exports.registerDoctor = asyncHandler(async (req, res) => {
   const doctor = await Doctor.create({
     firstName: resolvedName.firstName,
     lastName: resolvedName.lastName || '',
-    email,
-    phone,
-    specialization,
-    licenseNumber,
+    email: normalizedEmail,
+    phone: normalizedPhone,
+    specialization: normalizedSpecialization,
+    licenseNumber: normalizedLicenseNumber || undefined,
     gender,
     experienceYears: experienceYears ?? experience,
     education,
@@ -630,6 +651,13 @@ exports.loginDoctor = asyncHandler(async (req, res) => {
       data: {
         status: user.status,
       },
+    });
+  }
+
+  if (!canDoctorLogin(user)) {
+    return res.status(403).json({
+      success: false,
+      message: 'Doctor access is disabled by admin.',
     });
   }
 
@@ -1132,10 +1160,17 @@ exports.refreshToken = asyncHandler(async (req, res) => {
       });
     }
 
-    if (Object.prototype.hasOwnProperty.call(doctor, 'isActive') && doctor.isActive === false) {
+    if (!canDoctorLogin(doctor)) {
       return res.status(403).json({
         success: false,
-        message: 'Account is inactive.',
+        message: 'Doctor access is disabled by admin.',
+      });
+    }
+
+    if (isTokenRevokedForDoctor(doctor, decoded)) {
+      return res.status(401).json({
+        success: false,
+        message: 'Your session has been ended by admin. Please login again.',
       });
     }
 

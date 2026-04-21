@@ -1,6 +1,7 @@
 const asyncHandler = require('../../middleware/asyncHandler');
-const { ROLES, APPROVAL_STATUS } = require('../../utils/constants');
+const { ROLES, APPROVAL_STATUS, DOCTOR_ACCESS_MODES } = require('../../utils/constants');
 const Doctor = require('../../models/Doctor');
+const { cloudinaryUpload } = require('../../services/fileUploadService');
 
 const { sendRoleApprovalEmail } = require('../../services/emailService');
 
@@ -27,6 +28,106 @@ const toOptionalNumber = (value) => {
   if (value === undefined || value === null || value === '') return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+};
+
+const isNonEmptyString = (value) => typeof value === 'string' && value.trim().length > 0;
+
+const hasCompleteEducation = (education = []) =>
+  Array.isArray(education) &&
+  education.some((item) => isNonEmptyString(item?.institution) && isNonEmptyString(item?.degree) && item?.year);
+
+const getDoctorApprovalMissingFields = (doctor) => {
+  const missing = [];
+  const address = doctor?.clinicDetails?.address || {};
+
+  if (!isNonEmptyString(doctor?.firstName)) missing.push('firstName');
+  if (!isNonEmptyString(doctor?.lastName)) missing.push('lastName');
+  if (!isNonEmptyString(doctor?.email)) missing.push('email');
+  if (!isNonEmptyString(doctor?.phone)) missing.push('phone');
+  if (!isNonEmptyString(doctor?.gender)) missing.push('gender');
+  if (!isNonEmptyString(doctor?.specialization)) missing.push('specialization');
+  if (!isNonEmptyString(doctor?.licenseNumber)) missing.push('licenseNumber');
+  if (toOptionalNumber(doctor?.experienceYears) === undefined) missing.push('experienceYears');
+  if (!isNonEmptyString(doctor?.qualification)) missing.push('qualification');
+  if (!isNonEmptyString(doctor?.bio)) missing.push('bio');
+  if (toOptionalNumber(doctor?.consultationFee) === undefined) missing.push('consultationFee');
+  if (!Array.isArray(doctor?.languages) || doctor.languages.length === 0) missing.push('languages');
+  if (!Array.isArray(doctor?.services) || doctor.services.length === 0) missing.push('services');
+  if (!Array.isArray(doctor?.consultationModes) || doctor.consultationModes.length === 0) missing.push('consultationModes');
+  if (!hasCompleteEducation(doctor?.education)) missing.push('education');
+  if (!isNonEmptyString(doctor?.clinicDetails?.name)) missing.push('clinicName');
+  if (!isNonEmptyString(address?.line1)) missing.push('clinicAddress.line1');
+  if (!isNonEmptyString(address?.city)) missing.push('clinicAddress.city');
+  if (!isNonEmptyString(address?.state)) missing.push('clinicAddress.state');
+  if (!isNonEmptyString(address?.postalCode)) missing.push('clinicAddress.postalCode');
+  if (!isNonEmptyString(address?.country)) missing.push('clinicAddress.country');
+  if (!Array.isArray(doctor?.documents) || doctor.documents.length === 0) missing.push('documents');
+  if (!Array.isArray(doctor?.clinicDetails?.images) || doctor.clinicDetails.images.length === 0) missing.push('clinicImages');
+
+  return missing;
+};
+
+const processDocumentInputs = async (documents = []) => {
+  if (!Array.isArray(documents) || documents.length === 0) return [];
+
+  const processedDocuments = [];
+
+  for (const doc of documents) {
+    if (doc?.fileUrl && doc?.name) {
+      processedDocuments.push({
+        name: doc.name,
+        fileUrl: doc.fileUrl,
+        uploadedAt: doc.uploadedAt || new Date(),
+      });
+      continue;
+    }
+
+    if (doc?.data && doc?.name) {
+      const base64Data = doc.data.includes(',') ? doc.data.split(',')[1] : doc.data;
+      const buffer = Buffer.from(base64Data, 'base64');
+      const uploadResult = await cloudinaryUpload(buffer, 'healway/documents', { resource_type: 'raw' });
+
+      processedDocuments.push({
+        name: doc.name,
+        fileUrl: uploadResult.secure_url,
+        publicId: uploadResult.public_id,
+        uploadedAt: new Date(),
+      });
+    }
+  }
+
+  return processedDocuments;
+};
+
+const processClinicImageInputs = async (clinicImages = []) => {
+  if (!Array.isArray(clinicImages) || clinicImages.length === 0) return [];
+
+  const processedImages = [];
+
+  for (const img of clinicImages.slice(0, 5)) {
+    if (img?.url && img?.publicId) {
+      processedImages.push({
+        url: img.url,
+        publicId: img.publicId,
+        uploadedAt: img.uploadedAt || new Date(),
+      });
+      continue;
+    }
+
+    if (img?.data) {
+      const base64Data = img.data.includes(',') ? img.data.split(',')[1] : img.data;
+      const buffer = Buffer.from(base64Data, 'base64');
+      const uploadResult = await cloudinaryUpload(buffer, 'healway/clinics');
+
+      processedImages.push({
+        url: uploadResult.secure_url,
+        publicId: uploadResult.public_id,
+        uploadedAt: new Date(),
+      });
+    }
+  }
+
+  return processedImages;
 };
 
 /**
@@ -127,6 +228,7 @@ exports.createDoctor = asyncHandler(async (req, res) => {
     specialization,
     licenseNumber,
     experienceYears,
+    education,
     qualification,
     bio,
     languages,
@@ -135,6 +237,8 @@ exports.createDoctor = asyncHandler(async (req, res) => {
     clinicName,
     clinicAddress,
     clinicDetails,
+    documents,
+    clinicImages,
     consultationFee,
     original_fees,
     discount_amount,
@@ -181,6 +285,9 @@ exports.createDoctor = asyncHandler(async (req, res) => {
   const clinicPayload = clinicDetails ? { ...clinicDetails } : {};
   if (clinicName) clinicPayload.name = String(clinicName).trim();
   if (clinicAddress) clinicPayload.address = clinicAddress;
+  const processedDocuments = await processDocumentInputs(documents);
+  const processedClinicImages = await processClinicImageInputs(clinicImages);
+  if (processedClinicImages.length > 0) clinicPayload.images = processedClinicImages;
 
   const originalFee = toOptionalNumber(original_fees);
   const discountAmount = toOptionalNumber(discount_amount) || 0;
@@ -197,12 +304,14 @@ exports.createDoctor = asyncHandler(async (req, res) => {
     specialization: String(specialization).trim(),
     licenseNumber: normalizedLicense,
     experienceYears: toOptionalNumber(experienceYears),
+    education: Array.isArray(education) ? education.filter((item) => item?.institution || item?.degree || item?.year) : [],
     qualification: qualification || undefined,
     bio: bio || undefined,
     languages: Array.isArray(languages) ? languages.filter(Boolean) : [],
     services: Array.isArray(services) ? services.filter(Boolean) : [],
     consultationModes: Array.isArray(consultationModes) ? consultationModes.filter(Boolean) : [],
     clinicDetails: Object.keys(clinicPayload).length ? clinicPayload : undefined,
+    documents: processedDocuments,
     original_fees: inPersonOriginal,
     discount_amount: discountAmount,
     consultationFee: inPersonFinal,
@@ -378,6 +487,17 @@ exports.verifyDoctor = asyncHandler(async (req, res) => {
     });
   }
 
+  const missingFields = getDoctorApprovalMissingFields(doctor);
+  if (missingFields.length > 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Complete all doctor profile fields before approval.',
+      data: {
+        missingFields,
+      },
+    });
+  }
+
   doctor.status = APPROVAL_STATUS.APPROVED;
   doctor.rejectionReason = undefined;
   doctor.approvedAt = new Date();
@@ -533,6 +653,7 @@ exports.updateDoctor = asyncHandler(async (req, res) => {
     specialization,
     licenseNumber,
     experienceYears,
+    education,
     qualification,
     bio,
     languages,
@@ -541,10 +662,13 @@ exports.updateDoctor = asyncHandler(async (req, res) => {
     clinicName,
     clinicAddress,
     clinicDetails,
+    documents,
+    clinicImages,
     consultationFee,
     original_fees,
     discount_amount,
     isActive,
+    isDoctor,
   } = req.body;
 
   const doctor = await Doctor.findById(id);
@@ -568,14 +692,24 @@ exports.updateDoctor = asyncHandler(async (req, res) => {
   if (qualification !== undefined) doctor.qualification = qualification;
   if (bio !== undefined) doctor.bio = bio;
   if (isActive !== undefined) doctor.isActive = Boolean(isActive);
+  if (isDoctor !== undefined) doctor.isDoctor = Boolean(isDoctor);
 
   if (Array.isArray(languages)) doctor.languages = languages.filter(Boolean);
   if (Array.isArray(services)) doctor.services = services.filter(Boolean);
   if (Array.isArray(consultationModes)) doctor.consultationModes = consultationModes.filter(Boolean);
+  if (Array.isArray(education)) {
+    doctor.education = education.filter((item) => item?.institution || item?.degree || item?.year);
+  }
 
   const clinicPayload = clinicDetails ? { ...clinicDetails } : (doctor.clinicDetails || {});
   if (clinicName) clinicPayload.name = String(clinicName).trim();
   if (clinicAddress) clinicPayload.address = clinicAddress;
+  if (documents !== undefined) {
+    doctor.documents = await processDocumentInputs(documents);
+  }
+  if (clinicImages !== undefined) {
+    clinicPayload.images = await processClinicImageInputs(clinicImages);
+  }
   if (Object.keys(clinicPayload).length) doctor.clinicDetails = clinicPayload;
 
   const originalFee = toOptionalNumber(original_fees);
@@ -588,12 +722,30 @@ exports.updateDoctor = asyncHandler(async (req, res) => {
 
   // Update nested fees object if needed
   if (originalFee !== undefined || discountAmount !== undefined || finalFee !== undefined) {
+    const existingFees = doctor.fees?.toObject ? doctor.fees.toObject() : (doctor.fees || {});
+    const existingInPerson = existingFees.inPerson || {};
+    const existingVideoCall = existingFees.videoCall || {};
+    const existingVoiceCall = existingFees.voiceCall || {};
+
     doctor.fees = {
-      ...doctor.fees,
+      ...existingFees,
       inPerson: {
-        original: originalFee ?? doctor.original_fees ?? 0,
-        discount: discountAmount ?? doctor.discount_amount ?? 0,
-        final: finalFee ?? doctor.consultationFee ?? 0,
+        ...existingInPerson,
+        original: originalFee ?? existingInPerson.original ?? doctor.original_fees ?? 0,
+        discount: discountAmount ?? existingInPerson.discount ?? doctor.discount_amount ?? 0,
+        final: finalFee ?? existingInPerson.final ?? doctor.consultationFee ?? 0,
+      },
+      videoCall: {
+        original: existingVideoCall.original ?? 0,
+        discount: existingVideoCall.discount ?? 0,
+        final: existingVideoCall.final ?? 0,
+        selectedDays: Array.isArray(existingVideoCall.selectedDays) ? existingVideoCall.selectedDays : [],
+      },
+      voiceCall: {
+        original: existingVoiceCall.original ?? 0,
+        discount: existingVoiceCall.discount ?? 0,
+        final: existingVoiceCall.final ?? 0,
+        selectedDays: Array.isArray(existingVoiceCall.selectedDays) ? existingVoiceCall.selectedDays : [],
       },
     };
   }
@@ -628,6 +780,7 @@ exports.deleteDoctor = asyncHandler(async (req, res) => {
 // PATCH /api/admin/doctors/:id/toggle-status
 exports.toggleDoctorStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const { accessMode } = req.body || {};
 
   const doctor = await Doctor.findById(id);
   if (!doctor) {
@@ -637,13 +790,37 @@ exports.toggleDoctorStatus = asyncHandler(async (req, res) => {
     });
   }
 
-  doctor.isActive = !doctor.isActive;
+  const validAccessModes = Object.values(DOCTOR_ACCESS_MODES);
+  let nextAccessMode = accessMode;
+
+  if (nextAccessMode !== undefined && !validAccessModes.includes(nextAccessMode)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid doctor access mode.',
+    });
+  }
+
+  if (!nextAccessMode) {
+    nextAccessMode = doctor.isActive === false
+      ? DOCTOR_ACCESS_MODES.ACTIVE
+      : DOCTOR_ACCESS_MODES.HIDDEN;
+  }
+
+  const isRestrictingDoctorAccess = nextAccessMode !== DOCTOR_ACCESS_MODES.ACTIVE;
+  doctor.accessMode = nextAccessMode;
+  doctor.authRevokedAt = isRestrictingDoctorAccess ? new Date() : doctor.authRevokedAt;
   await doctor.save({ runValidators: false });
+
+  const statusLabelMap = {
+    [DOCTOR_ACCESS_MODES.ACTIVE]: 'activated',
+    [DOCTOR_ACCESS_MODES.HIDDEN]: 'hidden from patients and login-disabled',
+    [DOCTOR_ACCESS_MODES.VISIBLE_UNBOOKABLE]: 'shown to patients with booking disabled',
+  };
 
   return res.status(200).json({
     success: true,
-    message: `Doctor ${doctor.isActive ? 'activated' : 'deactivated'} successfully.`,
-    data: { isActive: doctor.isActive },
+    message: `Doctor ${statusLabelMap[doctor.accessMode] || 'updated'} successfully.`,
+    data: { isActive: doctor.isActive, accessMode: doctor.accessMode },
   });
 });
 

@@ -314,9 +314,9 @@ export const deleteDoctor = async (doctorId) => {
 /**
  * Toggle doctor active status
  */
-export const toggleDoctorStatus = async (doctorId) => {
+export const toggleDoctorStatus = async (doctorId, accessMode) => {
   try {
-    const response = await apiClient.patch(`/admin/doctors/${doctorId}/toggle-status`)
+    const response = await apiClient.patch(`/admin/doctors/${doctorId}/toggle-status`, accessMode ? { accessMode } : {})
     return response.data
   } catch (error) {
     console.error('Error toggling doctor status:', error)

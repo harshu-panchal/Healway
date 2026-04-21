@@ -8,6 +8,7 @@ import {
 import { getFileUrl } from '../../../utils/apiClient'
 import Pagination from '../../../components/Pagination'
 import { openDoctorBooking } from '../patient-utils/bookingNavigation'
+import { canBookDoctor } from '../patient-utils/doctorAccess'
 import {
   IoDocumentTextOutline,
   IoCalendarOutline,
@@ -713,7 +714,7 @@ const PatientPrescriptions = () => {
 
   // Filter doctors for sharing
   const filteredDoctors = doctors.filter((doctor) => {
-    if (!doctor.isActive) return false
+    if (!canBookDoctor(doctor)) return false
 
     const search = shareSearchTerm.toLowerCase()
     const doctorName = doctor.firstName && doctor.lastName

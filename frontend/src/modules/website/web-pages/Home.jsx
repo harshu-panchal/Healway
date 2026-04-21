@@ -111,7 +111,7 @@ const Home = () => {
                 className="flex flex-col sm:flex-row items-start gap-4 pt-4"
               >
                 <button
-                  onClick={() => navigate('/onboarding')}
+                  onClick={() => navigate('/specializations')}
                   className="w-full sm:w-auto px-8 py-4 bg-primary text-white rounded-xl text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 hover:bg-primary-dark"
                 >
                   <span>Get Started</span>
@@ -377,7 +377,7 @@ const Home = () => {
             className="text-center mt-12"
           >
             <button
-              onClick={() => navigate('/onboarding')}
+              onClick={() => navigate('/specializations')}
               className="px-8 py-4 bg-primary text-white rounded-xl text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 mx-auto"
             >
               <span>Get Started</span>

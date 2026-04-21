@@ -270,6 +270,21 @@ const apiRequest = async (endpoint, options = {}, module = 'admin') => {
       }
     }
 
+    if (response.status === 403 && !isAuthEndpoint && !isPublicDiscoveryEndpoint) {
+      const errorData = await response.clone().json().catch(() => ({}))
+      const message = String(errorData.message || '')
+      const shouldForceLogout =
+        message.includes('Doctor access is disabled by admin') ||
+        message.includes('Your session has been ended by admin')
+
+      if (shouldForceLogout) {
+        clearTokens(module)
+        if (module === 'doctor') {
+          window.location.href = '/doctor/login'
+        }
+      }
+    }
+
     return response
   } catch (error) {
     if (error.name === 'AbortError') {

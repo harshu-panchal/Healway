@@ -18,6 +18,7 @@ const {
   getISTTimeInMinutes,
   getISTHourMinute,
 } = require("../../utils/timezoneUtils");
+const { isDoctorBookableByPatients } = require('../../utils/doctorAccess');
 
 /**
  * Helper: Normalize consultation mode to standard format
@@ -399,10 +400,17 @@ exports.createAppointment = asyncHandler(async (req, res) => {
     }).select('_id').lean(),
   ]);
 
-  if (!doctor || doctor.status !== "approved" || !doctor.isActive) {
+  if (!doctor || doctor.status !== "approved") {
     return res.status(404).json({
       success: false,
       message: "Doctor not found or not available",
+    });
+  }
+
+  if (!isDoctorBookableByPatients(doctor)) {
+    return res.status(403).json({
+      success: false,
+      message: "Booking is currently disabled for this doctor by admin.",
     });
   }
 

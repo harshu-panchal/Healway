@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const { registerModel, ROLES } = require('../utils/getModelForRole');
-const { APPROVAL_STATUS } = require('../utils/constants');
+const { APPROVAL_STATUS, DOCTOR_ACCESS_MODES } = require('../utils/constants');
 
 const doctorSchema = new mongoose.Schema(
   {
@@ -11,8 +11,8 @@ const doctorSchema = new mongoose.Schema(
     phone: { type: String, required: true, unique: true, trim: true },
     password: { type: String, minlength: 8 },
     specialization: { type: String, required: true, trim: true },
-    gender: { type: String, required: true, enum: ['male', 'female', 'other', 'prefer_not_to_say'] },
-    licenseNumber: { type: String, required: true, trim: true, unique: true },
+    gender: { type: String, enum: ['male', 'female', 'other', 'prefer_not_to_say'] },
+    licenseNumber: { type: String, trim: true, unique: true, sparse: true },
     experienceYears: { type: Number, min: 0 },
     education: [{ institution: String, degree: String, year: Number }],
     qualification: { type: String, trim: true },
@@ -244,6 +244,11 @@ const doctorSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    accessMode: {
+      type: String,
+      enum: Object.values(DOCTOR_ACCESS_MODES),
+      default: DOCTOR_ACCESS_MODES.ACTIVE,
+    },
     isFeatured: {
       type: Boolean,
       default: false,
@@ -251,6 +256,7 @@ const doctorSchema = new mongoose.Schema(
     rejectionReason: { type: String, trim: true },
     approvedAt: { type: Date },
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
+    authRevokedAt: { type: Date },
     lastLoginAt: { type: Date },
     notificationPreferences: {
       email: { type: Boolean, default: true },
@@ -437,6 +443,27 @@ doctorSchema.pre('save', function validateConsultationTime(next) {
       // logic to ensure structures are valid can go here if stricter validation is needed
     }
   }
+  next();
+});
+
+doctorSchema.pre('save', function syncAccessMode(next) {
+  if (this.accessMode === DOCTOR_ACCESS_MODES.HIDDEN) {
+    this.isActive = false;
+    return next();
+  }
+
+  if (
+    this.accessMode === DOCTOR_ACCESS_MODES.ACTIVE ||
+    this.accessMode === DOCTOR_ACCESS_MODES.VISIBLE_UNBOOKABLE
+  ) {
+    this.isActive = true;
+    return next();
+  }
+
+  this.accessMode = this.isActive === false
+    ? DOCTOR_ACCESS_MODES.HIDDEN
+    : DOCTOR_ACCESS_MODES.ACTIVE;
+
   next();
 });
 

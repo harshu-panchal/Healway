@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
   IoArrowBackOutline,
   IoArrowForwardOutline,
@@ -23,13 +23,18 @@ import adminService, {
   createDoctor,
   updateDoctor,
   getDoctorById,
+  verifyDoctor,
 } from '../admin-services/adminService'
 
 const AdminDoctorForm = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const toast = useToast()
   const isEditMode = !!id
+  const searchParams = new URLSearchParams(location.search)
+  const shouldApproveAfterSave = searchParams.get('approve') === '1'
+  const returnTo = searchParams.get('returnTo') || (shouldApproveAfterSave ? '/admin/verification' : '/admin/doctors')
 
   const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(isEditMode)
@@ -155,7 +160,7 @@ const AdminDoctorForm = () => {
             country: doctor.clinicDetails?.address?.country || 'India',
           },
           documents: doctor.documents || [],
-          clinicImages: doctor.clinicImages || [],
+          clinicImages: doctor.clinicDetails?.images || [],
           isDoctor: doctor.isDoctor !== false,
         })
         setSpecializationSearchTerm(doctor.specialization || '')
@@ -163,7 +168,7 @@ const AdminDoctorForm = () => {
     } catch (error) {
       console.error('Error loading doctor data:', error)
       toast.error('Failed to load doctor data')
-      navigate('/admin/doctors')
+      navigate(returnTo, { replace: true })
     } finally {
       setLoading(false)
     }
@@ -319,8 +324,59 @@ const AdminDoctorForm = () => {
     setCurrentStep(prev => Math.max(1, prev - 1))
   }
 
+  const handleHeaderBack = () => {
+    if (currentStep > 1) {
+      handleBack()
+      return
+    }
+
+    navigate(returnTo)
+  }
+
+  const getMissingApprovalFields = () => {
+    const missing = []
+    const address = formData.clinicAddress || {}
+    const completeEducation = formData.education.some(
+      edu => edu.institution?.trim() && edu.degree?.trim() && String(edu.year || '').trim()
+    )
+
+    if (!formData.firstName.trim()) missing.push('First Name')
+    if (!formData.lastName.trim()) missing.push('Last Name')
+    if (!formData.email.trim()) missing.push('Email Address')
+    if (!formData.phone.trim()) missing.push('Phone Number')
+    if (!formData.gender) missing.push('Gender')
+    if (!formData.specialization.trim()) missing.push('Specialization')
+    if (!formData.licenseNumber.trim()) missing.push('License Number')
+    if (formData.experienceYears === '' || formData.experienceYears === null) missing.push('Experience')
+    if (!formData.qualification.trim()) missing.push('Qualification')
+    if (!formData.bio.trim()) missing.push('Bio')
+    if (formData.consultationFee === '' || formData.consultationFee === null) missing.push('Consultation Fee')
+    if (formData.languages.length === 0) missing.push('Languages')
+    if (formData.services.length === 0) missing.push('Services')
+    if (formData.consultationModes.length === 0) missing.push('Consultation Modes')
+    if (!completeEducation) missing.push('Education')
+    if (!formData.clinicName.trim()) missing.push('Hospital / Clinic Name')
+    if (!address.line1?.trim()) missing.push('Address Line 1')
+    if (!address.city?.trim()) missing.push('City')
+    if (!address.state?.trim()) missing.push('State')
+    if (!address.postalCode?.trim()) missing.push('Postal Code')
+    if (!address.country?.trim()) missing.push('Country')
+    if (formData.documents.length === 0) missing.push('Verification Documents')
+    if (formData.clinicImages.length === 0) missing.push('Hospital Images')
+
+    return missing
+  }
+
   const handleSave = async () => {
     if (!validateStep(1) || !validateStep(2)) return
+
+    if (shouldApproveAfterSave) {
+      const missingFields = getMissingApprovalFields()
+      if (missingFields.length > 0) {
+        toast.warning(`Complete all required doctor details before approval. Missing: ${missingFields.slice(0, 4).join(', ')}${missingFields.length > 4 ? '...' : ''}`)
+        return
+      }
+    }
 
     try {
       setIsSaving(true)
@@ -352,12 +408,17 @@ const AdminDoctorForm = () => {
 
       if (isEditMode) {
         await updateDoctor(id, payload)
-        toast.success('Doctor updated successfully')
+        if (shouldApproveAfterSave) {
+          await verifyDoctor(id)
+          toast.success('Doctor details saved and approved successfully')
+        } else {
+          toast.success('Doctor updated successfully')
+        }
       } else {
         await createDoctor(payload)
         toast.success('Doctor created successfully')
       }
-      navigate('/admin/doctors')
+      navigate(returnTo)
     } catch (error) {
       console.error('Error saving doctor:', error)
       toast.error(error.message || 'Failed to save doctor')
@@ -383,23 +444,27 @@ const AdminDoctorForm = () => {
       <div className="flex items-center justify-between mb-6 border-b border-slate-200 pb-4">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/admin/doctors')}
+            onClick={handleHeaderBack}
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-primary transition shadow-sm"
           >
             <IoArrowBackOutline className="h-5 w-5" />
           </button>
           <div>
             <h1 className="text-2xl font-bold text-slate-900">
-              {isEditMode ? 'Edit Doctor' : 'Add New Doctor'}
+              {shouldApproveAfterSave ? 'Complete Doctor Details' : isEditMode ? 'Edit Doctor' : 'Add New Doctor'}
             </h1>
             <p className="text-sm text-slate-500">
-              {isEditMode ? 'Update existing doctor details' : 'Register a new doctor in the system'}
+              {shouldApproveAfterSave
+                ? 'Fill all remaining doctor profile fields before approval'
+                : isEditMode
+                  ? 'Update existing doctor details'
+                  : 'Register a new doctor in the system'}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
            <button
-            onClick={() => navigate('/admin/doctors')}
+            onClick={() => navigate(returnTo)}
             className="hidden sm:flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-900"
           >
             <IoCloseOutline className="h-5 w-5" />
@@ -603,6 +668,21 @@ const AdminDoctorForm = () => {
               </div>
 
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700">Qualification</label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-3 flex items-center text-primary">
+                      <IoSchoolOutline className="h-5 w-5" />
+                    </span>
+                    <input
+                      type="text"
+                      value={formData.qualification}
+                      onChange={(e) => handleInputChange('qualification', e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 pl-11 text-sm text-slate-900 focus:border-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+                      placeholder="e.g. MBBS, MD"
+                    />
+                  </div>
+                </div>
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700">Experience (Years)</label>
                   <input
@@ -917,7 +997,7 @@ const AdminDoctorForm = () => {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {formData.clinicImages.map((img, index) => (
                         <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 group">
-                          <img src={img.data} className="w-full h-full object-cover" />
+                          <img src={img.data || img.url} className="w-full h-full object-cover" />
                           <button type="button" onClick={() => removeFile('clinicImages', index)} className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                             <IoCloseOutline className="h-4 w-4" />
                           </button>
@@ -968,7 +1048,7 @@ const AdminDoctorForm = () => {
                 ) : (
                   <>
                     <IoSaveOutline className="h-5 w-5" />
-                    {isEditMode ? 'Update Doctor' : 'Complete Registration'}
+                    {shouldApproveAfterSave ? 'Save & Approve' : isEditMode ? 'Update Doctor' : 'Complete Registration'}
                   </>
                 )}
               </button>

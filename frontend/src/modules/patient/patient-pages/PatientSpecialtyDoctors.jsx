@@ -13,6 +13,7 @@ import { getSpecialtyDoctors, getDoctors } from '../patient-services/patientServ
 import { useToast } from '../../../contexts/ToastContext'
 import Pagination from '../../../components/Pagination'
 import { openDoctorBooking } from '../patient-utils/bookingNavigation'
+import { canBookDoctor, canShowDoctorProfile } from '../patient-utils/doctorAccess'
 
 const specialtyLabels = {
   'dentist': 'Dentist',
@@ -71,10 +72,7 @@ const PatientSpecialtyDoctors = () => {
             : response.items || []
 
           // Filter by active status (doctors should already be filtered by backend, but double-check)
-          const activeDoctors = doctorsData.filter(doctor => {
-            // Check if doctor is active (from API data)
-            return doctor.isActive !== false
-          })
+          const activeDoctors = doctorsData.filter((doctor) => canShowDoctorProfile(doctor))
 
           setDoctors(activeDoctors)
         } else {
@@ -257,17 +255,23 @@ const PatientSpecialtyDoctors = () => {
                       >
                         <IoEyeOutline className="h-4 w-4" />
                       </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          openDoctorBooking(navigate, doctorId)
-                        }}
-                        className="h-[40px] px-4 bg-primary text-white font-bold rounded-xl text-[11px] uppercase tracking-wider transition-all duration-300 shadow-lg shadow-primary/20 hover:bg-primary-dark hover:shadow-xl hover:translate-y-[-1px] active:scale-95 flex items-center justify-center gap-1.5"
-                      >
-                        <span>Book Now</span>
-                        <IoCalendarOutline className="h-3.5 w-3.5" />
-                      </button>
+                      {canBookDoctor(doctor) ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openDoctorBooking(navigate, doctorId)
+                          }}
+                          className="h-[40px] px-4 bg-primary text-white font-bold rounded-xl text-[11px] uppercase tracking-wider transition-all duration-300 shadow-lg shadow-primary/20 hover:bg-primary-dark hover:shadow-xl hover:translate-y-[-1px] active:scale-95 flex items-center justify-center gap-1.5"
+                        >
+                          <span>Book Now</span>
+                          <IoCalendarOutline className="h-3.5 w-3.5" />
+                        </button>
+                      ) : (
+                        <div className="h-[40px] px-4 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-[11px] font-bold uppercase tracking-wider flex items-center justify-center">
+                          Booking Off
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

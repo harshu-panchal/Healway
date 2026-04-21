@@ -96,6 +96,7 @@ const AdminResetPassword = lazy(() => import('./modules/admin/admin-pages/AdminR
 const NotificationsPage = lazy(() => import('./modules/shared/NotificationsPage'))
 const LegalContentPage = lazy(() => import('./modules/shared/LegalContentPage'))
 const Home = lazy(() => import('./modules/website/web-pages/Home'))
+const Specialization = lazy(() => import('./modules/website/web-pages/Specialization'))
 const WebOnBoarding = lazy(() => import('./modules/website/web-pages/WebOnBoarding'))
 
 function PatientRoutes() {
@@ -705,6 +706,9 @@ function App() {
             <Route path="/website/*" element={<WebsiteRoutes />} />
 
             {/* Onboarding Route - No Navbar */}
+            <Route path="/specializations" element={
+              <Suspense fallback={<PageLoader />}><Specialization /></Suspense>
+            } />
             <Route path="/onboarding" element={
               <Suspense fallback={<PageLoader />}><WebOnBoarding /></Suspense>
             } />

@@ -2,6 +2,7 @@ const asyncHandler = require('./asyncHandler');
 const { verifyAccessToken } = require('../utils/tokenService');
 const { getModelForRole, ROLES } = require('../utils/getModelForRole');
 const { APPROVAL_STATUS } = require('../utils/constants');
+const { canDoctorLogin, isTokenRevokedForDoctor } = require('../utils/doctorAccess');
 
 const createError = (status, message) => {
   const error = new Error(message);
@@ -84,7 +85,19 @@ const protect = (...allowedRoles) =>
     }
 
     // Check if account is active
-    if (Object.prototype.hasOwnProperty.call(user, 'isActive') && user.isActive === false) {
+    if ([ROLES.DOCTOR].includes(role) && !canDoctorLogin(user)) {
+      throw createError(403, 'Doctor access is disabled by admin. Please contact support.');
+    }
+
+    if ([ROLES.DOCTOR].includes(role) && isTokenRevokedForDoctor(user, decoded)) {
+      throw createError(401, 'Your session has been ended by admin. Please login again.');
+    }
+
+    if (
+      ![ROLES.DOCTOR].includes(role) &&
+      Object.prototype.hasOwnProperty.call(user, 'isActive') &&
+      user.isActive === false
+    ) {
       throw createError(403, 'Account is inactive. Please contact support.');
     }
 

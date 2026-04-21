@@ -10,6 +10,12 @@ const APPROVAL_STATUS = {
   REJECTED: 'rejected',
 };
 
+const DOCTOR_ACCESS_MODES = {
+  ACTIVE: 'active',
+  HIDDEN: 'hidden',
+  VISIBLE_UNBOOKABLE: 'visible_unbookable',
+};
+
 const OTP_CONFIG = {
   OTP_LENGTH: Number(process.env.OTP_LENGTH) || 4,
   OTP_EXPIRY_MINUTES: Number(process.env.OTP_EXPIRY_MINUTES) || 5,
@@ -38,6 +44,7 @@ const PASSWORD_RESET_CONFIG = {
 module.exports = {
   ROLES,
   APPROVAL_STATUS,
+  DOCTOR_ACCESS_MODES,
   WITHDRAWAL_STATUS,
   JOB_NAMES,
   OTP_CONFIG,

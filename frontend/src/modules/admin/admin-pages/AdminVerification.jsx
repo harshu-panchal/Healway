@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   IoSearchOutline,
   IoMedicalOutline,
@@ -28,7 +29,6 @@ import {
 import { useToast } from '../../../contexts/ToastContext'
 import {
   getDoctors,
-  verifyDoctor,
   rejectDoctor,
 } from '../admin-services/adminService'
 import Pagination from '../../../components/Pagination'
@@ -161,6 +161,7 @@ const getTypeColor = (type) => {
 
 const AdminVerification = () => {
   const toast = useToast()
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [verifications, setVerifications] = useState([])
@@ -306,20 +307,12 @@ const AdminVerification = () => {
     const verification = verifications.find(v => v.id === id)
     if (!verification) return
 
-    try {
-      setProcessingId(id)
-      await verifyDoctor(id)
-
-      toast.success(`${verification.type.charAt(0).toUpperCase() + verification.type.slice(1)} approved successfully`)
-      await loadVerifications()
+    if (verification.type === 'doctor') {
       if (viewingVerification?.id === id) {
         setViewingVerification(null)
       }
-    } catch (error) {
-      console.error('Error approving verification:', error)
-      toast.error(error.message || 'Failed to approve verification')
-    } finally {
-      setProcessingId(null)
+      navigate(`/admin/doctors/edit/${id}?approve=1&returnTo=/admin/verification`)
+      return
     }
   }
 
@@ -497,7 +490,7 @@ const AdminVerification = () => {
                           {verification.status === 'pending' && (
                             <>
                               <button onClick={() => handleApprove(verification.id)} disabled={processingId === verification.id} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:bg-emerald-300">
-                                Approve
+                                Complete Details
                               </button>
                               <button onClick={() => handleRejectClick(verification.id)} disabled={processingId === verification.id} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:bg-red-300">
                                 Reject
@@ -591,6 +584,11 @@ const AdminVerification = () => {
                   <IoBriefcaseOutline className="h-5 w-5 text-primary" />
                   <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Professional Information</h3>
                 </div>
+                {(!viewingVerification.gender || !viewingVerification.licenseNumber || !viewingVerification.qualification) && (
+                  <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800">
+                    This request needs full doctor profile completion before approval. Open the admin doctor form, fill every remaining field, then approve from there.
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
                   <div className="space-y-4">
                     <div>
@@ -820,7 +818,7 @@ const AdminVerification = () => {
                       onClick={() => handleApprove(viewingVerification.id)}
                       className="px-6 py-2.5 text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all"
                     >
-                      Approve
+                      Complete Details
                     </button>
                     <button
                       onClick={() => handleRejectClick(viewingVerification.id)}

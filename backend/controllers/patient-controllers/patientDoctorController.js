@@ -2,7 +2,10 @@ const asyncHandler = require('../../middleware/asyncHandler');
 const Doctor = require('../../models/Doctor');
 const Appointment = require('../../models/Appointment');
 const Specialty = require('../../models/Specialty');
+const City = require('../../models/City');
+const State = require('../../models/State');
 const { APPROVAL_STATUS } = require('../../utils/constants');
+const { isDoctorVisibleToPatients, isDoctorBookableByPatients, getDoctorAccessMode } = require('../../utils/doctorAccess');
 
 /**
  * Helper: Normalize consultation mode to standard format
@@ -248,7 +251,7 @@ exports.getDoctors = asyncHandler(async (req, res) => {
 
   const [doctors, total] = await Promise.all([
     Doctor.find(finalFilter)
-      .select('firstName lastName specialization services profileImage consultationFee original_fees discount_amount fees clinicDetails bio experienceYears consultationModes sortOrder')
+      .select('firstName lastName specialization services profileImage consultationFee original_fees discount_amount fees clinicDetails bio experienceYears consultationModes sortOrder accessMode')
       .sort({ sortOrder: 1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -302,7 +305,7 @@ exports.getDoctorSearchSuggestions = asyncHandler(async (req, res) => {
     isActive: true,
     ...(Object.keys(searchFilter).length ? searchFilter : {}),
   })
-    .select('firstName lastName specialization services clinicDetails sortOrder')
+    .select('firstName lastName specialization services clinicDetails sortOrder accessMode')
     .sort({ sortOrder: 1, createdAt: -1 })
     .limit(20)
     .lean();
@@ -402,7 +405,7 @@ exports.getFeaturedDoctors = asyncHandler(async (req, res) => {
       isActive: true,
       isFeatured: true,
     })
-      .select('firstName lastName specialization profileImage consultationFee original_fees discount_amount fees clinicDetails bio experienceYears consultationModes isFeatured')
+      .select('firstName lastName specialization profileImage consultationFee original_fees discount_amount fees clinicDetails bio experienceYears consultationModes isFeatured accessMode')
       .sort({ sortOrder: 1, updatedAt: -1 })
       .limit(10)
       .lean(); // Use lean() for better performance and to get plain objects
@@ -474,7 +477,7 @@ exports.getDoctorById = asyncHandler(async (req, res) => {
     .select('-password -otp -otpExpires')
     .lean(); // Use lean() for better performance
 
-  if (!doctor || doctor.status !== APPROVAL_STATUS.APPROVED) {
+  if (!doctor || !isDoctorVisibleToPatients(doctor)) {
     return res.status(404).json({
       success: false,
       message: 'Doctor not found',
@@ -606,7 +609,7 @@ exports.getSpecialtyDoctors = asyncHandler(async (req, res) => {
       status: APPROVAL_STATUS.APPROVED,
       isActive: true,
     })
-      .select('firstName lastName specialization profileImage consultationFee original_fees discount_amount fees clinicDetails experienceYears experience sortOrder')
+      .select('firstName lastName specialization profileImage consultationFee original_fees discount_amount fees clinicDetails experienceYears experience sortOrder accessMode')
       .sort({ sortOrder: 1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -634,24 +637,16 @@ exports.getSpecialtyDoctors = asyncHandler(async (req, res) => {
 
 // GET /api/patients/locations
 exports.getLocations = asyncHandler(async (req, res) => {
-  // Get unique cities and states from doctors
-  const cities = await Doctor.distinct('clinicDetails.address.city', {
-    status: APPROVAL_STATUS.APPROVED,
-    isActive: true,
-    'clinicDetails.address.city': { $exists: true, $ne: '' },
-  });
-
-  const states = await Doctor.distinct('clinicDetails.address.state', {
-    status: APPROVAL_STATUS.APPROVED,
-    isActive: true,
-    'clinicDetails.address.state': { $exists: true, $ne: '' },
-  });
+  const [cities, states] = await Promise.all([
+    City.find({ isActive: true }).select('name').sort({ name: 1 }).lean(),
+    State.find({ isActive: true }).select('name').sort({ name: 1 }).lean(),
+  ]);
 
   return res.status(200).json({
     success: true,
     data: {
-      cities: cities.sort(),
-      states: states.sort(),
+      cities: cities.map((city) => city.name).filter(Boolean),
+      states: states.map((state) => state.name).filter(Boolean),
     },
   });
 });
@@ -670,10 +665,30 @@ exports.checkDoctorSlotAvailability = asyncHandler(async (req, res) => {
 
   // 1️⃣ Doctor check
   const doctor = await Doctor.findById(id).lean();
-  if (!doctor || doctor.status !== APPROVAL_STATUS.APPROVED) {
+  if (!doctor || !isDoctorVisibleToPatients(doctor)) {
     return res.status(404).json({
       success: false,
       message: 'Doctor not found',
+    });
+  }
+
+  if (!isDoctorBookableByPatients(doctor)) {
+    return res.status(200).json({
+      success: true,
+      data: {
+        available: false,
+        totalSlots: 0,
+        bookedSlots: 0,
+        availableSlots: 0,
+        nextToken: null,
+        paymentInfo: {
+          dayRequiresPayment: false,
+          note: 'Booking is disabled by admin for this doctor',
+        },
+        accessMode: getDoctorAccessMode(doctor),
+        message: 'Booking is currently disabled for this doctor',
+        timeSlots: [],
+      },
     });
   }
 

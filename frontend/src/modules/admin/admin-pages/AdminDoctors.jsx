@@ -49,6 +49,7 @@ const AdminDoctors = () => {
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState(null)
   const [showRejectModal, setShowRejectModal] = useState(false)
+  const [statusModalDoctor, setStatusModalDoctor] = useState(null)
   const [rejectingDoctorId, setRejectingDoctorId] = useState(null)
   const [rejectionReason, setRejectionReason] = useState('')
   const [viewingDoctor, setViewingDoctor] = useState(null)
@@ -109,6 +110,7 @@ const AdminDoctors = () => {
           status: doctor.status === 'approved' ? 'verified' : doctor.status || 'pending',
           isFeatured: !!doctor.isFeatured,
           isActive: doctor.isActive !== false,
+          accessMode: doctor.accessMode || (doctor.isActive === false ? 'hidden' : 'active'),
           registeredAt: doctor.createdAt || new Date().toISOString(),
           rejectionReason: doctor.rejectionReason || '',
         }))
@@ -158,6 +160,7 @@ const AdminDoctors = () => {
           status: doctor.status === 'approved' ? 'verified' : doctor.status || 'pending',
           isFeatured: !!doctor.isFeatured,
           isActive: doctor.isActive !== false,
+          accessMode: doctor.accessMode || (doctor.isActive === false ? 'hidden' : 'active'),
           registeredAt: doctor.createdAt || new Date().toISOString(),
           rejectionReason: doctor.rejectionReason || '',
         }))
@@ -202,12 +205,22 @@ const AdminDoctors = () => {
     }
   }
 
-  const handleToggleStatus = async (doctorId, currentStatus) => {
+  const handleToggleStatus = async (doctorId, accessMode) => {
     try {
       setProcessingId(doctorId)
-      await toggleDoctorStatus(doctorId)
-      toast.success(`Doctor ${!currentStatus ? 'activated' : 'deactivated'} successfully`)
-      setDoctors(prev => prev.map(d => d.id === doctorId ? { ...d, isActive: !currentStatus } : d))
+      const response = await toggleDoctorStatus(doctorId, accessMode)
+      const nextMode = response?.data?.accessMode || accessMode
+      const nextActive = response?.data?.isActive ?? (nextMode !== 'hidden')
+      const successMessage = {
+        active: 'Doctor activated successfully',
+        hidden: 'Doctor hidden from patients and login blocked',
+        visible_unbookable: 'Doctor visible to patients but booking disabled',
+      }[nextMode] || 'Doctor access updated successfully'
+
+      toast.success(successMessage)
+      setDoctors(prev => prev.map(d => d.id === doctorId ? { ...d, isActive: nextActive, accessMode: nextMode } : d))
+      setAllDoctors(prev => prev.map(d => d.id === doctorId ? { ...d, isActive: nextActive, accessMode: nextMode } : d))
+      setStatusModalDoctor(null)
     } catch (error) {
       console.error('Error toggling doctor status:', error)
       toast.error(error.message || 'Failed to update status')
@@ -347,6 +360,32 @@ const AdminDoctors = () => {
     })
   }
 
+  const getAccessModeBadge = (doctor) => {
+    const mode = doctor.accessMode || (doctor.isActive ? 'active' : 'hidden')
+
+    if (mode === 'visible_unbookable') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
+          Booking Off
+        </span>
+      )
+    }
+
+    if (mode === 'hidden') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">
+          Hidden
+        </span>
+      )
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
+        Active
+      </span>
+    )
+  }
+
   const getStatusBadge = (status) => {
     switch (status) {
       case 'verified':
@@ -447,7 +486,8 @@ const AdminDoctors = () => {
                 doctor={doctor}
                 getStatusBadge={getStatusBadge}
                 handleToggleFeatured={handleToggleFeatured}
-                handleToggleStatus={handleToggleStatus}
+                getAccessModeBadge={getAccessModeBadge}
+                setStatusModalDoctor={setStatusModalDoctor}
                 handleDeleteDoctor={handleDeleteDoctor}
                 processingId={processingId}
                 handleViewDoctor={handleViewDoctor}
@@ -543,6 +583,63 @@ const AdminDoctors = () => {
                 className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed"
               >
                 {processingId === rejectingDoctorId ? 'Processing...' : 'Confirm Reject'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {statusModalDoctor && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setStatusModalDoctor(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Doctor Access</h2>
+                <p className="text-xs text-slate-500 mt-1">{statusModalDoctor.name}</p>
+              </div>
+              <button
+                onClick={() => setStatusModalDoctor(null)}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <IoCloseOutline className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              <button
+                type="button"
+                onClick={() => handleToggleStatus(statusModalDoctor.id, 'active')}
+                disabled={processingId === statusModalDoctor.id}
+                className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left hover:bg-emerald-100 disabled:opacity-60"
+              >
+                <p className="text-sm font-semibold text-emerald-800">Active</p>
+                <p className="text-xs text-emerald-700 mt-1">Doctor can log in, patients can view the profile, and booking remains enabled.</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleToggleStatus(statusModalDoctor.id, 'hidden')}
+                disabled={processingId === statusModalDoctor.id}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 disabled:opacity-60"
+              >
+                <p className="text-sm font-semibold text-slate-800">Hide From Patients</p>
+                <p className="text-xs text-slate-600 mt-1">Doctor cannot log in, and the profile will be hidden from patients.</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleToggleStatus(statusModalDoctor.id, 'visible_unbookable')}
+                disabled={processingId === statusModalDoctor.id}
+                className="w-full rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left hover:bg-amber-100 disabled:opacity-60"
+              >
+                <p className="text-sm font-semibold text-amber-800">Show But Disable Booking</p>
+                <p className="text-xs text-amber-700 mt-1">Doctor cannot log in, the profile stays visible, but booking remains disabled.</p>
               </button>
             </div>
           </div>
@@ -937,8 +1034,9 @@ export default AdminDoctors
 const DoctorItem = ({
   doctor,
   getStatusBadge,
+  getAccessModeBadge,
   handleToggleFeatured,
-  handleToggleStatus,
+  setStatusModalDoctor,
   handleDeleteDoctor,
   processingId,
   handleViewDoctor,
@@ -998,6 +1096,7 @@ const DoctorItem = ({
             <div className="flex shrink-0 items-start gap-2 flex-col">
               <div className="flex items-center gap-2">
                 {getStatusBadge(doctor.status)}
+                {doctor.status === 'verified' && getAccessModeBadge(doctor)}
                 {doctor.status === 'verified' && (
                   <button
                     type="button"
@@ -1019,15 +1118,17 @@ const DoctorItem = ({
                 {doctor.status === 'verified' && (
                    <button
                    type="button"
-                   onClick={() => handleToggleStatus(doctor.id, doctor.isActive)}
+                   onClick={() => setStatusModalDoctor(doctor)}
                    disabled={processingId === doctor.id}
-                   className={`flex h-8 w-8 items-center justify-center rounded-full transition-all ${doctor.isActive
+                   className={`flex h-8 w-8 items-center justify-center rounded-full transition-all ${doctor.accessMode === 'active'
                      ? 'bg-green-100 text-green-600 hover:bg-green-200'
-                     : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                     : doctor.accessMode === 'visible_unbookable'
+                       ? 'bg-amber-100 text-amber-600 hover:bg-amber-200'
+                       : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
                      }`}
-                   title={doctor.isActive ? 'Deactivate Doctor' : 'Activate Doctor'}
+                   title="Manage Doctor Access"
                  >
-                   {doctor.isActive ? (
+                   {doctor.accessMode === 'active' ? (
                      <IoToggle className="h-5 w-5" />
                    ) : (
                      <IoToggleOutline className="h-5 w-5" />

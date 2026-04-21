@@ -40,11 +40,13 @@ import {
   getSpecialties,
   getDiscoveryDoctors,
   getDoctorSearchSuggestions,
+  getLocations,
 } from '../patient-services/patientService'
 import NotificationBell from '../../../components/NotificationBell'
 import { getFileUrl } from '../../../utils/apiClient'
 import { getSocket } from '../../../utils/socketClient'
 import { openDoctorBooking } from '../patient-utils/bookingNavigation'
+import { canBookDoctor, canShowDoctorProfile, getDoctorBookingStatusText } from '../patient-utils/doctorAccess'
 
 // Category cards configuration (values will be populated from API)
 const categoryCardsConfig = [
@@ -96,13 +98,6 @@ const navItems = [
   { id: 'profile', label: 'Profile', to: '/patient/profile', Icon: IoPersonCircleOutline },
 ]
 
-// Helper function to check if doctor is active based on their own properties
-const isDoctorActive = (doctor) => {
-  if (!doctor) return false;
-  // If doctor object has isActive property, use it. Default to true for approved doctors.
-  return doctor.isActive !== false;
-};
-
 const PatientDashboard = () => {
   const navigate = useNavigate()
   const toast = useToast()
@@ -113,9 +108,9 @@ const PatientDashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const toggleButtonRef = useRef(null)
   const searchContainerRef = useRef(null)
-  const didPrefillProfileCityRef = useRef(false)
   const [selectedSpecialty, setSelectedSpecialty] = useState(null) // For filtering doctors by specialization
   const [selectedCity, setSelectedCity] = useState(null) // For filtering doctors by city
+  const [masterCities, setMasterCities] = useState([])
 
   // Dashboard data state
   const [dashboardData, setDashboardData] = useState(null)
@@ -319,6 +314,20 @@ const PatientDashboard = () => {
     return () => document.removeEventListener('mousedown', handleOutsideClick)
   }, [])
 
+  useEffect(() => {
+    const loadLocations = async () => {
+      try {
+        const locationData = await getLocations()
+        setMasterCities(Array.isArray(locationData?.cities) ? locationData.cities : [])
+      } catch (error) {
+        console.error('Error loading locations:', error)
+        setMasterCities([])
+      }
+    }
+
+    loadLocations()
+  }, [])
+
   // Get category cards with real data
   const categoryCards = useMemo(() => {
     if (!dashboardData) return categoryCardsConfig.map(card => ({ ...card, value: '0' }))
@@ -361,34 +370,26 @@ const PatientDashboard = () => {
   const displayedDoctors = hasSearchOrFilters ? searchResultDoctors : doctors
   const profileCity = profile?.address?.city?.trim() || ''
 
-  useEffect(() => {
-    if (didPrefillProfileCityRef.current || selectedCity || !profileCity) return
-
-    setSelectedCity(profileCity)
-    didPrefillProfileCityRef.current = true
-  }, [profileCity, selectedCity])
-
-  // Extract unique cities from doctors for the city filter
+  // Build city filter list from admin-managed master cities
   const availableCities = useMemo(() => {
     const citySet = new Set()
     if (profileCity) {
       citySet.add(profileCity)
     }
-    displayedDoctors.forEach((doctor) => {
-      const city = doctor.clinicDetails?.address?.city || doctor.city || ''
-      if (city.trim()) {
+    masterCities.forEach((city) => {
+      if (typeof city === 'string' && city.trim()) {
         citySet.add(city.trim())
       }
     })
     return Array.from(citySet).sort()
-  }, [displayedDoctors, profileCity])
+  }, [masterCities, profileCity])
 
   const filteredDoctors = useMemo(() => {
     if (!displayedDoctors || !Array.isArray(displayedDoctors)) return []
 
     return displayedDoctors.filter((doctor) => {
       // 1. Filter by active status
-      if (!isDoctorActive(doctor)) return false
+      if (!canShowDoctorProfile(doctor)) return false
 
       // 2. Filter by selected specialization
       if (selectedSpecialty) {
@@ -421,9 +422,16 @@ const PatientDashboard = () => {
     })
   }, [searchTerm, displayedDoctors, selectedSpecialty, selectedCity])
 
-  const handleBookDoctor = (doctorId, fee) => {
+  const handleBookDoctor = (doctor) => {
+    const doctorId = doctor?._id || doctor?.id
+
     if (!doctorId) {
       toast.error('Doctor information is not available. Please try again.')
+      return
+    }
+
+    if (!canBookDoctor(doctor)) {
+      toast.warning(getDoctorBookingStatusText(doctor))
       return
     }
 
@@ -793,16 +801,22 @@ const PatientDashboard = () => {
                         >
                           <IoEyeOutline className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleBookDoctor(doctorId, inPersonFee)
-                          }}
-                          className="bg-primary text-white font-bold px-3 py-2 rounded-lg text-[10px] uppercase tracking-wider transition-all duration-300 shadow-md shadow-primary/20 hover:bg-primary-dark active:scale-95 flex items-center gap-1.5"
-                        >
-                          <span>Book Now</span>
-                          <IoArrowForwardOutline className="h-3 w-3" />
-                        </button>
+                        {canBookDoctor(doctor) ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleBookDoctor(doctor)
+                            }}
+                            className="bg-primary text-white font-bold px-3 py-2 rounded-lg text-[10px] uppercase tracking-wider transition-all duration-300 shadow-md shadow-primary/20 hover:bg-primary-dark active:scale-95 flex items-center gap-1.5"
+                          >
+                            <span>Book Now</span>
+                            <IoArrowForwardOutline className="h-3 w-3" />
+                          </button>
+                        ) : (
+                          <div className="px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-amber-200 bg-amber-50 text-amber-700">
+                            Booking Off
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1142,19 +1156,24 @@ const PatientDashboard = () => {
                         <IoEyeOutline className="h-3.5 w-3.5" />
                         <span>View</span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          const fee = doctor.fees?.inPerson?.final !== undefined ? doctor.fees.inPerson.final : (doctor.consultationFee || doctor.fee || 0);
-                          handleBookDoctor(doctorId, fee)
-                        }}
-                        className="h-[40px] px-4 rounded-lg text-sm font-bold transition-colors shadow-sm bg-primary text-white hover:bg-primary-dark active:bg-[#004c86] flex items-center justify-center gap-1.5"
-                      >
-                        <IoCalendarOutline className="h-3.5 w-3.5" />
-                        <span>Book Now</span>
-                      </button>
-                    </div>
+                        {canBookDoctor(doctor) ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleBookDoctor(doctor)
+                            }}
+                            className="h-[40px] px-4 rounded-lg text-sm font-bold transition-colors shadow-sm bg-primary text-white hover:bg-primary-dark active:bg-[#004c86] flex items-center justify-center gap-1.5"
+                          >
+                            <IoCalendarOutline className="h-3.5 w-3.5" />
+                            <span>Book Now</span>
+                          </button>
+                        ) : (
+                          <div className="h-[40px] px-4 rounded-lg text-xs font-semibold border border-amber-200 bg-amber-50 text-amber-700 flex items-center justify-center">
+                            Booking Disabled
+                          </div>
+                        )}
+                      </div>
                   </div>
                 </div>
               );

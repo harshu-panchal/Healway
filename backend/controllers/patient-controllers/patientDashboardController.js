@@ -39,7 +39,7 @@ exports.getDashboard = asyncHandler(async (req, res) => {
       appointmentDate: { $gte: today, $lt: tomorrow },
     }),
     Doctor.find({ status: 'approved', isActive: true })
-      .select('firstName lastName specialization services profileImage consultationFee original_fees discount_amount fees clinicDetails experienceYears consultationModes sortOrder')
+      .select('firstName lastName specialization services profileImage consultationFee original_fees discount_amount fees clinicDetails experienceYears consultationModes sortOrder accessMode')
       .sort({ sortOrder: 1, createdAt: -1 })
       .limit(5)
       .lean(),

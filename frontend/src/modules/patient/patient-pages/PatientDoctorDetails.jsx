@@ -61,6 +61,7 @@ import {
 import { useToast } from "../../../contexts/ToastContext";
 import { formatPrice, isFreeConsultation } from "../../../utils/feeUtils";
 import { getFileUrl } from "../../../utils/apiClient";
+import { canBookDoctor, getDoctorBookingStatusText } from "../patient-utils/doctorAccess";
 
 // Default doctor data (will be replaced by API)
 const defaultDoctor = null;
@@ -468,6 +469,7 @@ const PatientDoctorDetails = () => {
             averageConsultationMinutes:
               doctorData.averageConsultationMinutes || 20,
             isDoctor: doctorData.isDoctor,
+            accessMode: doctorData.accessMode || (doctorData.isActive === false ? "hidden" : "active"),
             originalData: doctorData,
           };
           // Check if doctor is active and approved BEFORE setting state
@@ -931,6 +933,12 @@ const PatientDoctorDetails = () => {
         location.state?.autoOpenBooking === true;
 
       if (rescheduleId) {
+        if (!canBookDoctor(doctor)) {
+          toast.warning(getDoctorBookingStatusText(doctor));
+          navigate(`/patient/doctors/${id}`, { replace: true, state: null });
+          return;
+        }
+
         // Reschedule mode - fetch appointment details to get cancelled session date
         const fetchCancelledAppointmentDate = async () => {
           try {
@@ -1038,6 +1046,12 @@ const PatientDoctorDetails = () => {
         // Remove the query parameter or transient navigation state from URL
         navigate(`/patient/doctors/${id}`, { replace: true, state: null });
       } else if (shouldAutoOpenBooking) {
+        if (!canBookDoctor(doctor)) {
+          toast.warning(getDoctorBookingStatusText(doctor));
+          navigate(`/patient/doctors/${id}`, { replace: true, state: null });
+          return;
+        }
+
         // Normal booking mode
         setIsRescheduling(false);
         setRescheduleAppointmentId(null);
@@ -1299,6 +1313,10 @@ const PatientDoctorDetails = () => {
   // Time will be automatically assigned by backend - no need to track selectedTime
 
   const handleBookingClick = () => {
+    if (!canBookDoctor(doctor)) {
+      toast.warning(getDoctorBookingStatusText(doctor));
+      return;
+    }
     // If isDoctor is true → Show full multi-step booking flow
     // If isDoctor is false → Show quick confirmation popup for direct booking
     if (doctor?.isDoctor === true) {
@@ -2477,14 +2495,20 @@ const PatientDoctorDetails = () => {
             })()}
 
             <div className="flex flex-row gap-3 pt-2">
-              <button
-                type="button"
-                onClick={handleBookingClick}
-                className="flex items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-[11px] font-bold text-white shadow-md shadow-primary/20 transition-all hover:bg-primary-dark active:scale-95"
-              >
-                <IoCalendarOutline className="h-3.5 w-3.5" aria-hidden="true" />
-                Book Now
-              </button>
+              {canBookDoctor(doctor) ? (
+                <button
+                  type="button"
+                  onClick={handleBookingClick}
+                  className="flex items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-[11px] font-bold text-white shadow-md shadow-primary/20 transition-all hover:bg-primary-dark active:scale-95"
+                >
+                  <IoCalendarOutline className="h-3.5 w-3.5" aria-hidden="true" />
+                  Book Now
+                </button>
+              ) : (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-[11px] font-bold text-amber-700">
+                  Booking Disabled By Admin
+                </div>
+              )}
             </div>
           </div>
         </div>

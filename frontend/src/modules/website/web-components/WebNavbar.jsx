@@ -120,7 +120,7 @@ const WebNavbar = () => {
 
           <div className="hidden lg:flex items-center gap-3">
             <button
-              onClick={() => navigate('/onboarding')}
+              onClick={() => navigate('/specializations')}
               className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-dark transition-colors shadow-md hover:shadow-lg"
             >
               <IoPersonAddOutline className="text-lg" />
@@ -172,7 +172,7 @@ const WebNavbar = () => {
             <div className="pt-4 border-t border-slate-200">
               <button
                 onClick={() => {
-                  navigate('/onboarding')
+                  navigate('/specializations')
                   setIsMobileMenuOpen(false)
                 }}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-lg text-base font-semibold hover:bg-primary-dark transition-colors shadow-md"

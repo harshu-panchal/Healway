@@ -100,8 +100,8 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
   const [isSendingOtp, setIsSendingOtp] = useState(false)
 
   // Signup step state
-  const [signupStep, setSignupStep] = useState(() => Number(localStorage.getItem('doctorSignupStep')) || 1)
-  const totalSignupSteps = 3
+  const [signupStep, setSignupStep] = useState(1)
+  const totalSignupSteps = 1
 
 
   // Refs for indicator
@@ -292,23 +292,13 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
     setDoctorLoginData(getInitialLoginStateForRole(role))
   }
 
-  // Fetch specialties, services and states on mount
+  // Fetch admin-managed specializations for doctor signup
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [specialtiesRes, servicesRes, statesRes] = await Promise.all([
-          getSpecialties(),
-          getServices(),
-          getStates()
-        ])
+        const specialtiesRes = await getSpecialties()
         if (specialtiesRes) {
           setAvailableSpecializations(specialtiesRes.map(s => s.name))
-        }
-        if (servicesRes) {
-          setAvailableServices(servicesRes.map(s => s.name))
-        }
-        if (statesRes) {
-          setStatesList(statesRes || [])
         }
       } catch (error) {
         console.error('Error fetching signup data:', error)
@@ -766,20 +756,14 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
       return
     }
 
-    // Handle specialization with dropdown
+    // Restrict specialization to admin-managed options only
     if (name === 'specialization') {
       setDoctorSignupData((prev) => ({
         ...prev,
         specialization: value,
       }))
-      // Update search term to match what user is typing
       setSpecializationSearchTerm(value)
-      // Show dropdown if there's a search term or if specializations are available
-      if (value.trim() || availableSpecializations.length > 0) {
-        setShowSpecializationDropdown(true)
-      } else {
-        setShowSpecializationDropdown(false)
-      }
+      setShowSpecializationDropdown(false)
       return
     }
 
@@ -1039,7 +1023,7 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
       return
     }
 
-    if (!doctorSignupData.firstName || !doctorSignupData.email || !doctorSignupData.phone || !doctorSignupData.specialization || !doctorSignupData.gender || !doctorSignupData.licenseNumber) {
+    if (!doctorSignupData.firstName || !doctorSignupData.email || !doctorSignupData.phone || !doctorSignupData.specialization) {
       toast.error('Please fill in all required fields.')
       return
     }
@@ -1063,13 +1047,18 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
       return
     }
 
+    if (!availableSpecializations.includes(doctorSignupData.specialization)) {
+      toast.error('Please select a specialization from the list.')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
       const payload = {
-        firstName: doctorSignupData.firstName,
-        lastName: doctorSignupData.lastName || '',
-        email: doctorSignupData.email,
+        firstName: doctorSignupData.firstName.trim(),
+        lastName: doctorSignupData.lastName.trim() || '',
+        email: doctorSignupData.email.trim(),
         phone: doctorSignupData.phone,
         specialization: doctorSignupData.specialization,
         gender: doctorSignupData.gender,
@@ -1105,6 +1094,21 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
         documents: doctorSignupData.documents.length > 0 ? doctorSignupData.documents : undefined,
       }
 
+      delete payload.gender
+      delete payload.licenseNumber
+      delete payload.experienceYears
+      delete payload.qualification
+      delete payload.bio
+      delete payload.consultationFee
+      delete payload.languages
+      delete payload.services
+      delete payload.consultationModes
+      delete payload.education
+      delete payload.clinicName
+      delete payload.clinicAddress
+      delete payload.clinicImages
+      delete payload.documents
+
       const response = await signupDoctor(payload)
 
       if (response) {
@@ -1112,15 +1116,14 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
         clearAuthSession()
         setDoctorSignupData(initialDoctorSignupState)
         setSignupStep(1)
-        setIsSubmitting(false)
         setMode('login')
       } else {
         toast.error(response.message || 'Signup failed. Please try again.')
-        setIsSubmitting(false)
       }
     } catch (error) {
       console.error('Signup error:', error)
       toast.error(error.message || 'An error occurred. Please try again.')
+    } finally {
       setIsSubmitting(false)
     }
   }
@@ -1564,48 +1567,6 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
                 transition={{ duration: 0.2, ease: 'easeOut' }}
                 className="flex flex-col gap-5 sm:gap-6"
               >
-                {/* Enhanced Step Indicator */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-center gap-2 mb-3">
-                    {[1, 2, 3].map((step) => (
-                      <div key={step} className="flex items-center">
-                        <div
-                          className={`flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold transition-all duration-300 shadow-sm ${signupStep === step
-                            ? 'bg-primary text-white scale-110 shadow-md shadow-[#0077C2]/30'
-                            : signupStep > step
-                              ? 'bg-primary text-white'
-                              : 'bg-slate-200 text-slate-500'
-                            }`}
-                        >
-                          {signupStep > step ? (
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
-                          ) : (
-                            step
-                          )}
-                        </div>
-                        {step < 3 && (
-                          <div
-                            className={`h-1.5 w-12 sm:w-16 rounded-full transition-all duration-300 ${signupStep > step ? 'bg-primary' : 'bg-slate-200'
-                              }`}
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm font-semibold text-slate-700">
-                      Step {signupStep} of {totalSignupSteps}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {signupStep === 1 && 'Basic Information'}
-                      {signupStep === 2 && 'Professional Details'}
-                      {signupStep === 3 && 'Additional Information'}
-                    </p>
-                  </div>
-                </div>
-
                 <form onSubmit={handleDoctorSignupSubmit} className="flex flex-col gap-5 sm:gap-6">
                   {/* Step 1: Basic Information */}
                   {signupStep === 1 && (
@@ -1707,6 +1668,73 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
                             />
                           </div>
                         </div>
+                      </section>
+
+                      <section className="grid gap-3 sm:gap-4">
+                        <div className="flex flex-col gap-1.5">
+                          <label htmlFor="specialization" className="text-sm font-semibold text-slate-700">
+                            Specializations <span className="text-red-500">*</span>
+                          </label>
+                          <div className="relative">
+                            <span className="absolute inset-y-0 left-3 flex items-center text-primary">
+                              <IoMedicalOutline className="h-5 w-5" aria-hidden="true" />
+                            </span>
+                            <select
+                              id="specialization"
+                              name="specialization"
+                              value={doctorSignupData.specialization}
+                              onChange={handleDoctorSignupChange}
+                              required
+                              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 pl-11 text-sm text-slate-900 shadow-sm outline-none transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              style={{ '--tw-ring-color': 'var(--color-primary-border)' }}
+                            >
+                              <option value="">Select specialization</option>
+                              {availableSpecializations.map((specialization) => (
+                                <option key={specialization} value={specialization}>
+                                  {specialization}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            Only specializations added by admin can be selected.
+                          </p>
+                        </div>
+
+                        <label className="flex items-start gap-3 rounded-xl bg-slate-50 px-4 py-4 text-sm text-slate-600">
+                          <input
+                            type="checkbox"
+                            name="termsAccepted"
+                            checked={doctorSignupData.termsAccepted}
+                            onChange={handleDoctorSignupChange}
+                            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                          />
+                          <span>
+                            I have read and agree to Healway's{' '}
+                            <Link
+                              to="/doctor/terms-of-service"
+                              state={{
+                                fromPath: location.pathname,
+                                restoreAuthView: { mode: 'signup', userRole: 'doctor', signupStep },
+                              }}
+                              className="font-semibold text-primary hover:text-primary-dark"
+                            >
+                              terms of service
+                            </Link>{' '}
+                            and{' '}
+                            <Link
+                              to="/doctor/privacy-policy"
+                              state={{
+                                fromPath: location.pathname,
+                                restoreAuthView: { mode: 'signup', userRole: 'doctor', signupStep },
+                              }}
+                              className="font-semibold text-primary hover:text-primary-dark"
+                            >
+                              privacy policy
+                            </Link>
+                            .
+                          </span>
+                        </label>
                       </section>
 
                     </motion.div>
