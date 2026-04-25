@@ -106,7 +106,7 @@ exports.registerDoctor = asyncHandler(async (req, res) => {
   const normalizedEmail = String(email).trim().toLowerCase();
   const normalizedPhone = String(phone).trim();
   const normalizedSpecialization = String(specialization).trim();
-  const normalizedLicenseNumber = licenseNumber ? String(licenseNumber).trim() : '';
+  const normalizedLicenseNumber = licenseNumber ? String(licenseNumber).trim() : undefined;
 
   const specialtyExists = await Specialty.findOne({
     name: normalizedSpecialization,
