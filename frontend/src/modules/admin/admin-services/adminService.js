@@ -11,7 +11,7 @@ let settingsCache = null
 export const loginAdmin = async (credentials) => {
   try {
     const response = await apiClient.post('/admin/auth/login', credentials)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error logging in:', error)
     throw error
@@ -161,7 +161,7 @@ export const clearAdminTokens = () => {
 export const getDashboardStats = async () => {
   try {
     const response = await apiClient.get('/admin/dashboard/stats')
-    return response.data
+    return response
   } catch (error) {
     console.error('Error fetching dashboard stats:', error)
     throw error
@@ -174,7 +174,7 @@ export const getDashboardStats = async () => {
 export const getDashboardChartData = async () => {
   try {
     const response = await apiClient.get('/admin/dashboard/charts')
-    return response.data
+    return response
   } catch (error) {
     console.error('Error fetching dashboard chart data:', error)
     throw error
@@ -187,7 +187,7 @@ export const getDashboardChartData = async () => {
 export const getUsers = async (filters = {}) => {
   try {
     const response = await apiClient.get('/admin/users', filters)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error fetching users:', error)
     throw error
@@ -200,7 +200,7 @@ export const getUsers = async (filters = {}) => {
 export const createUser = async (userData) => {
   try {
     const response = await apiClient.post('/admin/users', userData)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error creating user:', error)
     throw error
@@ -213,7 +213,7 @@ export const createUser = async (userData) => {
 export const getUserById = async (userId) => {
   try {
     const response = await apiClient.get(`/admin/users/${userId}`)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error fetching user:', error)
     throw error
@@ -226,7 +226,7 @@ export const getUserById = async (userId) => {
 export const updateUser = async (userId, userData) => {
   try {
     const response = await apiClient.patch(`/admin/users/${userId}`, userData)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error updating user:', error)
     throw error
@@ -239,7 +239,7 @@ export const updateUser = async (userId, userData) => {
 export const updateUserStatus = async (userId, status) => {
   try {
     const response = await apiClient.patch(`/admin/users/${userId}/status`, { status })
-    return response.data
+    return response
   } catch (error) {
     console.error('Error updating user status:', error)
     throw error
@@ -411,7 +411,7 @@ export const getRecentActivities = async (limit = 10) => {
   try {
     const params = limit ? { limit } : {}
     const response = await apiClient.get('/admin/dashboard/activities', params)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error fetching recent activities:', error)
     throw error
@@ -424,7 +424,7 @@ export const getRecentActivities = async (limit = 10) => {
 export const getPendingVerifications = async (filters = {}) => {
   try {
     const response = await apiClient.get('/admin/verifications/pending', filters)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error fetching pending verifications:', error)
     throw error
@@ -437,7 +437,7 @@ export const getPendingVerifications = async (filters = {}) => {
 export const getAdminProfile = async () => {
   try {
     const response = await apiClient.get('/admin/auth/me')
-    return response.data
+    return response
   } catch (error) {
     console.error('Error fetching admin profile:', error)
     throw error
@@ -450,7 +450,7 @@ export const getAdminProfile = async () => {
 export const updateAdminProfile = async (profileData) => {
   try {
     const response = await apiClient.put('/admin/auth/me', profileData)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error updating admin profile:', error)
     throw error
@@ -463,7 +463,7 @@ export const updateAdminProfile = async (profileData) => {
 export const updateAdminPassword = async (passwordData) => {
   try {
     const response = await apiClient.patch('/admin/auth/me/password', passwordData)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error updating password:', error)
     throw error
@@ -479,7 +479,7 @@ export const getAdminSettings = async () => {
   try {
     // Add timestamp to bust any browser-level caching for settings
     const response = await apiClient.get(`/admin/settings?t=${now}`)
-    settingsCache = response.data
+    settingsCache = response
     return settingsCache
   } catch (error) {
     console.error('Error fetching admin settings:', error)
@@ -495,7 +495,7 @@ export const updateAdminSettings = async (settings) => {
     const response = await apiClient.patch('/admin/settings', settings)
     // Invalidate cache on update
     settingsCache = null
-    return response.data
+    return response
   } catch (error) {
     console.error('Error updating admin settings:', error)
     throw error
@@ -510,7 +510,7 @@ export const updateDoctorCommissionRate = async (rate) => {
     const response = await apiClient.patch('/admin/settings/commission', { rate })
     // Invalidate cache
     settingsCache = null
-    return response.data
+    return response
   } catch (error) {
     console.error('Error updating commission rate:', error)
     throw error
@@ -586,7 +586,7 @@ export const resetPassword = async (data) => {
 export const getRevenueOverview = async (period = 'all') => {
   try {
     const response = await apiClient.get('/admin/revenue', { period })
-    return response.data
+    return response
   } catch (error) {
     console.error('Error fetching revenue overview:', error)
     throw error
@@ -709,7 +709,7 @@ export const getAdminWalletTransactions = async (filters = {}) => {
 export const getAdminAppointments = async (filters = {}) => {
   try {
     const response = await apiClient.get('/admin/appointments', filters)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error fetching admin appointments:', error)
     throw error
@@ -724,7 +724,7 @@ export const getAdminAppointments = async (filters = {}) => {
 export const getAdminAppointmentById = async (appointmentId) => {
   try {
     const response = await apiClient.get(`/admin/appointments/${appointmentId}`)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error fetching appointment:', error)
     throw error
@@ -740,7 +740,7 @@ export const getAdminAppointmentById = async (appointmentId) => {
 export const updateAdminAppointment = async (appointmentId, updateData) => {
   try {
     const response = await apiClient.patch(`/admin/appointments/${appointmentId}`, updateData)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error updating appointment:', error)
     throw error
@@ -755,7 +755,7 @@ export const updateAdminAppointment = async (appointmentId, updateData) => {
 export const cancelAdminAppointment = async (appointmentId) => {
   try {
     const response = await apiClient.delete(`/admin/appointments/${appointmentId}`)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error cancelling appointment:', error)
     throw error
@@ -770,7 +770,7 @@ export const cancelAdminAppointment = async (appointmentId) => {
 export const getSupportTickets = async (filters = {}) => {
   try {
     const response = await apiClient.get('/admin/support', filters)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error fetching support tickets:', error)
     throw error
@@ -785,7 +785,7 @@ export const getSupportTickets = async (filters = {}) => {
 export const getSupportTicketById = async (ticketId) => {
   try {
     const response = await apiClient.get(`/admin/support/${ticketId}`)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error fetching support ticket:', error)
     throw error
@@ -801,7 +801,7 @@ export const getSupportTicketById = async (ticketId) => {
 export const respondToSupportTicket = async (ticketId, responseData) => {
   try {
     const response = await apiClient.post(`/admin/support/${ticketId}/respond`, responseData)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error responding to support ticket:', error)
     throw error
@@ -818,7 +818,7 @@ export const respondToSupportTicket = async (ticketId, responseData) => {
 export const updateSupportTicketStatus = async (ticketId, status, adminNote = '') => {
   try {
     const response = await apiClient.patch(`/admin/support/${ticketId}/status`, { status, adminNote })
-    return response.data
+    return response
   } catch (error) {
     console.error('Error updating support ticket status:', error)
     throw error
@@ -878,7 +878,7 @@ export default {
   getStates: async () => {
     try {
       const response = await apiClient.get('/location/state')
-      return response.data
+      return response
     } catch (error) {
       console.error('Error fetching states:', error)
       throw error
@@ -887,7 +887,7 @@ export default {
   createState: async (stateData) => {
     try {
       const response = await apiClient.post('/location/state', stateData)
-      return response.data
+      return response
     } catch (error) {
       console.error('Error creating state:', error)
       throw error
@@ -896,7 +896,7 @@ export default {
   getCitiesByState: async (stateId) => {
     try {
       const response = await apiClient.get(`/location/city/${stateId}`)
-      return response.data
+      return response
     } catch (error) {
       console.error('Error fetching cities:', error)
       throw error
@@ -905,7 +905,7 @@ export default {
   createCity: async (cityData) => {
     try {
       const response = await apiClient.post('/location/city', cityData)
-      return response.data
+      return response
     } catch (error) {
       console.error('Error creating city:', error)
       throw error
@@ -914,7 +914,7 @@ export default {
   deleteState: async (stateId) => {
     try {
       const response = await apiClient.delete(`/location/state/${stateId}`)
-      return response.data
+      return response
     } catch (error) {
       console.error('Error deleting state:', error)
       throw error
@@ -923,7 +923,7 @@ export default {
   deleteCity: async (cityId) => {
     try {
       const response = await apiClient.delete(`/location/city/${cityId}`)
-      return response.data
+      return response
     } catch (error) {
       console.error('Error deleting city:', error)
       throw error
@@ -932,7 +932,7 @@ export default {
   getAllSpecialties: async () => {
     try {
       const response = await apiClient.get('/admin/specialties')
-      return response.data
+      return response
     } catch (error) {
       console.error('Error fetching specialties:', error)
       throw error
@@ -943,7 +943,7 @@ export default {
       const response = await apiClient.post('/admin/specialties', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
-      return response.data
+      return response
     } catch (error) {
       console.error('Error creating specialty:', error)
       throw error
@@ -954,7 +954,7 @@ export default {
       const response = await apiClient.put(`/admin/specialties/${id}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
-      return response.data
+      return response
     } catch (error) {
       console.error('Error updating specialty:', error)
       throw error
@@ -963,7 +963,7 @@ export default {
   deleteSpecialty: async (id) => {
     try {
       const response = await apiClient.delete(`/admin/specialties/${id}`)
-      return response.data
+      return response
     } catch (error) {
       console.error('Error deleting specialty:', error)
       throw error
@@ -972,7 +972,7 @@ export default {
   toggleSpecialtyStatus: async (id) => {
     try {
       const response = await apiClient.patch(`/admin/specialties/${id}/toggle`)
-      return response.data
+      return response
     } catch (error) {
       console.error('Error toggling specialty status:', error)
       throw error
@@ -981,7 +981,7 @@ export default {
   reorderSpecialties: async (orders) => {
     try {
       const response = await apiClient.patch('/admin/specialties/reorder', { orders })
-      return response.data
+      return response
     } catch (error) {
       console.error('Error reordering specialties:', error)
       throw error
@@ -990,7 +990,7 @@ export default {
   getAllServices: async () => {
     try {
       const response = await apiClient.get('/admin/services')
-      return response.data
+      return response
     } catch (error) {
       console.error('Error fetching services:', error)
       throw error
@@ -999,7 +999,7 @@ export default {
   createService: async (serviceData) => {
     try {
       const response = await apiClient.post('/admin/services', serviceData)
-      return response.data
+      return response
     } catch (error) {
       console.error('Error creating service:', error)
       throw error
@@ -1008,7 +1008,7 @@ export default {
   updateService: async (id, serviceData) => {
     try {
       const response = await apiClient.put(`/admin/services/${id}`, serviceData)
-      return response.data
+      return response
     } catch (error) {
       console.error('Error updating service:', error)
       throw error
@@ -1017,7 +1017,7 @@ export default {
   deleteService: async (id) => {
     try {
       const response = await apiClient.delete(`/admin/services/${id}`)
-      return response.data
+      return response
     } catch (error) {
       console.error('Error deleting service:', error)
       throw error
@@ -1026,7 +1026,7 @@ export default {
   toggleServiceStatus: async (id) => {
     try {
       const response = await apiClient.patch(`/admin/services/${id}/toggle`)
-      return response.data
+      return response
     } catch (error) {
       console.error('Error toggling service status:', error)
       throw error

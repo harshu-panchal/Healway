@@ -107,9 +107,9 @@ const AdminDoctorForm = () => {
         adminService.getAllServices(),
         adminService.getStates()
       ])
-      if (specialtiesRes) setAvailableSpecializations(specialtiesRes.map(s => s.name))
-      if (servicesRes) setAvailableServices(servicesRes.map(s => s.name))
-      if (statesRes) setStatesList(statesRes || [])
+      if (specialtiesRes && specialtiesRes.success) setAvailableSpecializations((specialtiesRes.data || []).map(s => s.name))
+      if (servicesRes && servicesRes.success) setAvailableServices((servicesRes.data || []).map(s => s.name))
+      if (statesRes && statesRes.success) setStatesList(statesRes.data || [])
     } catch (error) {
       console.error('Error fetching dropdown data:', error)
     }
@@ -121,8 +121,10 @@ const AdminDoctorForm = () => {
         const selectedState = statesList.find(s => s.name === formData.clinicAddress.state)
         if (selectedState) {
           try {
-            const cities = await adminService.getCitiesByState(selectedState._id)
-            setCitiesList(cities || [])
+            const response = await adminService.getCitiesByState(selectedState._id)
+            if (response && response.success) {
+              setCitiesList(response.data || [])
+            }
           } catch (error) {
             console.error('Failed to fetch cities:', error)
           }

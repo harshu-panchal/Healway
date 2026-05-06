@@ -197,12 +197,17 @@ const AdminWallet = () => {
       try {
         setLoading(true)
         setError(null)
-        const [overview, summaries, withdrawalsData, transactionsData] = await Promise.all([
+        const [overviewRes, summariesRes, withdrawalsRes, transactionsRes] = await Promise.all([
           getAdminWalletOverview(earningsPeriod),
           getProviderSummaries(null, providerPeriod),
           getWithdrawals(),
           getAdminWalletTransactions(),
         ])
+
+        const overview = overviewRes?.data
+        const summaries = summariesRes?.data
+        const withdrawalsData = withdrawalsRes?.data
+        const transactionsData = transactionsRes?.data
 
         // 1. Handle Overview
         if (overview) {
@@ -393,10 +398,13 @@ const AdminWallet = () => {
       await updateWithdrawalStatus(withdrawalId, { status: 'paid' })
       toast.success('Withdrawal processed and paid successfully!')
 
-      const [overview, withdrawalsData] = await Promise.all([
+      const [overviewRes, withdrawalsRes] = await Promise.all([
         getAdminWalletOverview(earningsPeriod),
         getWithdrawals(),
       ])
+
+      const overview = overviewRes?.data
+      const withdrawalsData = withdrawalsRes?.data
 
       if (overview) {
         setWalletOverview({
@@ -494,10 +502,13 @@ const AdminWallet = () => {
       setRejectingWithdrawalId(null)
       setRejectionReason('')
 
-      const [overview, withdrawalsData] = await Promise.all([
+      const [overviewRes, withdrawalsRes] = await Promise.all([
         getAdminWalletOverview(earningsPeriod),
         getWithdrawals(),
       ])
+
+      const overview = overviewRes?.data
+      const withdrawalsData = withdrawalsRes?.data
 
       if (overview) {
         setWalletOverview(prev => ({

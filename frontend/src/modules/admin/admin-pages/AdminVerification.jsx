@@ -264,8 +264,8 @@ const AdminVerification = () => {
       const response = await getDoctors({ page: 1, limit: 1000 })
       const allVerifications = []
 
-      if (response) {
-        const doctors = response.items || response || []
+      if (response && response.success && response.data) {
+        const doctors = response.data.items || []
         if (Array.isArray(doctors)) {
           doctors.forEach(doctor => {
             const transformed = transformVerification(doctor, 'doctor')

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   IoArrowBackOutline,
@@ -24,6 +24,7 @@ const AdminUserForm = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const toast = useToast()
+  const dateInputRef = useRef(null)
   const isEditMode = !!id
 
   const [loading, setLoading] = useState(isEditMode)
@@ -65,8 +66,10 @@ const AdminUserForm = () => {
 
   const fetchStates = async () => {
     try {
-      const states = await adminService.getStates()
-      if (states) setStatesList(states)
+      const response = await adminService.getStates()
+      if (response && response.success) {
+        setStatesList(response.data || [])
+      }
     } catch (error) {
       console.error('Error fetching states:', error)
     }
@@ -78,8 +81,10 @@ const AdminUserForm = () => {
         const selectedState = statesList.find(s => s.name === formData.address.state)
         if (selectedState) {
           try {
-            const cities = await adminService.getCitiesByState(selectedState._id)
-            setCitiesList(cities || [])
+            const response = await adminService.getCitiesByState(selectedState._id)
+            if (response && response.success) {
+              setCitiesList(response.data || [])
+            }
           } catch (error) {
             console.error('Failed to fetch cities:', error)
           }
@@ -95,7 +100,7 @@ const AdminUserForm = () => {
     try {
       setLoading(true)
       const response = await getUserById(id)
-      if (response && response.data) {
+      if (response && response.success && response.data) {
         const user = response.data
         setFormData({
           firstName: user.firstName || '',
@@ -131,6 +136,13 @@ const AdminUserForm = () => {
   }
 
   const handleInputChange = (field, value) => {
+    // Sanitize phone numbers and pincode
+    if (field === 'phone' || field === 'emergencyContact.phone') {
+      value = value.replace(/\D/g, '').slice(0, 10)
+    } else if (field === 'address.postalCode') {
+      value = value.replace(/\D/g, '').slice(0, 6)
+    }
+
     if (field.startsWith('address.')) {
       const key = field.replace('address.', '')
       setFormData(prev => ({
@@ -173,6 +185,14 @@ const AdminUserForm = () => {
     }
     if (formData.phone.replace(/\D/g, '').length !== 10) {
       toast.warning('Please enter a valid 10-digit phone number')
+      return false
+    }
+    if (formData.emergencyContact?.phone && formData.emergencyContact.phone.replace(/\D/g, '').length !== 10) {
+      toast.warning('Emergency contact number must be 10 digits')
+      return false
+    }
+    if (formData.address?.postalCode && formData.address.postalCode.replace(/\D/g, '').length !== 6) {
+      toast.warning('Pincode must be 6 digits')
       return false
     }
     if (!isEditMode && (!formData.password || formData.password.length < 8)) {
@@ -351,10 +371,23 @@ const AdminUserForm = () => {
                     <IoCalendarOutline className="h-5 w-5" />
                   </span>
                   <input
+                    type="text"
+                    readOnly
+                    value={formData.dateOfBirth ? (() => {
+                      const [y, m, d] = formData.dateOfBirth.split('-');
+                      return `${d}/${m}/${y.slice(-2)}`;
+                    })() : ''}
+                    onClick={() => dateInputRef.current?.showPicker?.() || dateInputRef.current?.click()}
+                    placeholder="DD/MM/YY"
+                    className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 pl-11 text-sm text-slate-900 focus:border-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+                  />
+                  <input
+                    ref={dateInputRef}
                     type="date"
                     value={formData.dateOfBirth}
                     onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 pl-11 text-sm text-slate-900 focus:border-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+                    max={new Date().toISOString().split('T')[0]}
+                    className="absolute inset-0 h-full w-full opacity-0 cursor-pointer pointer-events-none"
                   />
                 </div>
               </div>
@@ -446,7 +479,10 @@ const AdminUserForm = () => {
                 <input
                   type="text"
                   value={formData.address.postalCode}
-                  onChange={(e) => handleInputChange('address.postalCode', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 6)
+                    handleInputChange('address.postalCode', val)
+                  }}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
                   placeholder="6-digit PIN code"
                 />

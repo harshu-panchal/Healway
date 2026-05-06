@@ -82,7 +82,7 @@ const AdminDoctors = () => {
 
       // Load ALL doctors for stats
       const allDoctorsResponse = await getDoctors({ page: 1, limit: 1000 })
-      if (allDoctorsResponse) {
+      if (allDoctorsResponse && allDoctorsResponse.success && allDoctorsResponse.data) {
         const formatFullAddress = (clinicDetails) => {
           if (!clinicDetails) return ''
           const parts = []
@@ -98,7 +98,7 @@ const AdminDoctors = () => {
           return parts.length > 0 ? parts.join(', ') : ''
         }
 
-        const allTransformed = (allDoctorsResponse.items || []).map(doctor => ({
+        const allTransformed = (allDoctorsResponse.data.items || []).map(doctor => ({
           id: doctor._id || doctor.id,
           name: `${doctor.firstName || ''} ${doctor.lastName || ''}`.trim() || 'N/A',
           email: doctor.email || '',
@@ -129,9 +129,9 @@ const AdminDoctors = () => {
       filters.limit = itemsPerPage
 
       const response = await getDoctors(filters)
-      if (response) {
-        const doctorsData = response.items || response || []
-        const pagination = response.pagination || {}
+      if (response && response.success && response.data) {
+        const doctorsData = response.data.items || []
+        const pagination = response.data.pagination || {}
 
         const formatFullAddress = (clinicDetails) => {
           if (!clinicDetails) return ''
@@ -297,7 +297,7 @@ const AdminDoctors = () => {
     try {
       setLoadingDoctorDetails(true)
       const response = await getDoctorById(doctorId)
-      if (response.data) {
+      if (response && response.success && response.data) {
         setViewingDoctor(response.data)
       } else {
         toast.error('Failed to load doctor details')
@@ -314,7 +314,7 @@ const AdminDoctors = () => {
     setLoadingStats(true)
     try {
       const response = await getDoctorStats(doctorId, filter)
-      if (response && response.data) {
+      if (response && response.success && response.data) {
         setDoctorStats(response.data)
       } else {
         toast.error('Failed to load statistics')

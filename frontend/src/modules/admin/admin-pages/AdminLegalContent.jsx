@@ -85,10 +85,73 @@ const AdminLegalContent = () => {
   }
 
   const handleFooterChange = (key, value) => {
+    // For phone and whatsapp, only allow digits and a leading +
+    if (key === 'supportPhone' || key === 'whatsappNumber') {
+      const filtered = value.replace(/[^\d+]/g, '')
+      setFooterSettings((prev) => ({
+        ...prev,
+        [key]: filtered,
+      }))
+      return
+    }
+
     setFooterSettings((prev) => ({
       ...prev,
       [key]: value,
     }))
+  }
+
+  const validateSettings = () => {
+    // Gmail validation
+    if (footerSettings.supportEmail && !/^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(footerSettings.supportEmail)) {
+      toast.warning('Support email must be a valid Gmail address (ending in @gmail.com)')
+      return false
+    }
+
+    // Social Media URL validation
+    const validateUrl = (url, platform) => {
+      if (!url) return true
+      try {
+        const parsed = new URL(url)
+        return parsed.hostname.includes(platform)
+      } catch (e) {
+        return false
+      }
+    }
+
+    if (footerSettings.facebookUrl && !validateUrl(footerSettings.facebookUrl, 'facebook.com')) {
+      toast.warning('Please enter a valid Facebook URL')
+      return false
+    }
+    if (footerSettings.instagramUrl && !validateUrl(footerSettings.instagramUrl, 'instagram.com')) {
+      toast.warning('Please enter a valid Instagram URL')
+      return false
+    }
+    if (footerSettings.twitterUrl && !validateUrl(footerSettings.twitterUrl, 'twitter.com')) {
+      toast.warning('Please enter a valid Twitter/X URL')
+      return false
+    }
+    if (footerSettings.linkedinUrl && !validateUrl(footerSettings.linkedinUrl, 'linkedin.com')) {
+      toast.warning('Please enter a valid LinkedIn URL')
+      return false
+    }
+    if (footerSettings.youtubeUrl && !validateUrl(footerSettings.youtubeUrl, 'youtube.com')) {
+      toast.warning('Please enter a valid YouTube URL')
+      return false
+    }
+
+    // Phone number validation
+    if (footerSettings.supportPhone && footerSettings.supportPhone.replace(/\+/g, '').length < 10) {
+      toast.warning('Support phone number should be at least 10 digits')
+      return false
+    }
+
+    if (footerSettings.whatsappNumber && footerSettings.whatsappNumber.replace(/\+/g, '').length < 10) {
+      toast.warning('WhatsApp number should be at least 10 digits')
+      return false
+    }
+
+    return true
   }
 
   const handleFooterImageUpload = async (event) => {
@@ -119,6 +182,8 @@ const AdminLegalContent = () => {
   }
 
   const handleSave = async () => {
+    if (!validateSettings()) return
+
     setIsSaving(true)
     try {
       await updateAdminSettings({

@@ -461,7 +461,7 @@ const AdminDashboard = () => {
       }
 
       // If dashboard endpoint doesn't exist, fetch from individual endpoints
-      if (!dashboardData) {
+      if (!dashboardData || !dashboardData.success) {
         // Fetch all items to get accurate counts (or use pagination.total if available)
         const [usersResult, doctorsResult] = await Promise.allSettled([
           getUsers({ limit: 1000 }),
@@ -473,7 +473,9 @@ const AdminDashboard = () => {
           if (result.status !== 'fulfilled' || !result.value) {
             return 0
           }
-          const data = result.value
+          const response = result.value
+          const data = response.data || response // Try .data first, then fallback
+          
           // Try pagination.total first (most accurate)
           if (data?.pagination?.total !== undefined && data.pagination.total !== null) {
             return Number(data.pagination.total) || 0
@@ -496,7 +498,8 @@ const AdminDashboard = () => {
         // Get pending verifications count from all providers
         let pendingVerifications = 0
         if (doctorsResult.status === 'fulfilled' && doctorsResult.value) {
-          const doctors = doctorsResult.value?.items || (Array.isArray(doctorsResult.value) ? doctorsResult.value : []) || []
+          const res = doctorsResult.value
+          const doctors = res.data?.items || res.items || (Array.isArray(res) ? res : []) || []
           if (Array.isArray(doctors)) {
             pendingVerifications += doctors.filter(d => d.status === 'pending').length
           }
@@ -514,22 +517,23 @@ const AdminDashboard = () => {
         })
       } else {
         // Use dashboard endpoint data
+        const data = dashboardData.data || {}
         setStats({
-          totalUsers: dashboardData.totalUsers || 0,
-          totalDoctors: dashboardData.totalDoctors || 0,
-          totalRevenue: dashboardData.totalRevenue || 0,
-          pendingVerifications: dashboardData.pendingVerifications || 0,
-          thisMonthUsers: dashboardData.thisMonthUsers || 0,
-          lastMonthUsers: dashboardData.lastMonthUsers || 0,
-          thisMonthRevenue: dashboardData.thisMonthRevenue || 0,
-          lastMonthRevenue: dashboardData.lastMonthRevenue || 0,
+          totalUsers: data.totalUsers || 0,
+          totalDoctors: data.totalDoctors || 0,
+          totalRevenue: data.totalRevenue || 0,
+          pendingVerifications: data.pendingVerifications || 0,
+          thisMonthUsers: data.thisMonthUsers || 0,
+          lastMonthUsers: data.lastMonthUsers || 0,
+          thisMonthRevenue: data.thisMonthRevenue || 0,
+          lastMonthRevenue: data.lastMonthRevenue || 0,
         })
 
         // Set additional stats from the unified endpoint
-        setTodayAppointmentsCount(dashboardData.todayAppointments || 0)
-        setTodayScheduledCount(dashboardData.todayScheduledCount || 0)
-        setTodayRescheduledCount(dashboardData.todayRescheduledCount || 0)
-        setDoctorAppointmentsOverview(dashboardData.doctorAppointmentsOverview || [])
+        setTodayAppointmentsCount(data.todayAppointments || 0)
+        setTodayScheduledCount(data.todayScheduledCount || 0)
+        setTodayRescheduledCount(data.todayRescheduledCount || 0)
+        setDoctorAppointmentsOverview(data.doctorAppointmentsOverview || [])
       }
     } catch (error) {
       if (error.message && error.message.includes('Authentication token missing')) {
@@ -671,9 +675,10 @@ const AdminDashboard = () => {
 
       try {
         setIsLoadingActivities(true)
-        const activities = await getRecentActivities(10)
+        const response = await getRecentActivities(10)
+        const activities = response.data || response || []
 
-        if (activities) {
+        if (activities && Array.isArray(activities)) {
           // Transform activities to match UI format
           const transformedActivities = activities.map((activity) => {
             try {
@@ -822,7 +827,8 @@ const AdminDashboard = () => {
       try {
         setIsLoadingCharts(true)
         console.log('📊 Fetching chart data from backend...')
-        const data = await getDashboardChartData()
+        const response = await getDashboardChartData()
+        const data = response.data || response
         console.log('📊 Chart data response:', data)
 
         if (data) {

@@ -237,8 +237,8 @@ const AdminRevenue = () => {
     try {
       setLoading(true)
       const response = await getRevenueOverview(period)
-      if (response) {
-        const data = response
+      if (response && response.success) {
+        const data = response.data
 
         // Format pie chart data
         const pieChartData = [

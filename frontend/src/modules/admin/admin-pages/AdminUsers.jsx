@@ -56,8 +56,8 @@ const AdminUsers = () => {
       
       // First, load ALL users for stats (no filters)
       const allUsersResponse = await getUsers({ page: 1, limit: 1000 })
-      if (allUsersResponse) {
-        const allTransformed = (allUsersResponse.items || []).map(user => ({
+      if (allUsersResponse && allUsersResponse.success && allUsersResponse.data) {
+        const allTransformed = (allUsersResponse.data.items || []).map(user => ({
           id: user._id || user.id,
           firstName: user.firstName || '',
           lastName: user.lastName || '',
@@ -85,9 +85,9 @@ const AdminUsers = () => {
       const response = await getUsers(filters)
       console.log('📊 Users API response:', response) // Debug log
       
-      if (response) {
-        const usersData = response.items || response || []
-        const pagination = response.pagination || {}
+      if (response && response.success && response.data) {
+        const usersData = response.data.items || []
+        const pagination = response.data.pagination || {}
         
         console.log('📋 Raw users data from API:', usersData) // Debug log
         console.log('📋 Transformed users count:', usersData.length) // Debug log

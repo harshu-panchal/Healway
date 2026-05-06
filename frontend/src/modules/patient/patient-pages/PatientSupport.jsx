@@ -19,6 +19,17 @@ const PatientSupport = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target
+    
+    // Sanitize phone number
+    if (name === 'contactNumber') {
+      const sanitized = value.replace(/\D/g, '').slice(0, 10)
+      setFormData((prev) => ({
+        ...prev,
+        [name]: sanitized,
+      }))
+      return
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -27,6 +38,13 @@ const PatientSupport = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    
+    // Validation
+    if (formData.contactNumber.length !== 10) {
+      toast.warning('Contact number must be exactly 10 digits')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
