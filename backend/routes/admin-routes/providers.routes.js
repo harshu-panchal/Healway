@@ -24,6 +24,7 @@ router.use(protect(ROLES.ADMIN));
 // Doctors management
 router.get('/doctors', getDoctors);
 router.post('/doctors', sanitizeInput, createDoctor);
+router.patch('/doctors/reorder', sanitizeInput, require('../../controllers/admin-controllers/adminProviderController').updateDoctorsOrder);
 router.get('/doctors/:id', getDoctorById);
 router.patch('/doctors/:id', sanitizeInput, updateDoctor);
 router.delete('/doctors/:id', deleteDoctor);
@@ -32,7 +33,6 @@ router.patch('/doctors/:id/verify', sanitizeInput, verifyDoctor);
 router.patch('/doctors/:id/reject', sanitizeInput, rejectDoctor);
 router.patch('/doctors/:id/toggle-featured', sanitizeInput, toggleFeatured);
 router.patch('/doctors/:id/toggle-status', toggleDoctorStatus);
-router.patch('/doctors/reorder', sanitizeInput, require('../../controllers/admin-controllers/adminProviderController').updateDoctorsOrder);
 
 
 

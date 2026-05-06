@@ -50,7 +50,11 @@ const getDoctorApprovalMissingFields = (doctor) => {
   if (toOptionalNumber(doctor?.experienceYears) === undefined) missing.push('experienceYears');
   if (!isNonEmptyString(doctor?.qualification)) missing.push('qualification');
   if (!isNonEmptyString(doctor?.bio)) missing.push('bio');
-  if (toOptionalNumber(doctor?.consultationFee) === undefined) missing.push('consultationFee');
+  const hasFee = toOptionalNumber(doctor?.consultationFee) !== undefined || 
+                 toOptionalNumber(doctor?.fees?.inPerson?.original) !== undefined || 
+                 toOptionalNumber(doctor?.fees?.voiceCall?.original) !== undefined || 
+                 toOptionalNumber(doctor?.fees?.videoCall?.original) !== undefined;
+  if (!hasFee) missing.push('consultationFee');
   if (!Array.isArray(doctor?.languages) || doctor.languages.length === 0) missing.push('languages');
   if (!Array.isArray(doctor?.services) || doctor.services.length === 0) missing.push('services');
   if (!Array.isArray(doctor?.consultationModes) || doctor.consultationModes.length === 0) missing.push('consultationModes');
@@ -242,6 +246,7 @@ exports.createDoctor = asyncHandler(async (req, res) => {
     consultationFee,
     original_fees,
     discount_amount,
+    fees,
     isDoctor = true,
   } = req.body;
 
@@ -317,9 +322,19 @@ exports.createDoctor = asyncHandler(async (req, res) => {
     consultationFee: inPersonFinal,
     fees: {
       inPerson: {
-        original: inPersonOriginal,
-        discount: discountAmount,
-        final: inPersonFinal,
+        original: fees?.inPerson?.original ?? inPersonOriginal,
+        discount: fees?.inPerson?.discount ?? discountAmount,
+        final: fees?.inPerson?.final ?? inPersonFinal,
+      },
+      videoCall: {
+        original: fees?.videoCall?.original ?? 0,
+        discount: fees?.videoCall?.discount ?? 0,
+        final: fees?.videoCall?.final ?? 0,
+      },
+      voiceCall: {
+        original: fees?.voiceCall?.original ?? 0,
+        discount: fees?.voiceCall?.discount ?? 0,
+        final: fees?.voiceCall?.final ?? 0,
       },
     },
     isDoctor: Boolean(isDoctor),
@@ -667,6 +682,7 @@ exports.updateDoctor = asyncHandler(async (req, res) => {
     consultationFee,
     original_fees,
     discount_amount,
+    fees,
     isActive,
     isDoctor,
   } = req.body;
@@ -721,7 +737,7 @@ exports.updateDoctor = asyncHandler(async (req, res) => {
   if (finalFee !== undefined) doctor.consultationFee = finalFee;
 
   // Update nested fees object if needed
-  if (originalFee !== undefined || discountAmount !== undefined || finalFee !== undefined) {
+  if (fees || originalFee !== undefined || discountAmount !== undefined || finalFee !== undefined) {
     const existingFees = doctor.fees?.toObject ? doctor.fees.toObject() : (doctor.fees || {});
     const existingInPerson = existingFees.inPerson || {};
     const existingVideoCall = existingFees.videoCall || {};
@@ -731,21 +747,21 @@ exports.updateDoctor = asyncHandler(async (req, res) => {
       ...existingFees,
       inPerson: {
         ...existingInPerson,
-        original: originalFee ?? existingInPerson.original ?? doctor.original_fees ?? 0,
-        discount: discountAmount ?? existingInPerson.discount ?? doctor.discount_amount ?? 0,
-        final: finalFee ?? existingInPerson.final ?? doctor.consultationFee ?? 0,
+        original: fees?.inPerson?.original ?? originalFee ?? existingInPerson.original ?? doctor.original_fees ?? 0,
+        discount: fees?.inPerson?.discount ?? discountAmount ?? existingInPerson.discount ?? doctor.discount_amount ?? 0,
+        final: fees?.inPerson?.final ?? finalFee ?? existingInPerson.final ?? doctor.consultationFee ?? 0,
       },
       videoCall: {
-        original: existingVideoCall.original ?? 0,
-        discount: existingVideoCall.discount ?? 0,
-        final: existingVideoCall.final ?? 0,
-        selectedDays: Array.isArray(existingVideoCall.selectedDays) ? existingVideoCall.selectedDays : [],
+        ...existingVideoCall,
+        original: fees?.videoCall?.original ?? existingVideoCall.original ?? 0,
+        discount: fees?.videoCall?.discount ?? existingVideoCall.discount ?? 0,
+        final: fees?.videoCall?.final ?? existingVideoCall.final ?? 0,
       },
       voiceCall: {
-        original: existingVoiceCall.original ?? 0,
-        discount: existingVoiceCall.discount ?? 0,
-        final: existingVoiceCall.final ?? 0,
-        selectedDays: Array.isArray(existingVoiceCall.selectedDays) ? existingVoiceCall.selectedDays : [],
+        ...existingVoiceCall,
+        original: fees?.voiceCall?.original ?? existingVoiceCall.original ?? 0,
+        discount: fees?.voiceCall?.discount ?? existingVoiceCall.discount ?? 0,
+        final: fees?.voiceCall?.final ?? existingVoiceCall.final ?? 0,
       },
     };
   }
@@ -835,21 +851,44 @@ exports.updateDoctorsOrder = asyncHandler(async (req, res) => {
     });
   }
 
-  const bulkOps = orders.map((item) => ({
-    updateOne: {
-      filter: { _id: item.id },
-      update: { $set: { sortOrder: item.sortOrder } },
-    },
-  }));
+  if (orders.length === 0) {
+    return res.status(200).json({
+      success: true,
+      message: 'No doctors to reorder.',
+    });
+  }
 
-  await Doctor.bulkWrite(bulkOps);
+  const bulkOps = orders
+    .filter(item => item.id && item.sortOrder !== undefined)
+    .map((item) => ({
+      updateOne: {
+        filter: { _id: item.id },
+        update: { $set: { sortOrder: Number(item.sortOrder) } },
+      },
+    }));
 
-  // Cache invalidation removed (Redis removed)
+  if (bulkOps.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid orders data provided.',
+    });
+  }
 
-  return res.status(200).json({
-    success: true,
-    message: 'Doctors reordered successfully.',
-  });
+  try {
+    await Doctor.bulkWrite(bulkOps);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Doctors reordered successfully.',
+    });
+  } catch (error) {
+    console.error('Bulk reorder error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to reorder doctors. Some IDs might be invalid.',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
 });
 
 // ────────────────────────────────────────────────────────────────

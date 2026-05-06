@@ -288,7 +288,7 @@ const AdminDoctors = () => {
       toast.success('Order updated')
     } catch (error) {
       console.error('Error reordering doctors:', error)
-      toast.error('Failed to save order')
+      toast.error(error.message || 'Failed to save order')
       loadDoctors()
     }
   }

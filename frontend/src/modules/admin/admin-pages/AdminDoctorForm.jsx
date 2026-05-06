@@ -49,6 +49,7 @@ const AdminDoctorForm = () => {
   // Dropdown states
   const [showSpecializationDropdown, setShowSpecializationDropdown] = useState(false)
   const [specializationSearchTerm, setSpecializationSearchTerm] = useState('')
+  const [languageInput, setLanguageInput] = useState('')
   const [showServicesDropdown, setShowServicesDropdown] = useState(false)
   const [serviceSearchTerm, setServiceSearchTerm] = useState('')
 
@@ -85,6 +86,11 @@ const AdminDoctorForm = () => {
     documents: [],
     clinicImages: [],
     isDoctor: true,
+    fees: {
+      inPerson: { original: '', discount: 0, final: 0 },
+      videoCall: { original: '', discount: 0, final: 0 },
+      voiceCall: { original: '', discount: 0, final: 0 },
+    }
   })
 
   useEffect(() => {
@@ -162,6 +168,23 @@ const AdminDoctorForm = () => {
           documents: doctor.documents || [],
           clinicImages: doctor.clinicDetails?.images || [],
           isDoctor: doctor.isDoctor !== false,
+          fees: {
+            inPerson: { 
+              original: doctor.fees?.inPerson?.original ?? doctor.consultationFee ?? '', 
+              discount: doctor.fees?.inPerson?.discount ?? 0, 
+              final: doctor.fees?.inPerson?.final ?? doctor.consultationFee ?? 0 
+            },
+            videoCall: { 
+              original: doctor.fees?.videoCall?.original ?? '', 
+              discount: doctor.fees?.videoCall?.discount ?? 0, 
+              final: doctor.fees?.videoCall?.final ?? 0 
+            },
+            voiceCall: { 
+              original: doctor.fees?.voiceCall?.original ?? '', 
+              discount: doctor.fees?.voiceCall?.discount ?? 0, 
+              final: doctor.fees?.voiceCall?.final ?? 0 
+            },
+          }
         })
         setSpecializationSearchTerm(doctor.specialization || '')
       }
@@ -183,6 +206,21 @@ const AdminDoctorForm = () => {
           ...prev.clinicAddress,
           [key]: value,
         },
+      }))
+      return
+    }
+
+    if (field.startsWith('fees.')) {
+      const [_, mode, key] = field.split('.')
+      setFormData(prev => ({
+        ...prev,
+        fees: {
+          ...prev.fees,
+          [mode]: {
+            ...prev.fees[mode],
+            [key]: value,
+          }
+        }
       }))
       return
     }
@@ -350,8 +388,18 @@ const AdminDoctorForm = () => {
     if (formData.experienceYears === '' || formData.experienceYears === null) missing.push('Experience')
     if (!formData.qualification.trim()) missing.push('Qualification')
     if (!formData.bio.trim()) missing.push('Bio')
-    if (formData.consultationFee === '' || formData.consultationFee === null) missing.push('Consultation Fee')
-    if (formData.languages.length === 0) missing.push('Languages')
+    const hasRequiredFees = formData.consultationModes.every(mode => {
+      if (mode === 'in_person') return formData.fees.inPerson.original !== ''
+      if (mode === 'voice_call') return formData.fees.voiceCall.original !== ''
+      if (mode === 'video_call') return formData.fees.videoCall.original !== ''
+      return true
+    })
+
+    if (!hasRequiredFees || formData.consultationModes.length === 0) {
+      if (!hasRequiredFees) missing.push('Consultation Fee')
+    }
+
+    if (formData.languages.length === 0 && !languageInput.trim()) missing.push('Languages')
     if (formData.services.length === 0) missing.push('Services')
     if (formData.consultationModes.length === 0) missing.push('Consultation Modes')
     if (!completeEducation) missing.push('Education')
@@ -368,6 +416,14 @@ const AdminDoctorForm = () => {
   }
 
   const handleSave = async () => {
+    // Auto-add pending language if any
+    let finalLanguages = formData.languages
+    if (languageInput.trim() && !finalLanguages.includes(languageInput.trim())) {
+      finalLanguages = [...finalLanguages, languageInput.trim()]
+      setFormData(prev => ({ ...prev, languages: finalLanguages }))
+      setLanguageInput('')
+    }
+
     if (!validateStep(1) || !validateStep(2)) return
 
     if (shouldApproveAfterSave) {
@@ -393,7 +449,7 @@ const AdminDoctorForm = () => {
         qualification: formData.qualification.trim() || undefined,
         bio: formData.bio.trim() || undefined,
         consultationFee: formData.consultationFee ? Number(formData.consultationFee) : undefined,
-        languages: formData.languages.length > 0 ? formData.languages : undefined,
+        languages: finalLanguages.length > 0 ? finalLanguages : undefined,
         services: formData.services.length > 0 ? formData.services : undefined,
         consultationModes: formData.consultationModes.length > 0 ? formData.consultationModes : undefined,
         education: formData.education.filter(edu => edu.institution || edu.degree || edu.year).length > 0 
@@ -404,6 +460,23 @@ const AdminDoctorForm = () => {
         clinicImages: formData.clinicImages.length > 0 ? formData.clinicImages : undefined,
         documents: formData.documents.length > 0 ? formData.documents : undefined,
         isDoctor: formData.isDoctor,
+        fees: {
+          inPerson: {
+            original: formData.fees.inPerson.original ? Number(formData.fees.inPerson.original) : 0,
+            discount: Number(formData.fees.inPerson.discount || 0),
+            final: formData.fees.inPerson.original ? Number(formData.fees.inPerson.original) - Number(formData.fees.inPerson.discount || 0) : 0,
+          },
+          videoCall: {
+            original: formData.fees.videoCall.original ? Number(formData.fees.videoCall.original) : 0,
+            discount: Number(formData.fees.videoCall.discount || 0),
+            final: formData.fees.videoCall.original ? Number(formData.fees.videoCall.original) - Number(formData.fees.videoCall.discount || 0) : 0,
+          },
+          voiceCall: {
+            original: formData.fees.voiceCall.original ? Number(formData.fees.voiceCall.original) : 0,
+            discount: Number(formData.fees.voiceCall.discount || 0),
+            final: formData.fees.voiceCall.original ? Number(formData.fees.voiceCall.original) - Number(formData.fees.voiceCall.discount || 0) : 0,
+          },
+        },
       }
 
       if (isEditMode) {
@@ -694,17 +767,6 @@ const AdminDoctorForm = () => {
                     placeholder="5"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">Consultation Fee (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.consultationFee}
-                    onChange={(e) => handleInputChange('consultationFee', e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
-                    placeholder="1000"
-                  />
-                </div>
               </div>
 
               <div className="space-y-2">
@@ -768,25 +830,39 @@ const AdminDoctorForm = () => {
                     </span>
                   ))}
                 </div>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-3 flex items-center text-primary">
-                    <IoLanguageOutline className="h-5 w-5" />
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="Enter language and press Enter"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        if (e.target.value.trim() && !formData.languages.includes(e.target.value.trim())) {
-                          handleInputChange('languages', [...formData.languages, e.target.value.trim()])
-                          e.target.value = ''
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-3 flex items-center text-primary">
+                      <IoLanguageOutline className="h-5 w-5" />
+                    </span>
+                    <input
+                      type="text"
+                      value={languageInput}
+                      onChange={(e) => setLanguageInput(e.target.value)}
+                      placeholder="e.g. English, Hindi"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          if (languageInput.trim() && !formData.languages.includes(languageInput.trim())) {
+                            handleInputChange('languages', [...formData.languages, languageInput.trim()])
+                            setLanguageInput('')
+                          }
                         }
-                      }
-                    }}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 pl-11 text-sm text-slate-900 focus:border-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
-                  />
-                </div>
+                      }}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 pl-11 pr-20 text-sm text-slate-900 focus:border-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (languageInput.trim() && !formData.languages.includes(languageInput.trim())) {
+                          handleInputChange('languages', [...formData.languages, languageInput.trim()])
+                          setLanguageInput('')
+                        }
+                      }}
+                      className="absolute right-2 top-1.5 bottom-1.5 px-3 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary-dark transition-colors"
+                    >
+                      Add
+                    </button>
+                  </div>
               </div>
 
               <div className="space-y-2">
@@ -826,7 +902,7 @@ const AdminDoctorForm = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <label className="text-sm font-bold text-slate-700">Consultation Modes</label>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   {[
@@ -853,6 +929,62 @@ const AdminDoctorForm = () => {
                     </label>
                   ))}
                 </div>
+
+                {/* Conditional Fees Section */}
+                {formData.consultationModes.length > 0 && (
+                  <div className="space-y-4 bg-slate-50 p-6 rounded-2xl border border-slate-100 animate-fadeIn">
+                    <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
+                      <IoBriefcaseOutline className="h-4 w-4 text-primary" /> Set Consultation Fees (₹)
+                    </h3>
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                      {formData.consultationModes.includes('in_person') && (
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
+                            <IoPersonOutline className="h-3 w-3" /> Clinic Visit Fee
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.fees.inPerson.original}
+                            onChange={(e) => handleInputChange('fees.inPerson.original', e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+                            placeholder="e.g. 500"
+                          />
+                        </div>
+                      )}
+                      {formData.consultationModes.includes('voice_call') && (
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
+                            <IoCallOutline className="h-3 w-3" /> Voice Call Fee
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.fees.voiceCall.original}
+                            onChange={(e) => handleInputChange('fees.voiceCall.original', e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+                            placeholder="e.g. 300"
+                          />
+                        </div>
+                      )}
+                      {formData.consultationModes.includes('video_call') && (
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
+                            <IoVideocamOutline className="h-3 w-3" /> Video Call Fee
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.fees.videoCall.original}
+                            onChange={(e) => handleInputChange('fees.videoCall.original', e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+                            placeholder="e.g. 400"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
