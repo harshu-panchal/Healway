@@ -605,6 +605,7 @@ const PatientProfile = () => {
                       type="date"
                       value={formData.dateOfBirth}
                       onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                      max={new Date().toISOString().split('T')[0]}
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 transition hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-[rgba(0,119,194,0.2)]"
                     />
                   ) : (
@@ -716,10 +717,13 @@ const PatientProfile = () => {
                   Phone
                 </label>
                 {isEditing ? (
-                  <input
+                   <input
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => handleInputChange('phone', e.target.value)}
+                    pattern="[0-9]{10}"
+                    maxLength="10"
+                    title="Phone number should be 10 digits"
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 transition hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-[rgba(0,119,194,0.2)]"
                   />
                 ) : (
@@ -772,6 +776,9 @@ const PatientProfile = () => {
                         placeholder="Postal Code"
                         value={formData.address?.postalCode || ''}
                         onChange={(e) => handleInputChange('address.postalCode', e.target.value)}
+                        pattern="[0-9]{6}"
+                        maxLength="6"
+                        title="Pincode should be 6 digits"
                         className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 transition hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-[rgba(0,119,194,0.2)]"
                       />
                       <input
@@ -972,6 +979,9 @@ const PatientProfile = () => {
                     type="tel"
                     value={formData.emergencyContact?.phone || ''}
                     onChange={(e) => handleInputChange('emergencyContact.phone', e.target.value)}
+                    pattern="[0-9]{10}"
+                    maxLength="10"
+                    title="Emergency contact number should be 10 digits"
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 transition hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-[rgba(0,119,194,0.2)]"
                   />
                 ) : (

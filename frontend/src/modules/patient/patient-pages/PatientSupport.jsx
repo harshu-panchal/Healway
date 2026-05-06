@@ -224,6 +224,9 @@ const PatientSupport = () => {
               value={formData.contactNumber}
               onChange={handleChange}
               required
+              pattern="[0-9]{10}"
+              maxLength="10"
+              title="Contact number should be 10 digits"
               className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 transition hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               placeholder="Enter your contact number"
             />

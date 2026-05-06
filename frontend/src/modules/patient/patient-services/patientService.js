@@ -341,12 +341,24 @@ export const getPatientPrescriptions = async (filters = {}) => {
 export const getPatientTransactions = async (filters = {}) => {
   try {
     const response = await apiClient.get('/patients/transactions', filters)
-    if (!response.success) {
-      throw new Error(response.message || 'Failed to fetch transactions')
-    }
-    return response.data
+    return response
   } catch (error) {
     console.error('Error fetching patient transactions:', error)
+    throw error
+  }
+}
+
+/**
+ * Get patient transaction by ID
+ * @param {string} transactionId - Transaction ID
+ * @returns {Promise<object>} Transaction data
+ */
+export const getPatientTransactionById = async (transactionId) => {
+  try {
+    const response = await apiClient.get(`/patients/transactions/${transactionId}`)
+    return response
+  } catch (error) {
+    console.error('Error fetching transaction details:', error)
     throw error
   }
 }
@@ -550,10 +562,7 @@ export const getFeaturedDoctors = async () => {
 export const createSupportTicket = async (ticketData) => {
   try {
     const response = await apiClient.post('/patients/support', ticketData)
-    if (!response.success) {
-      throw new Error(response.message || 'Failed to create support ticket')
-    }
-    return response.data
+    return response
   } catch (error) {
     console.error('Error creating support ticket:', error)
     throw error
@@ -568,10 +577,7 @@ export const createSupportTicket = async (ticketData) => {
 export const getSupportTickets = async (filters = {}) => {
   try {
     const response = await apiClient.get('/patients/support', filters)
-    if (!response.success) {
-      throw new Error(response.message || 'Failed to fetch support tickets')
-    }
-    return response.data
+    return response
   } catch (error) {
     console.error('Error fetching support tickets:', error)
     throw error
