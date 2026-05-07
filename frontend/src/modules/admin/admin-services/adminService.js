@@ -265,7 +265,7 @@ export const deleteUser = async (userId) => {
 export const getDoctors = async (filters = {}) => {
   try {
     const response = await apiClient.get('/admin/doctors', filters)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error fetching doctors:', error)
     throw error
@@ -278,7 +278,7 @@ export const getDoctors = async (filters = {}) => {
 export const createDoctor = async (doctorData) => {
   try {
     const response = await apiClient.post('/admin/doctors', doctorData)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error creating doctor:', error)
     throw error
@@ -291,7 +291,7 @@ export const createDoctor = async (doctorData) => {
 export const updateDoctor = async (doctorId, doctorData) => {
   try {
     const response = await apiClient.patch(`/admin/doctors/${doctorId}`, doctorData)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error updating doctor:', error)
     throw error
@@ -304,7 +304,7 @@ export const updateDoctor = async (doctorId, doctorData) => {
 export const deleteDoctor = async (doctorId) => {
   try {
     const response = await apiClient.delete(`/admin/doctors/${doctorId}`)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error deleting doctor:', error)
     throw error
@@ -317,7 +317,7 @@ export const deleteDoctor = async (doctorId) => {
 export const toggleDoctorStatus = async (doctorId, accessMode) => {
   try {
     const response = await apiClient.patch(`/admin/doctors/${doctorId}/toggle-status`, accessMode ? { accessMode } : {})
-    return response.data
+    return response
   } catch (error) {
     console.error('Error toggling doctor status:', error)
     throw error
@@ -359,7 +359,7 @@ export const getDoctorStats = async (doctorId, filter = 'all') => {
 export const verifyDoctor = async (doctorId, verificationData = {}) => {
   try {
     const response = await apiClient.patch(`/admin/doctors/${doctorId}/verify`, verificationData)
-    return response.data
+    return response
   } catch (error) {
     console.error('Error verifying doctor:', error)
     throw error
@@ -372,7 +372,7 @@ export const verifyDoctor = async (doctorId, verificationData = {}) => {
 export const rejectDoctor = async (doctorId, reason) => {
   try {
     const response = await apiClient.patch(`/admin/doctors/${doctorId}/reject`, { reason })
-    return response.data
+    return response
   } catch (error) {
     console.error('Error rejecting doctor:', error)
     throw error
@@ -383,7 +383,7 @@ export const rejectDoctor = async (doctorId, reason) => {
 export const toggleDoctorFeatured = async (doctorId, isFeatured) => {
   try {
     const response = await apiClient.patch(`/admin/doctors/${doctorId}/toggle-featured`, { isFeatured })
-    return response.data
+    return response
   } catch (error) {
     console.error('Error toggling doctor featured status:', error)
     throw error
@@ -397,7 +397,7 @@ export const toggleDoctorFeatured = async (doctorId, isFeatured) => {
 export const reorderDoctors = async (orders) => {
   try {
     const response = await apiClient.patch('/admin/doctors/reorder', { orders })
-    return response.data
+    return response
   } catch (error) {
     console.error('Error reordering doctors:', error)
     throw error

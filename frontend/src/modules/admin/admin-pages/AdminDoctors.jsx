@@ -24,6 +24,7 @@ import {
   IoTrashOutline,
   IoToggleOutline,
   IoToggle,
+  IoPersonOutline,
 } from 'react-icons/io5'
 import { Reorder, useDragControls } from 'framer-motion'
 import { useToast } from '../../../contexts/ToastContext'
@@ -44,7 +45,7 @@ const AdminDoctors = () => {
   const toast = useToast()
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter] = useState('verified')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [doctors, setDoctors] = useState([])
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState(null)
@@ -448,26 +449,50 @@ const AdminDoctors = () => {
         />
       </div>
 
-      {/* Stats Summary */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Verified Doctors</p>
-          <p className="mt-1 text-2xl font-bold text-primary">
+      {/* Stats Summary - Clickable Filters */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+        <button
+          onClick={() => setStatusFilter('all')}
+          className={`rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md ${
+            statusFilter === 'all' ? 'border-primary ring-2 ring-primary/10 bg-primary/5' : ''
+          }`}
+        >
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Doctors</p>
+          <p className="mt-1 text-2xl font-bold text-slate-900">{allDoctors.length}</p>
+        </button>
+        <button
+          onClick={() => setStatusFilter('verified')}
+          className={`rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md ${
+            statusFilter === 'verified' ? 'border-emerald-500 ring-2 ring-emerald-500/10 bg-emerald-50' : ''
+          }`}
+        >
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Verified</p>
+          <p className="mt-1 text-2xl font-bold text-emerald-600">
             {allDoctors.filter((d) => d.status === 'verified').length}
           </p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Featured Doctors</p>
-          <p className="mt-1 text-2xl font-bold text-amber-500">
-            {allDoctors.filter((d) => d.status === 'verified' && d.isFeatured).length}
+        </button>
+        <button
+          onClick={() => setStatusFilter('pending')}
+          className={`rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md ${
+            statusFilter === 'pending' ? 'border-blue-500 ring-2 ring-blue-500/10 bg-blue-50' : ''
+          }`}
+        >
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pending Approval</p>
+          <p className="mt-1 text-2xl font-bold text-blue-600">
+            {allDoctors.filter((d) => d.status === 'pending').length}
           </p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Appointments</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">
-            {allDoctors.reduce((sum, d) => sum + d.totalConsultations, 0)}
+        </button>
+        <button
+          onClick={() => setStatusFilter('rejected')}
+          className={`rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md ${
+            statusFilter === 'rejected' ? 'border-red-500 ring-2 ring-red-500/10 bg-red-50' : ''
+          }`}
+        >
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Rejected</p>
+          <p className="mt-1 text-2xl font-bold text-red-600">
+            {allDoctors.filter((d) => d.status === 'rejected').length}
           </p>
-        </div>
+        </button>
       </div>
 
       {/* Doctors List */}
