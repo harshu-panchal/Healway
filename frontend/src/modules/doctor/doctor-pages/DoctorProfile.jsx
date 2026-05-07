@@ -1523,6 +1523,71 @@ const DoctorProfile = () => {
       return;
     }
 
+    // Helper to convert time string to minutes for comparison
+    const timeToMinutes = (timeStr) => {
+        if (!timeStr) return 0;
+        
+        let hours, minutes;
+        if (timeStr.includes('AM') || timeStr.includes('PM')) {
+            // Handle 12-hour format
+            const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+            if (!match) return 0;
+            hours = parseInt(match[1], 10);
+            minutes = parseInt(match[2], 10);
+            const period = match[3].toUpperCase();
+            if (period === 'PM' && hours !== 12) hours += 12;
+            if (period === 'AM' && hours === 12) hours = 0;
+        } else {
+            // Handle 24-hour format
+            const parts = timeStr.split(':');
+            hours = parseInt(parts[0], 10);
+            minutes = parseInt(parts[1], 10);
+        }
+        return hours * 60 + minutes;
+    };
+
+    // Validate ALL availability slots for overlaps
+    const allSlotsByDay = {}; // { Monday: [ { start, end, type } ] }
+    
+    const modes = ['inPerson', 'videoCall', 'voiceCall'];
+    for (const mode of modes) {
+        const modeData = formData.availabilitySlots?.[mode] || [];
+        const selectedDays = formData.availabilitySlots?.[`${mode}SelectedDays`] || [];
+        
+        modeData.forEach(dayConfig => {
+            if (!selectedDays.includes(dayConfig.day)) return;
+            
+            if (!allSlotsByDay[dayConfig.day]) allSlotsByDay[dayConfig.day] = [];
+            
+            dayConfig.slots.forEach(slot => {
+                const start = timeToMinutes(slot.startTime);
+                const end = timeToMinutes(slot.endTime);
+                
+                if (start >= end) {
+                    toast.error(`Invalid slot: ${slot.startTime}-${slot.endTime} on ${dayConfig.day}. End time must be after start time.`);
+                    throw new Error('validation_failed');
+                }
+                
+                // Check against other slots on the SAME day
+                for (const existing of allSlotsByDay[dayConfig.day]) {
+                    // Overlap condition: S1 < E2 and S2 < E1
+                    if (start < existing.end && existing.start < end) {
+                        const typeLabels = { inPerson: 'In-Person', videoCall: 'Video Call', voiceCall: 'Voice Call' };
+                        toast.error(`Overlap detected on ${dayConfig.day}: ${slot.startTime}-${slot.endTime} (${typeLabels[mode]}) conflicts with ${existing.startTime}-${existing.endTime} (${typeLabels[existing.type]}).`);
+                        throw new Error('validation_failed');
+                    }
+                }
+                
+                allSlotsByDay[dayConfig.day].push({
+                    start, end, 
+                    startTime: slot.startTime, 
+                    endTime: slot.endTime, 
+                    type: mode
+                });
+            });
+        });
+    }
+
     try {
       setIsSaving(true);
 
@@ -1704,6 +1769,9 @@ const DoctorProfile = () => {
         toast.error(response.message || "Failed to update profile");
       }
     } catch (error) {
+      if (error.message === 'validation_failed') {
+          return;
+      }
       console.error("Error saving profile:", error);
       toast.error(
         error.message || "Failed to update profile. Please try again.",

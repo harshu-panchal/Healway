@@ -57,9 +57,73 @@ const DoctorSlotManagement = () => {
             return;
         }
 
+    // Helper to convert time string to minutes for comparison
+    const timeToMinutes = (timeStr) => {
+        if (!timeStr) return 0;
+        
+        let hours, minutes;
+        if (timeStr.includes('AM') || timeStr.includes('PM')) {
+            // Handle 12-hour format
+            const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+            if (!match) return 0;
+            hours = parseInt(match[1], 10);
+            minutes = parseInt(match[2], 10);
+            const period = match[3].toUpperCase();
+            if (period === 'PM' && hours !== 12) hours += 12;
+            if (period === 'AM' && hours === 12) hours = 0;
+        } else {
+            // Handle 24-hour format
+            const parts = timeStr.split(':');
+            hours = parseInt(parts[0], 10);
+            minutes = parseInt(parts[1], 10);
+        }
+        return hours * 60 + minutes;
+    };
+
+    // Centralized overlap check helper
+    const checkOverlap = (newStart, newEnd, existingSlots, excludeIndex = -1) => {
+        for (let i = 0; i < existingSlots.length; i++) {
+            if (i === excludeIndex) continue;
+            
+            const slot = existingSlots[i];
+            const slotStart = timeToMinutes(slot.startTime);
+            const slotEnd = timeToMinutes(slot.endTime);
+            
+            // Overlap condition: S1 < E2 and S2 < E1
+            if (newStart < slotEnd && slotStart < newEnd) {
+                return {
+                    hasOverlap: true,
+                    conflictingSlot: slot
+                };
+            }
+        }
+        return { hasOverlap: false };
+    };
+
+    const handleAddSlot = () => {
+        if (!newSlot.startTime || !newSlot.endTime) {
+            setMessage({ type: 'error', text: 'Please fill in all slot details' });
+            return;
+        }
+
+        const newStart = timeToMinutes(newSlot.startTime);
+        const newEnd = timeToMinutes(newSlot.endTime);
+
         // Validate time
-        if (newSlot.startTime >= newSlot.endTime) {
+        if (newStart >= newEnd) {
             setMessage({ type: 'error', text: 'End time must be after start time' });
+            return;
+        }
+
+        // Check for overlaps in existing slots
+        const overlapResult = checkOverlap(newStart, newEnd, slots);
+
+        if (overlapResult.hasOverlap) {
+            const conflict = overlapResult.conflictingSlot;
+            setMessage({ 
+                type: 'error', 
+                text: `Time conflict: This overlaps with ${conflict.startTime}-${conflict.endTime} (${getConsultationTypeLabel(conflict.consultationType)})` 
+            });
             return;
         }
 
@@ -86,6 +150,23 @@ const DoctorSlotManagement = () => {
     };
 
     const handleSaveSlots = async () => {
+        // Final validation before saving
+        for (let i = 0; i < slots.length; i++) {
+            const slot = slots[i];
+            const start = timeToMinutes(slot.startTime);
+            const end = timeToMinutes(slot.endTime);
+            
+            const overlapResult = checkOverlap(start, end, slots, i);
+            if (overlapResult.hasOverlap) {
+                const conflict = overlapResult.conflictingSlot;
+                setMessage({ 
+                    type: 'error', 
+                    text: `Cannot save: Overlap detected between ${slot.startTime}-${slot.endTime} and ${conflict.startTime}-${conflict.endTime}. Please fix it first.` 
+                });
+                return;
+            }
+        }
+
         try {
             setLoading(true);
             await createOrUpdateSlots(selectedDate, slots);

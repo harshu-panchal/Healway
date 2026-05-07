@@ -60,6 +60,52 @@ exports.createOrUpdateSlots = asyncHandler(async (req, res) => {
         }
     }
 
+    // Helper to convert time string to minutes for comparison
+    const timeToMinutes = (timeStr) => {
+        if (!timeStr) return 0;
+        
+        let hours, minutes;
+        if (timeStr.includes('AM') || timeStr.includes('PM')) {
+            // Handle 12-hour format
+            const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+            if (!match) return 0;
+            hours = parseInt(match[1], 10);
+            minutes = parseInt(match[2], 10);
+            const period = match[3].toUpperCase();
+            if (period === 'PM' && hours !== 12) hours += 12;
+            if (period === 'AM' && hours === 12) hours = 0;
+        } else {
+            // Handle 24-hour format
+            const parts = timeStr.split(':');
+            hours = parseInt(parts[0], 10);
+            minutes = parseInt(parts[1], 10);
+        }
+        return hours * 60 + minutes;
+    };
+
+    // Check for overlapping or duplicate slots
+    for (let i = 0; i < slots.length; i++) {
+        const currentSlot = slots[i];
+        const start1 = timeToMinutes(currentSlot.startTime);
+        const end1 = timeToMinutes(currentSlot.endTime);
+
+        for (let j = i + 1; j < slots.length; j++) {
+            const otherSlot = slots[j];
+            const start2 = timeToMinutes(otherSlot.startTime);
+            const end2 = timeToMinutes(otherSlot.endTime);
+            
+            // Overlap condition: S1 < E2 and S2 < E1
+            if (start1 < end2 && start2 < end1) {
+                const type1 = currentSlot.consultationType.replace('_', ' ');
+                const type2 = otherSlot.consultationType.replace('_', ' ');
+                return res.status(400).json({
+                    success: false,
+                    message: `Time conflict: ${currentSlot.startTime}-${currentSlot.endTime} (${type1}) overlaps with ${otherSlot.startTime}-${otherSlot.endTime} (${type2}). Please ensure slots do not overlap across any consultation type.`,
+                });
+            }
+        }
+    }
+
     const doctor = await Doctor.findById(id);
 
     if (!doctor) {
