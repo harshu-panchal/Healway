@@ -67,14 +67,18 @@ const AdminLogin = () => {
 
     setIsLoggingIn(true)
     try {
-      const data = await loginAdmin({
+      const response = await loginAdmin({
         email: loginData.email,
         password: loginData.password,
       })
 
+      // The API response structure is { success: true, data: { tokens, admin }, message: '...' }
+      // but we handle both direct and nested structure for robustness
+      const result = response.data || response
+
       // Store tokens and profile
-      if (data?.tokens) {
-        storeAdminTokens(data.tokens, loginData.remember)
+      if (result?.tokens) {
+        storeAdminTokens(result.tokens, loginData.remember)
 
         // Handle Remember Me logic
         if (loginData.remember) {
@@ -86,20 +90,23 @@ const AdminLogin = () => {
         }
 
         // Store admin profile
-        if (data.admin) {
+        if (result.admin) {
           const storage = loginData.remember ? localStorage : sessionStorage
-          storage.setItem('adminProfile', JSON.stringify(data.admin))
+          storage.setItem('adminProfile', JSON.stringify(result.admin))
         }
-      }
 
-      toast.success('Login successful! Redirecting to dashboard...')
-      setLoginData(prev => ({
-        ...prev,
-        password: '',
-      }))
-      setTimeout(() => {
+        toast.success('Login successful! Redirecting...')
+        setLoginData(prev => ({
+          ...prev,
+          password: '',
+        }))
+        
+        // Navigation will be handled by the useEffect or Navigate component at the top
+        // But we still call navigate here as a backup
         navigate('/admin/dashboard', { replace: true })
-      }, 500)
+      } else {
+        throw new Error('Invalid response from server: Missing tokens')
+      }
     } catch (error) {
       console.error('Login error:', error)
       const errorMessage = error.message || 'An error occurred. Please try again.'
