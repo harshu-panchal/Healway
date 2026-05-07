@@ -916,29 +916,71 @@ exports.cancelAppointment = asyncHandler(async (req, res) => {
   }
 
   // If payment is pending, DELETE the appointment instead of cancelling
-  // This ensures failed payment appointments are not stored in the database
   if (appointment.paymentStatus === "pending") {
-    // Delete the appointment
     await Appointment.findByIdAndDelete(appointment._id);
-
-    // Cache invalidation removed (Redis removed)
-
     return res.status(200).json({
       success: true,
       message: "Appointment deleted successfully",
     });
   }
 
-  // For paid appointments, cancel normally (don't delete)
+  // ALLOW cancellation only if status is "scheduled" (not yet accepted/confirmed by doctor)
+  // If doctor has already confirmed/accepted, patient cannot cancel themselves
+  if (appointment.status !== "scheduled" && appointment.status !== "pending_payment") {
+    return res.status(400).json({
+      success: false,
+      message: "Cannot cancel appointment as it has already been accepted by the doctor. Please contact support or the doctor for cancellation.",
+    });
+  }
+
+  // For paid appointments, cancel and refund to wallet
   appointment.status = "cancelled";
-  // Use IST time for doctor session operations
   appointment.cancelledAt = getISTTime();
+  appointment.cancelledBy = "patient";
   appointment.cancellationReason = req.body.reason || "Cancelled by patient";
+
+  // Refund patient's paid amount to their wallet
+  const paidAmount = appointment.paidAmount || 0;
+  if (paidAmount > 0) {
+    const patient = await Patient.findById(id);
+    if (patient) {
+      // Credit the patient's wallet
+      patient.walletBalance = (patient.walletBalance || 0) + paidAmount;
+      await patient.save();
+
+      // Create wallet transaction record for patient
+      const WalletTransaction = require('../../models/WalletTransaction');
+      await WalletTransaction.create({
+        userId: id,
+        userType: 'patient',
+        type: 'refund',
+        amount: paidAmount,
+        balance: patient.walletBalance,
+        status: 'completed',
+        description: `Refund for appointment cancelled by patient`,
+        referenceId: appointment._id.toString(),
+        appointmentId: appointment._id,
+        metadata: {
+          doctorId: appointment.doctorId,
+          appointmentDate: appointment.appointmentDate,
+          consultationMode: appointment.consultationMode,
+        },
+      });
+
+      // Store refund info in appointment and reset payment status
+      appointment.refundAmount = paidAmount;
+      appointment.refundStatus = 'completed';
+      appointment.refundedAt = new Date();
+      appointment.paidAmount = 0;
+      appointment.paymentStatus = 'refunded';
+
+      console.log(`💰 Refunded ₹${paidAmount} to patient ${patient._id} wallet for patient-cancelled appointment ${appointment._id}`);
+    }
+  }
+
   await appointment.save();
 
-  // Cache invalidation removed (Redis removed)
-
-  // Get patient and doctor data for email
+  // Get patient and doctor data for notifications
   const patient = await Patient.findById(id);
   const doctor = await Doctor.findById(appointment.doctorId);
 
@@ -947,7 +989,16 @@ exports.cancelAppointment = asyncHandler(async (req, res) => {
     const io = getIO();
     io.to(`doctor-${appointment.doctorId}`).emit("appointment:cancelled", {
       appointmentId: appointment._id,
+      cancelledBy: 'patient',
+      patientName: `${patient.firstName} ${patient.lastName}`
     });
+    io.to(`patient-${id}`).emit("appointment:cancelled", {
+      appointmentId: appointment._id,
+      refunded: (appointment.refundAmount || 0) > 0
+    });
+  } catch (error) {
+    console.error("Socket.IO error:", error);
+  }
   } catch (error) {
     console.error("Socket.IO error:", error);
   }

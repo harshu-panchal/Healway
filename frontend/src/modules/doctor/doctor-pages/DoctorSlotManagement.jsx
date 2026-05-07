@@ -51,12 +51,6 @@ const DoctorSlotManagement = () => {
         }
     };
 
-    const handleAddSlot = () => {
-        if (!newSlot.startTime || !newSlot.endTime) {
-            setMessage({ type: 'error', text: 'Please fill in all slot details' });
-            return;
-        }
-
     // Helper to convert time string to minutes for comparison
     const timeToMinutes = (timeStr) => {
         if (!timeStr) return 0;

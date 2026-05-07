@@ -16,6 +16,7 @@ import {
 import {
   getPatientAppointments,
   rescheduleAppointment,
+  cancelAppointment,
   createAppointmentPaymentOrder,
   verifyAppointmentPayment,
 } from "../patient-services/patientService";
@@ -123,6 +124,25 @@ const PatientAppointments = () => {
   const handleViewDetails = (appointment) => {
     setSelectedAppointment(appointment);
     setShowDetailsModal(true);
+  };
+
+  const handleCancelAppointment = async (appointmentId) => {
+    if (!window.confirm("Are you sure you want to cancel this appointment? If paid, the amount will be refunded to your wallet.")) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await cancelAppointment(appointmentId);
+      toast.success(response.message || "Appointment cancelled successfully");
+      // Refresh list
+      window.dispatchEvent(new CustomEvent("appointmentBooked"));
+    } catch (err) {
+      console.error("Error cancelling appointment:", err);
+      toast.error(err.message || "Failed to cancel appointment");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Fetch appointments from API - Always fetch all appointments, filter on frontend
@@ -644,26 +664,23 @@ const PatientAppointments = () => {
                             Complete Payment
                           </button>
                         ) : (
-                          <button
-                            onClick={() => handleViewDetails(appointment)}
-                            className="flex-1 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-[rgba(0,119,194,0.2)] transition hover:bg-[var(--color-primary-dark)] active:scale-95"
-                          >
-                            View Details
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleViewDetails(appointment)}
+                              className="flex-1 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-[rgba(0,119,194,0.2)] transition hover:bg-[var(--color-primary-dark)] active:scale-95"
+                            >
+                              View Details
+                            </button>
+                            {appointment.status === "scheduled" && (
+                              <button
+                                onClick={() => handleCancelAppointment(appointment.id)}
+                                className="flex-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100 active:scale-95"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                          </>
                         )}
-                        {/* {!appointment.isRescheduled && !isPendingPayment && (
-                        <button
-                          onClick={() =>
-                            handleRescheduleAppointment(
-                              appointment.id,
-                              appointment.doctor.id,
-                            )
-                          }
-                          className="flex-1 rounded-xl border border-primary bg-white px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/5 active:scale-95"
-                        >
-                          Reschedule
-                        </button>
-                      )} */}
                         {isPendingPayment && (
                           <button
                             onClick={() =>
