@@ -737,7 +737,9 @@ const DoctorProfile = () => {
       if (
         parts.length === 3 &&
         parts[0] === "fees" &&
-        (parts[2] === "original" || parts[2] === "discount")
+        (parts[2] === "original" ||
+          parts[2] === "discount" ||
+          parts[2] === "confirmSlotPercentage")
       ) {
         const [, mode, subField] = parts;
         setFormData((prev) => {
@@ -746,23 +748,25 @@ const DoctorProfile = () => {
             original: 0,
             discount: 0,
             final: 0,
+            confirmSlotPercentage: 0,
+            confirmSlotAmount: 0,
             selectedDays: [],
           };
 
-          const original =
-            parseFloat(
-              subField === "original" ? value : currentModeFees.original,
-            ) || 0;
-          const discount =
-            parseFloat(
-              subField === "discount" ? value : currentModeFees.discount,
-            ) || 0;
+          const originalValue =
+            subField === "original" ? value : currentModeFees.original;
+          const discountValue =
+            subField === "discount" ? value : currentModeFees.discount;
+          const percentageValue =
+            subField === "confirmSlotPercentage"
+              ? value
+              : currentModeFees.confirmSlotPercentage;
+
+          const original = parseFloat(originalValue) || 0;
+          const discount = parseFloat(discountValue) || 0;
           const final = Math.max(0, original - discount);
-          const confirmSlotPercentage =
-            currentModeFees.confirmSlotPercentage || 0;
-          const confirmSlotAmount = Math.round(
-            (final * confirmSlotPercentage) / 100,
-          );
+          const percentage = parseFloat(percentageValue) || 0;
+          const confirmSlotAmount = Math.round((final * percentage) / 100);
 
           const updatedFees = {
             ...currentFees,
@@ -770,7 +774,6 @@ const DoctorProfile = () => {
               ...currentModeFees,
               [subField]: value,
               final: final,
-              confirmSlotPercentage: confirmSlotPercentage,
               confirmSlotAmount: confirmSlotAmount,
             },
           };
@@ -938,21 +941,34 @@ const DoctorProfile = () => {
 
   const addSlot = (type, day) => {
     setFormData((prev) => {
-      const modeData = [...(prev.availabilitySlots?.[type] || [])];
-      let dayConfig = modeData.find(d => d.day === day);
-      
-      if (!dayConfig) {
-        dayConfig = { day, slots: [{ startTime: "", endTime: "", isFree: false }] };
-        modeData.push(dayConfig);
+      const modeData = prev.availabilitySlots?.[type] || [];
+      const dayIndex = modeData.findIndex((d) => d.day === day);
+
+      let newModeData;
+      if (dayIndex === -1) {
+        newModeData = [
+          ...modeData,
+          { day, slots: [{ startTime: "", endTime: "", isFree: false }] },
+        ];
       } else {
-        dayConfig.slots = [...dayConfig.slots, { startTime: "", endTime: "", isFree: false }];
+        newModeData = modeData.map((d, idx) =>
+          idx === dayIndex
+            ? {
+              ...d,
+              slots: [
+                ...d.slots,
+                { startTime: "", endTime: "", isFree: false },
+              ],
+            }
+            : d,
+        );
       }
-      
+
       return {
         ...prev,
         availabilitySlots: {
           ...prev.availabilitySlots,
-          [type]: modeData,
+          [type]: newModeData,
         },
       };
     });
@@ -960,58 +976,19 @@ const DoctorProfile = () => {
 
   const updateSlot = (type, day, index, field, value) => {
     setFormData((prev) => {
-      const modeData = [...(prev.availabilitySlots?.[type] || [])];
-      let dayConfig = modeData.find(d => d.day === day);
-      
-      if (dayConfig) {
-        const updatedSlots = [...dayConfig.slots];
-        updatedSlots[index] = { ...updatedSlots[index], [field]: value };
-        dayConfig.slots = updatedSlots;
-      }
+      const modeData = prev.availabilitySlots?.[type] || [];
+      const dayIndex = modeData.findIndex((d) => d.day === day);
 
-      return {
-        ...prev,
-        availabilitySlots: {
-          ...prev.availabilitySlots,
-          [type]: modeData,
-        },
-      };
-    });
-  };
+      if (dayIndex === -1) return prev;
 
-  const removeSlot = (type, day, index) => {
-    setFormData((prev) => {
-      const modeData = [...(prev.availabilitySlots?.[type] || [])];
-      let dayConfig = modeData.find(d => d.day === day);
-      
-      if (dayConfig) {
-        dayConfig.slots = dayConfig.slots.filter((_, i) => i !== index);
-      }
-
-      return {
-        ...prev,
-        availabilitySlots: {
-          ...prev.availabilitySlots,
-          [type]: modeData,
-        },
-      };
-    });
-  };
-
-  const copySlotsToAllDays = (type, sourceDay) => {
-    setFormData((prev) => {
-      const modeData = [...(prev.availabilitySlots?.[type] || [])];
-      const sourceConfig = modeData.find(d => d.day === sourceDay);
-      if (!sourceConfig) return prev;
-
-      const selectedDays = prev.availabilitySlots?.[`${type}SelectedDays`] || [];
-      
-      const newModeData = selectedDays.map(day => {
-        const existing = modeData.find(d => d.day === day);
-        return {
-          day,
-          slots: sourceConfig.slots.map(s => ({ ...s }))
-        };
+      const newModeData = modeData.map((d, idx) => {
+        if (idx === dayIndex) {
+          const updatedSlots = d.slots.map((slot, sIdx) =>
+            sIdx === index ? { ...slot, [field]: value } : slot,
+          );
+          return { ...d, slots: updatedSlots };
+        }
+        return d;
       });
 
       return {
@@ -1019,6 +996,76 @@ const DoctorProfile = () => {
         availabilitySlots: {
           ...prev.availabilitySlots,
           [type]: newModeData,
+        },
+      };
+    });
+  };
+
+  const removeSlot = (type, day, index) => {
+    setFormData((prev) => {
+      const modeData = prev.availabilitySlots?.[type] || [];
+      const dayIndex = modeData.findIndex((d) => d.day === day);
+
+      if (dayIndex === -1) return prev;
+
+      const newModeData = modeData.map((d, idx) => {
+        if (idx === dayIndex) {
+          return {
+            ...d,
+            slots: d.slots.filter((_, sIdx) => sIdx !== index),
+          };
+        }
+        return d;
+      });
+
+      return {
+        ...prev,
+        availabilitySlots: {
+          ...prev.availabilitySlots,
+          [type]: newModeData,
+        },
+      };
+    });
+  };
+
+  const copySlotsToAllDays = (type, sourceDay) => {
+    setFormData((prev) => {
+      const modeData = prev.availabilitySlots?.[type] || [];
+      const sourceConfig = modeData.find((d) => d.day === sourceDay);
+      if (!sourceConfig) return prev;
+
+      const selectedDays =
+        prev.availabilitySlots?.[`${type}SelectedDays`] || [];
+
+      const newModeData = modeData.map((d) => {
+        if (selectedDays.includes(d.day) && d.day !== sourceDay) {
+          return {
+            ...d,
+            slots: sourceConfig.slots.map((s) => ({ ...s })),
+          };
+        }
+        return d;
+      });
+
+      // Also ensure all selected days that weren't in modeData are added
+      const existingDays = modeData.map((d) => d.day);
+      const daysToAdd = selectedDays.filter(
+        (day) => !existingDays.includes(day),
+      );
+
+      const addedModeData = [
+        ...newModeData,
+        ...daysToAdd.map((day) => ({
+          day,
+          slots: sourceConfig.slots.map((s) => ({ ...s })),
+        })),
+      ];
+
+      return {
+        ...prev,
+        availabilitySlots: {
+          ...prev.availabilitySlots,
+          [type]: addedModeData,
         },
       };
     });
@@ -2269,100 +2316,78 @@ const DoctorProfile = () => {
                             In-Person
                           </h4>
                           <div className="space-y-3">
-                            <div>
-                              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                                Base Fee (₹)
-                              </label>
-                              {isEditing ? (
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={formData.fees.inPerson.original}
-                                  onChange={(e) =>
-                                    handleInputChange(
-                                      "fees.inPerson.original",
-                                      parseFloat(e.target.value) || 0,
-                                    )
-                                  }
-                                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition focus:ring-2 focus:ring-primary/20"
-                                />
-                              ) : (
-                                <p className="text-sm font-bold text-slate-900">
-                                  ₹{formData.fees.inPerson.original || 0}
-                                </p>
-                              )}
-                            </div>
-                            <div>
-                              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                                Discount (₹)
-                              </label>
-                              {isEditing ? (
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={formData.fees.inPerson.discount}
-                                  onChange={(e) =>
-                                    handleInputChange(
-                                      "fees.inPerson.discount",
-                                      parseFloat(e.target.value) || 0,
-                                    )
-                                  }
-                                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition focus:ring-2 focus:ring-primary/20"
-                                />
-                              ) : (
-                                <p className="text-sm font-bold text-emerald-600">
-                                  ₹{formData.fees.inPerson.discount || 0}
-                                </p>
-                              )}
-                            </div>
-                            <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
-                              <span className="text-[10px] font-bold text-slate-500 uppercase">
-                                Final
-                              </span>
-                              <span className="text-sm font-black text-primary">
-                                ₹{formData.fees.inPerson.final}
-                              </span>
-                            </div>
-                            {isEditing && (
-                              <div className="pt-2 border-t border-slate-200">
+                              <div>
                                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                                  Confirm Slot %
+                                  Base Fee (₹)
                                 </label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  value={
-                                    formData.fees.inPerson
-                                      .confirmSlotPercentage || 0
-                                  }
-                                  onChange={(e) => {
-                                    const percentage =
-                                      parseFloat(e.target.value) || 0;
-                                    const confirmSlotAmount = Math.round(
-                                      (formData.fees.inPerson.final *
-                                        percentage) /
-                                      100,
-                                    );
-                                    handleInputChange(
-                                      "fees.inPerson.confirmSlotPercentage",
-                                      percentage,
-                                    );
-                                    // Update confirmSlotAmount in formData
-                                    setFormData((prev) => ({
-                                      ...prev,
-                                      fees: {
-                                        ...prev.fees,
-                                        inPerson: {
-                                          ...prev.fees.inPerson,
-                                          confirmSlotPercentage: percentage,
-                                          confirmSlotAmount: confirmSlotAmount,
-                                        },
-                                      },
-                                    }));
-                                  }}
-                                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition focus:ring-2 focus:ring-primary/20"
-                                />
+                                {isEditing ? (
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={formData.fees.inPerson.original}
+                                    onChange={(e) =>
+                                      handleInputChange(
+                                        "fees.inPerson.original",
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition focus:ring-2 focus:ring-primary/20"
+                                  />
+                                ) : (
+                                  <p className="text-sm font-bold text-slate-900">
+                                    ₹{formData.fees.inPerson.original || 0}
+                                  </p>
+                                )}
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                                  Discount (₹)
+                                </label>
+                                {isEditing ? (
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={formData.fees.inPerson.discount}
+                                    onChange={(e) =>
+                                      handleInputChange(
+                                        "fees.inPerson.discount",
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition focus:ring-2 focus:ring-primary/20"
+                                  />
+                                ) : (
+                                  <p className="text-sm font-bold text-emerald-600">
+                                    ₹{formData.fees.inPerson.discount || 0}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase">
+                                  Final
+                                </span>
+                                <span className="text-sm font-black text-primary">
+                                  ₹{formData.fees.inPerson.final}
+                                </span>
+                              </div>
+                              {isEditing && (
+                                <div className="pt-2 border-t border-slate-200">
+                                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                                    Confirm Slot %
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={formData.fees.inPerson.confirmSlotPercentage}
+                                    onChange={(e) =>
+                                      handleInputChange(
+                                        "fees.inPerson.confirmSlotPercentage",
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition focus:ring-2 focus:ring-primary/20"
+                                  />
                                 {formData.fees.inPerson.confirmSlotPercentage >
                                   0 && (
                                     <p className="mt-1 text-[9px] text-slate-600">
@@ -2523,41 +2548,41 @@ const DoctorProfile = () => {
                                 Base Fee (₹)
                               </label>
                               {isEditing ? (
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={formData.fees.videoCall.original}
-                                  onChange={(e) =>
-                                    handleInputChange(
-                                      "fees.videoCall.original",
-                                      parseFloat(e.target.value) || 0,
-                                    )
-                                  }
-                                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition focus:ring-2 focus:ring-blue-500/20"
-                                />
-                              ) : (
-                                <p className="text-sm font-bold text-slate-900">
-                                  ₹{formData.fees.videoCall.original || 0}
-                                </p>
-                              )}
-                            </div>
-                            <div>
-                              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                                Discount (₹)
-                              </label>
-                              {isEditing ? (
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={formData.fees.videoCall.discount}
-                                  onChange={(e) =>
-                                    handleInputChange(
-                                      "fees.videoCall.discount",
-                                      parseFloat(e.target.value) || 0,
-                                    )
-                                  }
-                                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition focus:ring-2 focus:ring-blue-500/20"
-                                />
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={formData.fees.videoCall.original}
+                                    onChange={(e) =>
+                                      handleInputChange(
+                                        "fees.videoCall.original",
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition focus:ring-2 focus:ring-blue-500/20"
+                                  />
+                                ) : (
+                                  <p className="text-sm font-bold text-slate-900">
+                                    ₹{formData.fees.videoCall.original || 0}
+                                  </p>
+                                )}
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                                  Discount (₹)
+                                </label>
+                                {isEditing ? (
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={formData.fees.videoCall.discount}
+                                    onChange={(e) =>
+                                      handleInputChange(
+                                        "fees.videoCall.discount",
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition focus:ring-2 focus:ring-blue-500/20"
+                                  />
                               ) : (
                                 <p className="text-sm font-bold text-emerald-600">
                                   ₹{formData.fees.videoCall.discount || 0}
@@ -2652,41 +2677,41 @@ const DoctorProfile = () => {
                                 Base Fee (₹)
                               </label>
                               {isEditing ? (
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={formData.fees.voiceCall.original}
-                                  onChange={(e) =>
-                                    handleInputChange(
-                                      "fees.voiceCall.original",
-                                      parseFloat(e.target.value) || 0,
-                                    )
-                                  }
-                                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition focus:ring-2 focus:ring-indigo-500/20"
-                                />
-                              ) : (
-                                <p className="text-sm font-bold text-slate-900">
-                                  ₹{formData.fees.voiceCall.original || 0}
-                                </p>
-                              )}
-                            </div>
-                            <div>
-                              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                                Discount (₹)
-                              </label>
-                              {isEditing ? (
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={formData.fees.voiceCall.discount}
-                                  onChange={(e) =>
-                                    handleInputChange(
-                                      "fees.voiceCall.discount",
-                                      parseFloat(e.target.value) || 0,
-                                    )
-                                  }
-                                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition focus:ring-2 focus:ring-indigo-500/20"
-                                />
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={formData.fees.voiceCall.original}
+                                    onChange={(e) =>
+                                      handleInputChange(
+                                        "fees.voiceCall.original",
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition focus:ring-2 focus:ring-indigo-500/20"
+                                  />
+                                ) : (
+                                  <p className="text-sm font-bold text-slate-900">
+                                    ₹{formData.fees.voiceCall.original || 0}
+                                  </p>
+                                )}
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                                  Discount (₹)
+                                </label>
+                                {isEditing ? (
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={formData.fees.voiceCall.discount}
+                                    onChange={(e) =>
+                                      handleInputChange(
+                                        "fees.voiceCall.discount",
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition focus:ring-2 focus:ring-indigo-500/20"
+                                  />
                               ) : (
                                 <p className="text-sm font-bold text-emerald-600">
                                   ₹{formData.fees.voiceCall.discount || 0}
@@ -3537,28 +3562,35 @@ const DoctorProfile = () => {
                                           type="checkbox"
                                           checked={isSelected}
                                           onChange={(e) => {
-                                            const newDays = e.target.checked
-                                              ? [...selectedDays, day]
-                                              : selectedDays.filter((d) => d !== day);
+                                             const isChecked = e.target.checked;
+                                             const newDays = isChecked
+                                               ? selectedDays.includes(day) ? selectedDays : [...selectedDays, day]
+                                               : selectedDays.filter((d) => d !== day);
 
-                                            setFormData((prev) => {
-                                              const newAvailabilitySlots = { ...prev.availabilitySlots };
-                                              newAvailabilitySlots[`${mode.id}SelectedDays`] = newDays;
+                                             setFormData((prev) => {
+                                               const currentSlots = prev.availabilitySlots?.[mode.id] || [];
+                                               let updatedModeSlots = [...currentSlots];
+                                               
+                                               if (isChecked) {
+                                                 const existing = updatedModeSlots.find(d => d.day === day);
+                                                 if (!existing) {
+                                                   updatedModeSlots.push({ 
+                                                     day, 
+                                                     slots: [{ startTime: "", endTime: "", isFree: false }] 
+                                                   });
+                                                 }
+                                               }
 
-                                              // If day added, initialize config if missing
-                                              if (e.target.checked) {
-                                                const existing = newAvailabilitySlots[mode.id].find(d => d.day === day);
-                                                if (!existing) {
-                                                  newAvailabilitySlots[mode.id] = [
-                                                    ...newAvailabilitySlots[mode.id],
-                                                    { day, slots: [{ startTime: "", endTime: "", isFree: false }] }
-                                                  ];
-                                                }
-                                              }
-
-                                              return { ...prev, availabilitySlots: newAvailabilitySlots };
-                                            });
-                                          }}
+                                               return { 
+                                                 ...prev, 
+                                                 availabilitySlots: {
+                                                   ...prev.availabilitySlots,
+                                                   [`${mode.id}SelectedDays`]: newDays,
+                                                   [mode.id]: updatedModeSlots
+                                                 } 
+                                               };
+                                             });
+                                           }}
                                           className={`h-3 w-3 rounded border-slate-300 text-${mode.color} focus:ring-${mode.color}`}
                                         />
                                         <span className={`text-[10px] font-semibold ${isSelected ? 'text-primary' : 'text-slate-600'}`}>{day.substring(0, 3)}</span>
