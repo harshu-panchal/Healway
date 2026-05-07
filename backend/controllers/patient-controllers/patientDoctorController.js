@@ -39,16 +39,27 @@ const getSessionSlots = (doctor, appointmentDate, consultationMode) => {
   const mode = normalizeConsultationMode(consultationMode);
   const dayNameLower = dayName.toLowerCase();
 
-  // New Logic: availabilitySlots with arrays
+  // New Logic: availabilitySlots with day-wise arrays
   if (doctor.availabilitySlots) {
-    const sessionTimingDays = doctor.availabilitySlots.selectedDays || [];
+    // 1. Check mode-specific availability days
+    let modeSpecificDays = [];
+    if (mode === 'IN_PERSON') modeSpecificDays = doctor.availabilitySlots.inPersonSelectedDays || [];
+    else if (mode === 'VIDEO') modeSpecificDays = doctor.availabilitySlots.videoCallSelectedDays || [];
+    else if (mode === 'CALL') modeSpecificDays = doctor.availabilitySlots.voiceCallSelectedDays || [];
 
-    // Check if day is selected in global slots
-    let dayIncluded = Array.isArray(sessionTimingDays) &&
-      sessionTimingDays.length > 0 &&
-      sessionTimingDays.some(day => day && day.toLowerCase() === dayNameLower);
+    let dayIncluded = Array.isArray(modeSpecificDays) &&
+      modeSpecificDays.length > 0 &&
+      modeSpecificDays.some(day => day && day.toLowerCase() === dayNameLower);
 
-    // FALLBACK: If not in global slots, check mode-specific fees for selected days
+    // 2. Check global selectedDays (LEGACY/GLOBAL)
+    if (!dayIncluded) {
+      const sessionTimingDays = doctor.availabilitySlots.selectedDays || [];
+      dayIncluded = Array.isArray(sessionTimingDays) &&
+        sessionTimingDays.length > 0 &&
+        sessionTimingDays.some(day => day && day.toLowerCase() === dayNameLower);
+    }
+
+    // 3. FALLBACK: Check mode-specific fees for selected days
     if (!dayIncluded && doctor.fees) {
       let modeFeeBlock = null;
       if (mode === 'IN_PERSON') modeFeeBlock = doctor.fees.inPerson;
@@ -62,14 +73,30 @@ const getSessionSlots = (doctor, appointmentDate, consultationMode) => {
 
     if (dayIncluded) {
       let slots = [];
+      
+      // Retrieval logic based on mode
       if (mode === 'IN_PERSON' && Array.isArray(doctor.availabilitySlots.inPerson)) {
-        slots = doctor.availabilitySlots.inPerson;
+        if (doctor.availabilitySlots.inPerson.length > 0 && doctor.availabilitySlots.inPerson[0].day) {
+          const dayConfig = doctor.availabilitySlots.inPerson.find(d => d.day && d.day.toLowerCase() === dayNameLower);
+          slots = dayConfig ? (dayConfig.slots || []) : [];
+        } else {
+          slots = doctor.availabilitySlots.inPerson;
+        }
       } else if (mode === 'VIDEO' && Array.isArray(doctor.availabilitySlots.videoCall)) {
-        slots = doctor.availabilitySlots.videoCall;
+        if (doctor.availabilitySlots.videoCall.length > 0 && doctor.availabilitySlots.videoCall[0].day) {
+          const dayConfig = doctor.availabilitySlots.videoCall.find(d => d.day && d.day.toLowerCase() === dayNameLower);
+          slots = dayConfig ? (dayConfig.slots || []) : [];
+        } else {
+          slots = doctor.availabilitySlots.videoCall;
+        }
       } else if (mode === 'CALL' && Array.isArray(doctor.availabilitySlots.voiceCall)) {
-        slots = doctor.availabilitySlots.voiceCall;
+        if (doctor.availabilitySlots.voiceCall.length > 0 && doctor.availabilitySlots.voiceCall[0].day) {
+          const dayConfig = doctor.availabilitySlots.voiceCall.find(d => d.day && d.day.toLowerCase() === dayNameLower);
+          slots = dayConfig ? (dayConfig.slots || []) : [];
+        } else {
+          slots = doctor.availabilitySlots.voiceCall;
+        }
       } else if ((mode === 'VIDEO' || mode === 'CALL') && doctor.availabilitySlots.callVideo && !Array.isArray(doctor.availabilitySlots.videoCall) && !Array.isArray(doctor.availabilitySlots.voiceCall)) {
-        // Fallback to old shared callVideo object if strict arrays not found
         if (doctor.availabilitySlots.callVideo.startTime) {
           return [{
             startTime: doctor.availabilitySlots.callVideo.startTime,
@@ -99,11 +126,9 @@ const getSessionSlots = (doctor, appointmentDate, consultationMode) => {
         slot = dayAvailability.slots?.find(s => s.consultationType === 'in_person');
       }
 
-      // If slot found in old structure
       if (slot && slot.startTime) {
         return [{ startTime: slot.startTime, endTime: slot.endTime || dayAvailability.endTime, isFree: slot.isFree || false }];
       }
-      // Very old structure fallback
       if (dayAvailability.startTime) {
         return [{ startTime: dayAvailability.startTime, endTime: dayAvailability.endTime, isFree: false }];
       }
@@ -119,28 +144,17 @@ const getSessionSlots = (doctor, appointmentDate, consultationMode) => {
 const getSessionStartTime = (doctor, appointmentDate, consultationMode) => {
   const slots = getSessionSlots(doctor, appointmentDate, consultationMode);
   if (slots.length > 0) {
-    // Find earliest start time
-    // Assuming sorted or just pick first for simple cases, but sorting is better
-    // For string comparison of "HH:MM", lexicographical works for 24h format, 
-    // strictly we should parse. Since existing code expects a string, we return the first slot's start
-    // or we implementation logic to find min.
-    // Let's just return the first one for now as this is a helper for legacy
     return slots[0].startTime;
   }
   return null;
 };
 
 /**
- * Helper: Get session end time for a given date and consultation mode
- */
-/**
  * Helper: Get session end time (Latest) - Backward Compatibility
  */
 const getSessionEndTime = (doctor, appointmentDate, consultationMode) => {
   const slots = getSessionSlots(doctor, appointmentDate, consultationMode);
   if (slots.length > 0) {
-    // Return limits. For compatibility, we might return the last one or something.
-    // Best effort:
     return slots[slots.length - 1].endTime;
   }
   return null;
@@ -152,7 +166,6 @@ const getSessionEndTime = (doctor, appointmentDate, consultationMode) => {
 const timeToMinutes = (timeStr) => {
   if (!timeStr) return null;
 
-  // Handle 12-hour format (e.g., "10:00 AM", "2:30 PM")
   const pmMatch = timeStr.match(/(\d+):(\d+)\s*PM/i);
   if (pmMatch) {
     let hours = parseInt(pmMatch[1], 10);
@@ -169,24 +182,21 @@ const timeToMinutes = (timeStr) => {
     return hours * 60 + minutes;
   }
 
-  // Handle 24-hour format (e.g., "10:00", "14:30")
   const match = timeStr.match(/(\d+):(\d+)/);
   if (match) {
     const hours = parseInt(match[1], 10);
     const minutes = parseInt(match[2], 10);
-    // Validate hours (0-23) and minutes (0-59)
     if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
       return hours * 60 + minutes;
     }
   }
-
   return null;
 };
 
 // Helper functions
 const buildPagination = (req) => {
   const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
-  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 10000); // Increased max limit to 10000
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 10000);
   const skip = (page - 1) * limit;
   return { page, limit, skip };
 };
@@ -871,4 +881,3 @@ exports.checkDoctorSlotAvailability = asyncHandler(async (req, res) => {
     }
   });
 });
-

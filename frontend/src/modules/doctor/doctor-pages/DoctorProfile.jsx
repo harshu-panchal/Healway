@@ -40,6 +40,7 @@ import {
   IoImageOutline,
   IoPowerOutline,
   IoVideocamOutline,
+  IoCopyOutline,
 } from "react-icons/io5";
 
 // Mock data removed - using real backend data now
@@ -159,10 +160,13 @@ const DoctorProfile = () => {
     },
     availability: [],
     availabilitySlots: {
-      inPerson: [],
+      inPerson: [], // Array of { day, slots: [] }
       videoCall: [],
       voiceCall: [],
-      callVideo: { startTime: "", endTime: "" }, // Keep for backward compatibility
+      inPersonSelectedDays: [],
+      videoCallSelectedDays: [],
+      voiceCallSelectedDays: [],
+      callVideo: { startTime: "", endTime: "" },
       selectedDays: [],
     },
     averageConsultationMinutes: 20,
@@ -510,55 +514,66 @@ const DoctorProfile = () => {
             availabilitySlots: doctor.availabilitySlots
               ? {
                 // Handle inPerson slots - convert to array if needed
-                inPerson: Array.isArray(doctor.availabilitySlots.inPerson)
-                  ? doctor.availabilitySlots.inPerson.map(slot => ({
-                    startTime: convert12HourTo24Hour(slot.startTime) || "",
-                    endTime: convert12HourTo24Hour(slot.endTime) || "",
-                    isFree: !!slot.isFree
+                inPerson: Array.isArray(doctor.availabilitySlots.inPerson) && doctor.availabilitySlots.inPerson.length > 0 && doctor.availabilitySlots.inPerson[0].day
+                  ? doctor.availabilitySlots.inPerson.map(dayConfig => ({
+                    day: dayConfig.day,
+                    slots: Array.isArray(dayConfig.slots) ? dayConfig.slots.map(slot => ({
+                      startTime: convert12HourTo24Hour(slot.startTime) || "",
+                      endTime: convert12HourTo24Hour(slot.endTime) || "",
+                      isFree: !!slot.isFree
+                    })) : []
                   }))
-                  : doctor.availabilitySlots.inPerson?.startTime && doctor.availabilitySlots.inPerson?.endTime
-                    ? [{
-                      startTime: convert12HourTo24Hour(doctor.availabilitySlots.inPerson.startTime) || "",
-                      endTime: convert12HourTo24Hour(doctor.availabilitySlots.inPerson.endTime) || "",
-                    }]
-                    : [],
-                // Handle videoCall slots - convert to array if needed
-                videoCall: Array.isArray(doctor.availabilitySlots.videoCall)
-                  ? doctor.availabilitySlots.videoCall.map(slot => ({
-                    startTime: convert12HourTo24Hour(slot.startTime) || "",
-                    endTime: convert12HourTo24Hour(slot.endTime) || "",
-                    isFree: !!slot.isFree
+                  : (Array.isArray(doctor.availabilitySlots?.inPersonSelectedDays) ? doctor.availabilitySlots.inPersonSelectedDays.map(day => ({
+                    day,
+                    slots: Array.isArray(doctor.availabilitySlots.inPerson) ? doctor.availabilitySlots.inPerson.map(slot => ({
+                      startTime: convert12HourTo24Hour(slot.startTime) || "",
+                      endTime: convert12HourTo24Hour(slot.endTime) || "",
+                      isFree: !!slot.isFree
+                    })) : []
+                  })) : []),
+                videoCall: Array.isArray(doctor.availabilitySlots.videoCall) && doctor.availabilitySlots.videoCall.length > 0 && doctor.availabilitySlots.videoCall[0].day
+                  ? doctor.availabilitySlots.videoCall.map(dayConfig => ({
+                    day: dayConfig.day,
+                    slots: Array.isArray(dayConfig.slots) ? dayConfig.slots.map(slot => ({
+                      startTime: convert12HourTo24Hour(slot.startTime) || "",
+                      endTime: convert12HourTo24Hour(slot.endTime) || "",
+                      isFree: !!slot.isFree
+                    })) : []
                   }))
-                  : doctor.availabilitySlots.videoCall?.startTime && doctor.availabilitySlots.videoCall?.endTime
-                    ? [{
-                      startTime: convert12HourTo24Hour(doctor.availabilitySlots.videoCall.startTime) || "",
-                      endTime: convert12HourTo24Hour(doctor.availabilitySlots.videoCall.endTime) || "",
-                    }]
-                    : [],
-                // Handle voiceCall slots - convert to array if needed
-                voiceCall: Array.isArray(doctor.availabilitySlots.voiceCall)
-                  ? doctor.availabilitySlots.voiceCall.map(slot => ({
-                    startTime: convert12HourTo24Hour(slot.startTime) || "",
-                    endTime: convert12HourTo24Hour(slot.endTime) || "",
-                    isFree: !!slot.isFree
+                  : (Array.isArray(doctor.availabilitySlots?.videoCallSelectedDays) ? doctor.availabilitySlots.videoCallSelectedDays.map(day => ({
+                    day,
+                    slots: Array.isArray(doctor.availabilitySlots.videoCall) ? doctor.availabilitySlots.videoCall.map(slot => ({
+                      startTime: convert12HourTo24Hour(slot.startTime) || "",
+                      endTime: convert12HourTo24Hour(slot.endTime) || "",
+                      isFree: !!slot.isFree
+                    })) : []
+                  })) : []),
+                voiceCall: Array.isArray(doctor.availabilitySlots.voiceCall) && doctor.availabilitySlots.voiceCall.length > 0 && doctor.availabilitySlots.voiceCall[0].day
+                  ? doctor.availabilitySlots.voiceCall.map(dayConfig => ({
+                    day: dayConfig.day,
+                    slots: Array.isArray(dayConfig.slots) ? dayConfig.slots.map(slot => ({
+                      startTime: convert12HourTo24Hour(slot.startTime) || "",
+                      endTime: convert12HourTo24Hour(slot.endTime) || "",
+                      isFree: !!slot.isFree
+                    })) : []
                   }))
-                  : doctor.availabilitySlots.voiceCall?.startTime && doctor.availabilitySlots.voiceCall?.endTime
-                    ? [{
-                      startTime: convert12HourTo24Hour(doctor.availabilitySlots.voiceCall.startTime) || "",
-                      endTime: convert12HourTo24Hour(doctor.availabilitySlots.voiceCall.endTime) || "",
-                    }]
-                    : [],
-                // Keep callVideo for backward compatibility
-                callVideo: {
-                  startTime:
-                    convert12HourTo24Hour(
-                      doctor.availabilitySlots.callVideo?.startTime,
-                    ) || "",
-                  endTime:
-                    convert12HourTo24Hour(
-                      doctor.availabilitySlots.callVideo?.endTime,
-                    ) || "",
-                },
+                  : (Array.isArray(doctor.availabilitySlots?.voiceCallSelectedDays) ? doctor.availabilitySlots.voiceCallSelectedDays.map(day => ({
+                    day,
+                    slots: Array.isArray(doctor.availabilitySlots.voiceCall) ? doctor.availabilitySlots.voiceCall.map(slot => ({
+                      startTime: convert12HourTo24Hour(slot.startTime) || "",
+                      endTime: convert12HourTo24Hour(slot.endTime) || "",
+                      isFree: !!slot.isFree
+                    })) : []
+                  })) : []),
+                inPersonSelectedDays: Array.isArray(doctor.availabilitySlots?.inPersonSelectedDays)
+                  ? doctor.availabilitySlots.inPersonSelectedDays
+                  : [],
+                videoCallSelectedDays: Array.isArray(doctor.availabilitySlots?.videoCallSelectedDays)
+                  ? doctor.availabilitySlots.videoCallSelectedDays
+                  : [],
+                voiceCallSelectedDays: Array.isArray(doctor.availabilitySlots?.voiceCallSelectedDays)
+                  ? doctor.availabilitySlots.voiceCallSelectedDays
+                  : [],
                 selectedDays: Array.isArray(
                   doctor.availabilitySlots.selectedDays,
                 )
@@ -921,50 +936,93 @@ const DoctorProfile = () => {
     });
   };
 
-  const addSlot = (type) => {
-    setFormData((prev) => ({
-      ...prev,
-      availabilitySlots: {
-        ...prev.availabilitySlots,
-        [type]: [
-          ...(prev.availabilitySlots?.[type] || []),
-          { startTime: "", endTime: "", isFree: false },
-        ],
-      },
-    }));
-  };
-
-  const updateSlot = (type, index, field, value) => {
+  const addSlot = (type, day) => {
     setFormData((prev) => {
-      // Create a shallow copy of the array for the specific type
-      const currentSlots = prev.availabilitySlots?.[type] || [];
-      const updated = [...currentSlots];
-
-      // Ensure the slot object exists
-      if (!updated[index]) {
-        updated[index] = { startTime: "", endTime: "", isFree: false };
+      const modeData = [...(prev.availabilitySlots?.[type] || [])];
+      let dayConfig = modeData.find(d => d.day === day);
+      
+      if (!dayConfig) {
+        dayConfig = { day, slots: [{ startTime: "", endTime: "", isFree: false }] };
+        modeData.push(dayConfig);
+      } else {
+        dayConfig.slots = [...dayConfig.slots, { startTime: "", endTime: "", isFree: false }];
       }
-
-      updated[index] = { ...updated[index], [field]: value };
-
+      
       return {
         ...prev,
         availabilitySlots: {
           ...prev.availabilitySlots,
-          [type]: updated,
+          [type]: modeData,
         },
       };
     });
   };
 
-  const removeSlot = (type, index) => {
-    setFormData((prev) => ({
-      ...prev,
-      availabilitySlots: {
-        ...prev.availabilitySlots,
-        [type]: prev.availabilitySlots?.[type]?.filter((_, i) => i !== index) || [],
-      },
-    }));
+  const updateSlot = (type, day, index, field, value) => {
+    setFormData((prev) => {
+      const modeData = [...(prev.availabilitySlots?.[type] || [])];
+      let dayConfig = modeData.find(d => d.day === day);
+      
+      if (dayConfig) {
+        const updatedSlots = [...dayConfig.slots];
+        updatedSlots[index] = { ...updatedSlots[index], [field]: value };
+        dayConfig.slots = updatedSlots;
+      }
+
+      return {
+        ...prev,
+        availabilitySlots: {
+          ...prev.availabilitySlots,
+          [type]: modeData,
+        },
+      };
+    });
+  };
+
+  const removeSlot = (type, day, index) => {
+    setFormData((prev) => {
+      const modeData = [...(prev.availabilitySlots?.[type] || [])];
+      let dayConfig = modeData.find(d => d.day === day);
+      
+      if (dayConfig) {
+        dayConfig.slots = dayConfig.slots.filter((_, i) => i !== index);
+      }
+
+      return {
+        ...prev,
+        availabilitySlots: {
+          ...prev.availabilitySlots,
+          [type]: modeData,
+        },
+      };
+    });
+  };
+
+  const copySlotsToAllDays = (type, sourceDay) => {
+    setFormData((prev) => {
+      const modeData = [...(prev.availabilitySlots?.[type] || [])];
+      const sourceConfig = modeData.find(d => d.day === sourceDay);
+      if (!sourceConfig) return prev;
+
+      const selectedDays = prev.availabilitySlots?.[`${type}SelectedDays`] || [];
+      
+      const newModeData = selectedDays.map(day => {
+        const existing = modeData.find(d => d.day === day);
+        return {
+          day,
+          slots: sourceConfig.slots.map(s => ({ ...s }))
+        };
+      });
+
+      return {
+        ...prev,
+        availabilitySlots: {
+          ...prev.availabilitySlots,
+          [type]: newModeData,
+        },
+      };
+    });
+    toast.success(`Slots from ${sourceDay} copied to all selected days`);
   };
 
   const handleProfileImageChange = async (event) => {
@@ -3441,359 +3499,205 @@ const DoctorProfile = () => {
                       Availability Days
                     </h3>
                     <p className="mb-3 text-[10px] sm:text-xs text-slate-500">
-                      Set your time slots and select which days to apply them
-                      to.
+                      Set your time slots and select which days to apply them to.
                     </p>
 
                     {isEditing ? (
-                      <div className="space-y-4">
-                        {/* In-Person Slot */}
-                        <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
-                          <div className="flex items-center gap-2 mb-3">
-                            <IoPersonOutline className="h-4 w-4 text-primary shrink-0" />
-                            <label className="block text-xs font-semibold text-slate-900">
-                              In-Person Consultation
-                            </label>
-                          </div>
+                      <div className="space-y-6">
+                        {/* Consultation Mode Sections */}
+                        {[
+                          { id: "inPerson", label: "In-Person Consultation", icon: IoPersonOutline, color: "primary" },
+                          { id: "videoCall", label: "Video Call Consultation", icon: IoVideocamOutline, color: "blue-600" },
+                          { id: "voiceCall", label: "Voice Call Consultation", icon: IoCallOutline, color: "indigo-600" }
+                        ].map((mode) => {
+                          const Icon = mode.icon;
+                          const selectedDays = formData.availabilitySlots?.[`${mode.id}SelectedDays`] || [];
+                          const modeData = formData.availabilitySlots?.[mode.id] || [];
 
-                          {formData.availabilitySlots?.inPerson?.map((slot, index) => (
-                            <div key={index} className="flex items-center gap-2 mb-2">
-                              <input
-                                type="time"
-                                value={slot.startTime}
-                                onChange={(e) =>
-                                  updateSlot("inPerson", index, "startTime", e.target.value)
-                                }
-                                className="flex-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-900 transition hover:border-slate-300 focus:outline-none focus:ring-2"
-                              />
+                          return (
+                            <div key={mode.id} className="rounded-lg border border-slate-200 bg-slate-50/80 p-3 sm:p-4">
+                              <div className="flex items-center gap-2 mb-4">
+                                <Icon className={`h-4 w-4 text-${mode.color} shrink-0`} />
+                                <label className="block text-sm font-bold text-slate-900">
+                                  {mode.label}
+                                </label>
+                              </div>
 
-                              <span className="text-xs text-slate-500">to</span>
+                              {/* Day Selection */}
+                              <div className="mb-4 bg-white rounded-lg p-3 border border-slate-200 shadow-sm">
+                                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+                                  Select Availability Days
+                                </label>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+                                  {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => {
+                                    const isSelected = selectedDays.includes(day);
+                                    return (
+                                      <label key={day} className={`flex items-center gap-1.5 p-1.5 rounded-md cursor-pointer transition-colors ${isSelected ? 'bg-primary/5 border border-primary/20' : 'hover:bg-slate-50 border border-transparent'}`}>
+                                        <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={(e) => {
+                                            const newDays = e.target.checked
+                                              ? [...selectedDays, day]
+                                              : selectedDays.filter((d) => d !== day);
 
-                              <input
-                                type="time"
-                                value={slot.endTime}
-                                onChange={(e) =>
-                                  updateSlot("inPerson", index, "endTime", e.target.value)
-                                }
-                                className="flex-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-900 transition hover:border-slate-300 focus:outline-none focus:ring-2"
-                              />
+                                            setFormData((prev) => {
+                                              const newAvailabilitySlots = { ...prev.availabilitySlots };
+                                              newAvailabilitySlots[`${mode.id}SelectedDays`] = newDays;
 
-                              <label className="flex items-center gap-1.5 cursor-pointer hover:bg-white/50 px-1.5 py-1 rounded transition-colors border border-transparent hover:border-slate-200">
-                                <input
-                                  type="checkbox"
-                                  checked={slot.isFree || false}
-                                  onChange={(e) =>
-                                    updateSlot("inPerson", index, "isFree", e.target.checked)
-                                  }
-                                  className="h-3 w-3 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
-                                />
-                                <span className={`text-[9px] font-bold uppercase tracking-tight ${slot.isFree ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                  Free
-                                </span>
-                              </label>
+                                              // If day added, initialize config if missing
+                                              if (e.target.checked) {
+                                                const existing = newAvailabilitySlots[mode.id].find(d => d.day === day);
+                                                if (!existing) {
+                                                  newAvailabilitySlots[mode.id] = [
+                                                    ...newAvailabilitySlots[mode.id],
+                                                    { day, slots: [{ startTime: "", endTime: "", isFree: false }] }
+                                                  ];
+                                                }
+                                              }
 
-                              <button
-                                type="button"
-                                onClick={() => removeSlot("inPerson", index)}
-                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-red-200 bg-white text-red-600 transition hover:bg-red-50"
-                              >
-                                <IoTrashOutline className="h-3.5 w-3.5" />
-                              </button>
+                                              return { ...prev, availabilitySlots: newAvailabilitySlots };
+                                            });
+                                          }}
+                                          className={`h-3 w-3 rounded border-slate-300 text-${mode.color} focus:ring-${mode.color}`}
+                                        />
+                                        <span className={`text-[10px] font-semibold ${isSelected ? 'text-primary' : 'text-slate-600'}`}>{day.substring(0, 3)}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* Day-wise Slot Editors */}
+                              <div className="space-y-4">
+                                {selectedDays.map((day) => {
+                                  const dayConfig = modeData.find(d => d.day === day) || { day, slots: [] };
+                                  return (
+                                    <div key={day} className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+                                      <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex items-center justify-between">
+                                        <span className="text-xs font-bold text-slate-800">{day}</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => copySlotsToAllDays(mode.id, day)}
+                                          className="text-[9px] font-bold text-primary hover:text-primary/80 uppercase tracking-tight flex items-center gap-1"
+                                          title="Copy these slots to all other selected days"
+                                        >
+                                          <IoCopyOutline className="h-2.5 w-2.5" />
+                                          Apply to all
+                                        </button>
+                                      </div>
+
+                                      <div className="p-3 space-y-2">
+                                        {dayConfig.slots.length === 0 ? (
+                                          <p className="text-[10px] text-slate-400 italic py-1">No slots added for {day}</p>
+                                        ) : (
+                                          dayConfig.slots.map((slot, sIdx) => (
+                                            <div key={sIdx} className="flex items-center gap-2">
+                                              <input
+                                                type="time"
+                                                value={slot.startTime}
+                                                onChange={(e) => updateSlot(mode.id, day, sIdx, "startTime", e.target.value)}
+                                                className="flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-900 transition hover:border-slate-300 focus:outline-none focus:ring-1 focus:ring-primary"
+                                              />
+                                              <span className="text-[10px] text-slate-400 font-medium">to</span>
+                                              <input
+                                                type="time"
+                                                value={slot.endTime}
+                                                onChange={(e) => updateSlot(mode.id, day, sIdx, "endTime", e.target.value)}
+                                                className="flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-900 transition hover:border-slate-300 focus:outline-none focus:ring-1 focus:ring-primary"
+                                              />
+
+                                              <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-50 px-1.5 py-1 rounded transition-colors">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={slot.isFree || false}
+                                                  onChange={(e) => updateSlot(mode.id, day, sIdx, "isFree", e.target.checked)}
+                                                  className="h-3 w-3 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                                                />
+                                                <span className={`text-[9px] font-bold uppercase ${slot.isFree ? 'text-emerald-600' : 'text-slate-400'}`}>Free</span>
+                                              </label>
+
+                                              <button
+                                                type="button"
+                                                onClick={() => removeSlot(mode.id, day, sIdx)}
+                                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                                              >
+                                                <IoTrashOutline className="h-3.5 w-3.5" />
+                                              </button>
+                                            </div>
+                                          ))
+                                        )}
+
+                                        <button
+                                          type="button"
+                                          onClick={() => addSlot(mode.id, day)}
+                                          className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-slate-200 bg-slate-50/50 px-3 py-1.5 text-[10px] font-bold text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
+                                        >
+                                          <IoAddOutline className="h-3.5 w-3.5" />
+                                          Add Slot for {day}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+
+                                {selectedDays.length === 0 && (
+                                  <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-xl bg-white">
+                                    <IoCalendarOutline className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                                    <p className="text-xs font-medium text-slate-500">Please select at least one day to define slots</p>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          ))}
-
-                          <button
-                            type="button"
-                            onClick={() => addSlot("inPerson")}
-                            className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-400 hover:bg-slate-50"
-                          >
-                            <IoAddOutline className="h-3.5 w-3.5" />
-                            Add In-Person Slot
-                          </button>
-                        </div>
-
-                        {/* Video Call Slot */}
-                        <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
-                          <div className="flex items-center gap-2 mb-3">
-                            <IoVideocamOutline className="h-4 w-4 text-blue-600 shrink-0" />
-                            <label className="block text-xs font-semibold text-slate-900">
-                              Video Call Consultation
-                            </label>
-                          </div>
-
-                          {formData.availabilitySlots?.videoCall?.map((slot, index) => (
-                            <div key={index} className="flex items-center gap-2 mb-2">
-                              <input
-                                type="time"
-                                value={slot.startTime}
-                                onChange={(e) =>
-                                  updateSlot("videoCall", index, "startTime", e.target.value)
-                                }
-                                className="flex-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-900 transition hover:border-slate-300 focus:outline-none focus:ring-2"
-                              />
-
-                              <span className="text-xs text-slate-500">to</span>
-
-                              <input
-                                type="time"
-                                value={slot.endTime}
-                                onChange={(e) =>
-                                  updateSlot("videoCall", index, "endTime", e.target.value)
-                                }
-                                className="flex-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-900 transition hover:border-slate-300 focus:outline-none focus:ring-2"
-                              />
-
-                              <label className="flex items-center gap-1.5 cursor-pointer hover:bg-white/50 px-1.5 py-1 rounded transition-colors border border-transparent hover:border-slate-200">
-                                <input
-                                  type="checkbox"
-                                  checked={slot.isFree || false}
-                                  onChange={(e) =>
-                                    updateSlot("videoCall", index, "isFree", e.target.checked)
-                                  }
-                                  className="h-3 w-3 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
-                                />
-                                <span className={`text-[9px] font-bold uppercase tracking-tight ${slot.isFree ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                  Free
-                                </span>
-                              </label>
-
-                              <button
-                                type="button"
-                                onClick={() => removeSlot("videoCall", index)}
-                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-red-200 bg-white text-red-600 transition hover:bg-red-50"
-                              >
-                                <IoTrashOutline className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          ))}
-
-                          <button
-                            type="button"
-                            onClick={() => addSlot("videoCall")}
-                            className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-400 hover:bg-slate-50"
-                          >
-                            <IoAddOutline className="h-3.5 w-3.5" />
-                            Add Video Call Slot
-                          </button>
-                        </div>
-
-                        {/* Voice Call Slot */}
-                        <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
-                          <div className="flex items-center gap-2 mb-3">
-                            <IoCallOutline className="h-4 w-4 text-indigo-600 shrink-0" />
-                            <label className="block text-xs font-semibold text-slate-900">
-                              Voice Call Consultation
-                            </label>
-                          </div>
-
-                          {formData.availabilitySlots?.voiceCall?.map((slot, index) => (
-                            <div key={index} className="flex items-center gap-2 mb-2">
-                              <input
-                                type="time"
-                                value={slot.startTime}
-                                onChange={(e) =>
-                                  updateSlot("voiceCall", index, "startTime", e.target.value)
-                                }
-                                className="flex-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-900 transition hover:border-slate-300 focus:outline-none focus:ring-2"
-                              />
-
-                              <span className="text-xs text-slate-500">to</span>
-
-                              <input
-                                type="time"
-                                value={slot.endTime}
-                                onChange={(e) =>
-                                  updateSlot("voiceCall", index, "endTime", e.target.value)
-                                }
-                                className="flex-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-900 transition hover:border-slate-300 focus:outline-none focus:ring-2"
-                              />
-
-                              <label className="flex items-center gap-1.5 cursor-pointer hover:bg-white/50 px-1.5 py-1 rounded transition-colors border border-transparent hover:border-slate-200">
-                                <input
-                                  type="checkbox"
-                                  checked={slot.isFree || false}
-                                  onChange={(e) =>
-                                    updateSlot("voiceCall", index, "isFree", e.target.checked)
-                                  }
-                                  className="h-3 w-3 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
-                                />
-                                <span className={`text-[9px] font-bold uppercase tracking-tight ${slot.isFree ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                  Free
-                                </span>
-                              </label>
-
-                              <button
-                                type="button"
-                                onClick={() => removeSlot("voiceCall", index)}
-                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-red-200 bg-white text-red-600 transition hover:bg-red-50"
-                              >
-                                <IoTrashOutline className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          ))}
-
-                          <button
-                            type="button"
-                            onClick={() => addSlot("voiceCall")}
-                            className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-400 hover:bg-slate-50"
-                          >
-                            <IoAddOutline className="h-3.5 w-3.5" />
-                            Add Voice Call Slot
-                          </button>
-                        </div>
-
-                        {/* Day Selection */}
-                        <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
-                          <label className="block text-xs font-semibold text-slate-900 mb-2">
-                            Select Days
-                          </label>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {[
-                              "Monday",
-                              "Tuesday",
-                              "Wednesday",
-                              "Thursday",
-                              "Friday",
-                              "Saturday",
-                              "Sunday",
-                            ].map((day) => (
-                              <label
-                                key={day}
-                                className="flex items-center gap-2 cursor-pointer"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={
-                                    formData.availabilitySlots?.selectedDays?.includes(
-                                      day,
-                                    ) || false
-                                  }
-                                  onChange={(e) => {
-                                    const currentDays =
-                                      formData.availabilitySlots
-                                        ?.selectedDays || [];
-                                    const newDays = e.target.checked
-                                      ? [...currentDays, day]
-                                      : currentDays.filter((d) => d !== day);
-                                    setFormData((prev) => ({
-                                      ...prev,
-                                      availabilitySlots: {
-                                        ...prev.availabilitySlots,
-                                        selectedDays: newDays,
-                                      },
-                                    }));
-                                  }}
-                                  className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-2 focus:ring-primary"
-                                />
-                                <span className="text-xs text-slate-700">
-                                  {day}
-                                </span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
+                          );
+                        })}
                       </div>
                     ) : (
-                      <div className="space-y-3">
-                        {/* Display In-Person Slots */}
-                        {formData.availabilitySlots?.inPerson &&
-                          formData.availabilitySlots.inPerson.length > 0 && (
-                            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
-                              <div className="flex items-center gap-2 mb-2">
-                                <IoPersonOutline className="h-3.5 w-3.5 text-primary shrink-0" />
-                                <span className="text-xs font-semibold text-slate-900">
-                                  In-Person Consultation
-                                </span>
+                      <div className="space-y-4">
+                        {/* Display Day-wise Slots */}
+                        {[
+                          { id: "inPerson", label: "In-Person Consultation", icon: IoPersonOutline, color: "primary" },
+                          { id: "videoCall", label: "Video Call Consultation", icon: IoVideocamOutline, color: "blue-600" },
+                          { id: "voiceCall", label: "Voice Call Consultation", icon: IoCallOutline, color: "indigo-600" }
+                        ].map((mode) => {
+                          const Icon = mode.icon;
+                          const modeData = formData.availabilitySlots?.[mode.id] || [];
+                          const selectedDays = formData.availabilitySlots?.[`${mode.id}SelectedDays`] || [];
+
+                          const activeDaysWithSlots = modeData.filter(d => selectedDays.includes(d.day) && d.slots.length > 0);
+                          if (activeDaysWithSlots.length === 0) return null;
+
+                          return (
+                            <div key={mode.id} className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                              <div className="flex items-center gap-2 mb-3 border-b border-slate-50 pb-2">
+                                <Icon className={`h-4 w-4 text-${mode.color}`} />
+                                <h4 className="text-xs font-bold text-slate-800">{mode.label}</h4>
                               </div>
-                              <div className="space-y-1 ml-5">
-                                {formData.availabilitySlots.inPerson.map((slot, index) => (
-                                  <div key={index} className="flex items-center gap-2">
-                                    <p className="text-xs text-slate-700">
-                                      {formatTimeTo12Hour(slot.startTime)} - {formatTimeTo12Hour(slot.endTime)}
-                                    </p>
-                                    {slot.isFree && (
-                                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600 border border-emerald-100 uppercase tracking-tighter">
-                                        FREE
-                                      </span>
-                                    )}
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {activeDaysWithSlots.map((dayConfig) => (
+                                  <div key={dayConfig.day} className="bg-slate-50/50 rounded-lg p-2.5 border border-slate-100">
+                                    <div className="text-[10px] font-bold text-slate-900 mb-1.5 flex justify-between items-center">
+                                      <span>{dayConfig.day}</span>
+                                      <span className="text-[9px] text-slate-400 font-normal">{dayConfig.slots.length} slots</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {dayConfig.slots.map((slot, sIdx) => (
+                                        <div
+                                          key={sIdx}
+                                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border ${slot.isFree ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-white text-slate-700 border-slate-200'}`}
+                                        >
+                                          {format24HourTo12Hour(slot.startTime)} - {format24HourTo12Hour(slot.endTime)}
+                                          {slot.isFree && <span className="ml-1 text-[8px] font-bold uppercase">Free</span>}
+                                        </div>
+                                      ))}
+                                    </div>
                                   </div>
                                 ))}
                               </div>
-                              {formData.availabilitySlots?.selectedDays &&
-                                formData.availabilitySlots.selectedDays.length > 0 && (
-                                  <p className="text-xs text-slate-500 ml-5 mt-2">
-                                    Days: {formData.availabilitySlots.selectedDays.join(", ")}
-                                  </p>
-                                )}
                             </div>
-                          )}
-
-                        {/* Display Video Call Slots */}
-                        {formData.availabilitySlots?.videoCall &&
-                          formData.availabilitySlots.videoCall.length > 0 && (
-                            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
-                              <div className="flex items-center gap-2 mb-2">
-                                <IoVideocamOutline className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                                <span className="text-xs font-semibold text-slate-900">
-                                  Video Call Consultation
-                                </span>
-                              </div>
-                              <div className="space-y-1 ml-5">
-                                {formData.availabilitySlots.videoCall.map((slot, index) => (
-                                  <div key={index} className="flex items-center gap-2">
-                                    <p className="text-xs text-slate-700">
-                                      {formatTimeTo12Hour(slot.startTime)} - {formatTimeTo12Hour(slot.endTime)}
-                                    </p>
-                                    {slot.isFree && (
-                                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600 border border-emerald-100 uppercase tracking-tighter">
-                                        FREE
-                                      </span>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                              {formData.availabilitySlots?.selectedDays &&
-                                formData.availabilitySlots.selectedDays.length > 0 && (
-                                  <p className="text-xs text-slate-500 ml-5 mt-2">
-                                    Days: {formData.availabilitySlots.selectedDays.join(", ")}
-                                  </p>
-                                )}
-                            </div>
-                          )}
-
-                        {/* Display Voice Call Slots */}
-                        {formData.availabilitySlots?.voiceCall &&
-                          formData.availabilitySlots.voiceCall.length > 0 && (
-                            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
-                              <div className="flex items-center gap-2 mb-2">
-                                <IoCallOutline className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
-                                <span className="text-xs font-semibold text-slate-900">
-                                  Voice Call Consultation
-                                </span>
-                              </div>
-                              <div className="space-y-1 ml-5">
-                                {formData.availabilitySlots.voiceCall.map((slot, index) => (
-                                  <div key={index} className="flex items-center gap-2">
-                                    <p className="text-xs text-slate-700">
-                                      {formatTimeTo12Hour(slot.startTime)} - {formatTimeTo12Hour(slot.endTime)}
-                                    </p>
-                                    {slot.isFree && (
-                                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600 border border-emerald-100 uppercase tracking-tighter">
-                                        FREE
-                                      </span>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                              {formData.availabilitySlots?.selectedDays &&
-                                formData.availabilitySlots.selectedDays.length > 0 && (
-                                  <p className="text-xs text-slate-500 ml-5 mt-2">
-                                    Days: {formData.availabilitySlots.selectedDays.join(", ")}
-                                  </p>
-                                )}
-                            </div>
-                          )}
-
+                          );
+                        })}
                         {(!formData.availabilitySlots?.inPerson || formData.availabilitySlots.inPerson.length === 0) &&
                           (!formData.availabilitySlots?.videoCall || formData.availabilitySlots.videoCall.length === 0) &&
                           (!formData.availabilitySlots?.voiceCall || formData.availabilitySlots.voiceCall.length === 0) && (

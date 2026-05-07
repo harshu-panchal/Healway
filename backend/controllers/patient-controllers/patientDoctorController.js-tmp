@@ -1,0 +1,202 @@
+const asyncHandler = require('../../middleware/asyncHandler');
+const Doctor = require('../../models/Doctor');
+const Appointment = require('../../models/Appointment');
+const Specialty = require('../../models/Specialty');
+const City = require('../../models/City');
+const State = require('../../models/State');
+const { APPROVAL_STATUS } = require('../../utils/constants');
+const { isDoctorVisibleToPatients, isDoctorBookableByPatients, getDoctorAccessMode } = require('../../utils/doctorAccess');
+
+/**
+ * Helper: Normalize consultation mode to standard format
+ */
+const normalizeConsultationMode = (mode) => {
+  if (!mode) return 'IN_PERSON';
+  const normalized = mode.toUpperCase();
+  if (normalized === 'VIDEO_CALL' || normalized === 'VIDEO') return 'VIDEO';
+  if (normalized === 'VOICE_CALL' || normalized === 'CALL') return 'CALL';
+  if (normalized === 'IN_PERSON') return 'IN_PERSON';
+  // Backward compatibility
+  if (normalized === 'INPERSON') return 'IN_PERSON';
+  return normalized;
+};
+
+/**
+ * Helper: Check if consultation type requires token (CALL or VIDEO)
+ */
+const requiresToken = (consultationMode) => {
+  const mode = normalizeConsultationMode(consultationMode);
+  return mode === 'CALL' || mode === 'VIDEO';
+};
+
+/**
+ * Helper: Get session slots for a given date and consultation mode
+ * Returns array of { startTime, endTime, isFree }
+ */
+const getSessionSlots = (doctor, appointmentDate, consultationMode) => {
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dayName = dayNames[appointmentDate.getDay()];
+  const mode = normalizeConsultationMode(consultationMode);
+  const dayNameLower = dayName.toLowerCase();
+
+  // New Logic: availabilitySlots with day-wise arrays
+  if (doctor.availabilitySlots) {
+    // 1. Check mode-specific availability days
+    let modeSpecificDays = [];
+    if (mode === 'IN_PERSON') modeSpecificDays = doctor.availabilitySlots.inPersonSelectedDays || [];
+    else if (mode === 'VIDEO') modeSpecificDays = doctor.availabilitySlots.videoCallSelectedDays || [];
+    else if (mode === 'CALL') modeSpecificDays = doctor.availabilitySlots.voiceCallSelectedDays || [];
+
+    let dayIncluded = Array.isArray(modeSpecificDays) &&
+      modeSpecificDays.length > 0 &&
+      modeSpecificDays.some(day => day && day.toLowerCase() === dayNameLower);
+
+    // 2. Check global selectedDays (LEGACY/GLOBAL)
+    if (!dayIncluded) {
+      const sessionTimingDays = doctor.availabilitySlots.selectedDays || [];
+      dayIncluded = Array.isArray(sessionTimingDays) &&
+        sessionTimingDays.length > 0 &&
+        sessionTimingDays.some(day => day && day.toLowerCase() === dayNameLower);
+    }
+
+    // 3. FALLBACK: Check mode-specific fees for selected days
+    if (!dayIncluded && doctor.fees) {
+      let modeFeeBlock = null;
+      if (mode === 'IN_PERSON') modeFeeBlock = doctor.fees.inPerson;
+      if (mode === 'VIDEO') modeFeeBlock = doctor.fees.videoCall;
+      if (mode === 'CALL') modeFeeBlock = doctor.fees.voiceCall;
+
+      if (modeFeeBlock && Array.isArray(modeFeeBlock.selectedDays)) {
+        dayIncluded = modeFeeBlock.selectedDays.some(day => day && day.toLowerCase() === dayNameLower);
+      }
+    }
+
+    if (dayIncluded) {
+      let slots = [];
+      
+      // Retrieval logic based on mode
+      if (mode === 'IN_PERSON' && Array.isArray(doctor.availabilitySlots.inPerson)) {
+        if (doctor.availabilitySlots.inPerson.length > 0 && doctor.availabilitySlots.inPerson[0].day) {
+          const dayConfig = doctor.availabilitySlots.inPerson.find(d => d.day && d.day.toLowerCase() === dayNameLower);
+          slots = dayConfig ? (dayConfig.slots || []) : [];
+        } else {
+          slots = doctor.availabilitySlots.inPerson;
+        }
+      } else if (mode === 'VIDEO' && Array.isArray(doctor.availabilitySlots.videoCall)) {
+        if (doctor.availabilitySlots.videoCall.length > 0 && doctor.availabilitySlots.videoCall[0].day) {
+          const dayConfig = doctor.availabilitySlots.videoCall.find(d => d.day && d.day.toLowerCase() === dayNameLower);
+          slots = dayConfig ? (dayConfig.slots || []) : [];
+        } else {
+          slots = doctor.availabilitySlots.videoCall;
+        }
+      } else if (mode === 'CALL' && Array.isArray(doctor.availabilitySlots.voiceCall)) {
+        if (doctor.availabilitySlots.voiceCall.length > 0 && doctor.availabilitySlots.voiceCall[0].day) {
+          const dayConfig = doctor.availabilitySlots.voiceCall.find(d => d.day && d.day.toLowerCase() === dayNameLower);
+          slots = dayConfig ? (dayConfig.slots || []) : [];
+        } else {
+          slots = doctor.availabilitySlots.voiceCall;
+        }
+      } else if ((mode === 'VIDEO' || mode === 'CALL') && doctor.availabilitySlots.callVideo && !Array.isArray(doctor.availabilitySlots.videoCall) && !Array.isArray(doctor.availabilitySlots.voiceCall)) {
+        if (doctor.availabilitySlots.callVideo.startTime) {
+          return [{
+            startTime: doctor.availabilitySlots.callVideo.startTime,
+            endTime: doctor.availabilitySlots.callVideo.endTime,
+            isFree: false
+          }];
+        }
+      }
+
+      // Filter out incomplete slots
+      return slots.filter(s => s.startTime && s.endTime).map(s => ({
+        startTime: s.startTime,
+        endTime: s.endTime,
+        isFree: s.isFree || false
+      }));
+    }
+  }
+
+  // Fallback to old availability array
+  if (doctor.availability && Array.isArray(doctor.availability)) {
+    const dayAvailability = doctor.availability.find(avail => avail.day === dayName);
+    if (dayAvailability) {
+      let slot;
+      if (mode === 'CALL' || mode === 'VIDEO') {
+        slot = dayAvailability.slots?.find(s => s.consultationType === 'call_video');
+      } else if (mode === 'IN_PERSON') {
+        slot = dayAvailability.slots?.find(s => s.consultationType === 'in_person');
+      }
+
+      if (slot && slot.startTime) {
+        return [{ startTime: slot.startTime, endTime: slot.endTime || dayAvailability.endTime, isFree: slot.isFree || false }];
+      }
+      if (dayAvailability.startTime) {
+        return [{ startTime: dayAvailability.startTime, endTime: dayAvailability.endTime, isFree: false }];
+      }
+    }
+  }
+
+  return [];
+};
+
+/**
+ * Helper: Get session start time (Earliest) - Backward Compatibility
+ */
+const getSessionStartTime = (doctor, appointmentDate, consultationMode) => {
+  const slots = getSessionSlots(doctor, appointmentDate, consultationMode);
+  if (slots.length > 0) {
+    return slots[0].startTime;
+  }
+  return null;
+};
+
+/**
+ * Helper: Get session end time (Latest) - Backward Compatibility
+ */
+const getSessionEndTime = (doctor, appointmentDate, consultationMode) => {
+  const slots = getSessionSlots(doctor, appointmentDate, consultationMode);
+  if (slots.length > 0) {
+    return slots[slots.length - 1].endTime;
+  }
+  return null;
+};
+
+/**
+ * Helper: Convert time string (HH:MM or HH:MM AM/PM) to minutes from midnight
+ */
+const timeToMinutes = (timeStr) => {
+  if (!timeStr) return null;
+
+  const pmMatch = timeStr.match(/(\d+):(\d+)\s*PM/i);
+  if (pmMatch) {
+    let hours = parseInt(pmMatch[1], 10);
+    const minutes = parseInt(pmMatch[2], 10);
+    if (hours !== 12) hours += 12;
+    return hours * 60 + minutes;
+  }
+
+  const amMatch = timeStr.match(/(\d+):(\d+)\s*AM/i);
+  if (amMatch) {
+    let hours = parseInt(amMatch[1], 10);
+    const minutes = parseInt(amMatch[2], 10);
+    if (hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  }
+
+  const match = timeStr.match(/(\d+):(\d+)/);
+  if (match) {
+    const hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+      return hours * 60 + minutes;
+    }
+  }
+  return null;
+};
+
+// Helper functions
+const buildPagination = (req) => {
+  const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 10000);
+  const skip = (page - 1) * limit;
+  return { page, limit, skip };
+};

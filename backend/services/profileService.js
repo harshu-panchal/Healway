@@ -136,17 +136,37 @@ const mergeObjects = (existingValue, newValue) => {
   };
 
   // Special handling for availabilitySlots - sort selectedDays
-  if (newValue && typeof newValue === 'object' && (newValue.selectedDays !== undefined || newValue.inPerson !== undefined || newValue.callVideo !== undefined)) {
+  if (newValue && typeof newValue === 'object' && (
+    newValue.selectedDays !== undefined ||
+    newValue.inPersonSelectedDays !== undefined ||
+    newValue.videoCallSelectedDays !== undefined ||
+    newValue.voiceCallSelectedDays !== undefined ||
+    newValue.inPerson !== undefined ||
+    newValue.callVideo !== undefined
+  )) {
     const merged = { ...base, ...newValue };
 
     // Sort selectedDays if present
-    if (newValue.selectedDays !== undefined) {
-      merged.selectedDays = Array.isArray(newValue.selectedDays)
-        ? sortDays(newValue.selectedDays)
-        : [];
-    } else if (merged.selectedDays && Array.isArray(merged.selectedDays)) {
-      merged.selectedDays = sortDays(merged.selectedDays);
-    }
+    const dayFields = ['selectedDays', 'inPersonSelectedDays', 'videoCallSelectedDays', 'voiceCallSelectedDays'];
+
+    const dayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    dayFields.forEach(field => {
+      if (newValue[field] !== undefined) {
+        merged[field] = Array.isArray(newValue[field])
+          ? sortDays(newValue[field])
+          : [];
+      } else if (merged[field] && Array.isArray(merged[field])) {
+        merged[field] = sortDays(merged[field]);
+      }
+    });
+
+    // Sort day-wise slots for each mode
+    ['inPerson', 'videoCall', 'voiceCall'].forEach(modeField => {
+      if (Array.isArray(merged[modeField])) {
+        merged[modeField].sort((a, b) => dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day));
+      }
+    });
 
     return merged;
   }
@@ -426,17 +446,15 @@ const applyDoctorUpdates = async (doc, updates, Model) => {
       }
       // For availabilitySlots, mark nested paths
       if (field === 'availabilitySlots' && doc.availabilitySlots) {
-        doc.markModified('availabilitySlots');
-        if (doc.availabilitySlots.selectedDays !== undefined) {
-          doc.markModified('availabilitySlots.selectedDays');
-          console.log('📝 Marking availabilitySlots.selectedDays as modified:', {
-            doctorId: doc._id?.toString(),
-            selectedDays: doc.availabilitySlots.selectedDays,
-            isArray: Array.isArray(doc.availabilitySlots.selectedDays),
-            length: Array.isArray(doc.availabilitySlots.selectedDays) ? doc.availabilitySlots.selectedDays.length : 'N/A'
-          });
-        }
+        const dayFields = ['selectedDays', 'inPersonSelectedDays', 'videoCallSelectedDays', 'voiceCallSelectedDays'];
+        dayFields.forEach(dayField => {
+          if (doc.availabilitySlots[dayField] !== undefined) {
+            doc.markModified(`availabilitySlots.${dayField}`);
+          }
+        });
         if (doc.availabilitySlots.inPerson) doc.markModified('availabilitySlots.inPerson');
+        if (doc.availabilitySlots.videoCall) doc.markModified('availabilitySlots.videoCall');
+        if (doc.availabilitySlots.voiceCall) doc.markModified('availabilitySlots.voiceCall');
         if (doc.availabilitySlots.callVideo) doc.markModified('availabilitySlots.callVideo');
       }
     }
