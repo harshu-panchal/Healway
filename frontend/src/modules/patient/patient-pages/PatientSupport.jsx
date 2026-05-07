@@ -19,6 +19,17 @@ const PatientSupport = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target
+    
+    // Sanitize phone number
+    if (name === 'contactNumber') {
+      const sanitized = value.replace(/\D/g, '').slice(0, 10)
+      setFormData((prev) => ({
+        ...prev,
+        [name]: sanitized,
+      }))
+      return
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -27,6 +38,13 @@ const PatientSupport = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    
+    // Validation
+    if (formData.contactNumber.length !== 10) {
+      toast.warning('Contact number must be exactly 10 digits')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -224,6 +242,9 @@ const PatientSupport = () => {
               value={formData.contactNumber}
               onChange={handleChange}
               required
+              pattern="[0-9]{10}"
+              maxLength="10"
+              title="Contact number should be 10 digits"
               className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 transition hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               placeholder="Enter your contact number"
             />

@@ -87,10 +87,8 @@ const AdminAppointments = () => {
 
         const response = await getAdminAppointments(filters)
 
-        if (response) {
-          const appointmentsData = Array.isArray(response)
-            ? response
-            : response.items || []
+        if (response && response.success) {
+          const appointmentsData = response.data.items || response.data || []
 
           // Transform API data to match component structure
           const transformed = appointmentsData.map(apt => {

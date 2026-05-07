@@ -60,10 +60,10 @@ const AdminSupport = () => {
       filters.limit = 1000
 
       const response = await getSupportTickets(filters)
-      if (response) {
+      if (response && response.success) {
         // Transform API data to match component structure
-        const tickets = response.items || response || []
-        const pagination = response.pagination || {}
+        const tickets = response.data.items || response.data || []
+        const pagination = response.data.pagination || {}
         console.log('📋 Raw support tickets from API:', tickets) // Debug log
         console.log('📋 Pagination info:', pagination) // Debug log
 

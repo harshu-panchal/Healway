@@ -15,7 +15,7 @@ import {
     IoCalendarOutline,
     IoInformationCircleOutline,
 } from 'react-icons/io5'
-import { getPatientTransactions } from '../patient-services/patientService'
+import { getPatientTransactionById } from '../patient-services/patientService'
 import { useToast } from '../../../contexts/ToastContext'
 import PageLoader from '../../../components/PageLoader'
 
@@ -30,20 +30,10 @@ const PatientTransactionDetail = () => {
         const fetchTransaction = async () => {
             try {
                 setLoading(true)
-                const response = await getPatientTransactions()
+                const response = await getPatientTransactionById(id)
 
-                // Handle both full response and direct data
-                let transactionsData = []
                 if (response && response.success && response.data) {
-                    transactionsData = Array.isArray(response.data) ? response.data : (response.data.items || response.data.transactions || [])
-                } else if (response) {
-                    transactionsData = Array.isArray(response) ? response : (response.items || response.transactions || [])
-                }
-
-                const found = transactionsData.find(t => (t._id || t.id) === id)
-
-                if (found) {
-                    setTransaction(found)
+                    setTransaction(response.data)
                 } else {
                     toast.error('Transaction not found')
                     navigate('/patient/transactions')

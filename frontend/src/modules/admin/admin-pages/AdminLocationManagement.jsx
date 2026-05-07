@@ -32,7 +32,11 @@ const AdminLocationManagement = () => {
         try {
             setLoading(true)
             const statesRes = await adminService.getStates()
-            setStates(statesRes || [])
+            if (statesRes && statesRes.success) {
+                setStates(statesRes.data || [])
+            } else {
+                setStates([])
+            }
             
             // Note: We don't have a global "get all cities" API in the requirements, 
             // but we might want to list cities for the active state or just have a way to view them.
@@ -83,7 +87,11 @@ const AdminLocationManagement = () => {
     const fetchCities = async (stateId) => {
         try {
             const res = await adminService.getCitiesByState(stateId)
-            setCities(res || [])
+            if (res && res.success) {
+                setCities(res.data || [])
+            } else {
+                setCities([])
+            }
         } catch (error) {
             toast.error('Failed to fetch cities')
         }

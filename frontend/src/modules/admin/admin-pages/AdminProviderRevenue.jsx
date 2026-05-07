@@ -70,14 +70,15 @@ const AdminProviderRevenue = () => {
       try {
         setLoading(true)
         const response = await getProviderRevenue(type, 'all')
-        if (response) {
-          setProviders(response.providers || [])
+        if (response && response.success) {
+          const data = response.data
+          setProviders(data.providers || [])
           setTotals({
-            gbv: response.totals?.totalGBV || 0,
-            commission: response.totals?.totalCommission || 0,
-            payout: response.totals?.totalPayout || 0,
-            count: response.totals?.totalAppointments || 0,
-            transactions: response.totals?.totalTransactions || 0,
+            gbv: data.totals?.totalGBV || 0,
+            commission: data.totals?.totalCommission || 0,
+            payout: data.totals?.totalPayout || 0,
+            count: data.totals?.totalAppointments || 0,
+            transactions: data.totals?.totalTransactions || 0,
           })
         }
       } catch (error) {

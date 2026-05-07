@@ -35,7 +35,11 @@ const AdminServices = () => {
         try {
             setLoading(true)
             const response = await adminService.getAllServices()
-            setServices(response || [])
+            if (response && response.success) {
+                setServices(response.data || [])
+            } else {
+                setServices([])
+            }
         } catch (error) {
             toast.error('Failed to fetch services')
         } finally {

@@ -43,7 +43,11 @@ const AdminSpecialization = () => {
         try {
             setLoading(true)
             const response = await adminService.getAllSpecialties()
-            setSpecialties(response || [])
+            if (response && response.success) {
+                setSpecialties(response.data || [])
+            } else {
+                setSpecialties([])
+            }
         } catch (error) {
             toast.error('Failed to fetch specializations')
         } finally {

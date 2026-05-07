@@ -39,6 +39,7 @@ const PatientProfile = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const fileInputRef = useRef(null)
+  const dobInputRef = useRef(null)
   const [newAllergy, setNewAllergy] = useState('')
   const [showBalance, setShowBalance] = useState(false)
 
@@ -195,6 +196,13 @@ const PatientProfile = () => {
   }
 
   const handleInputChange = (field, value) => {
+    // Sanitize phone numbers and pincode
+    if (field === 'phone' || field === 'emergencyContact.phone') {
+      value = value.replace(/\D/g, '').slice(0, 10)
+    } else if (field === 'address.postalCode') {
+      value = value.replace(/\D/g, '').slice(0, 6)
+    }
+
     if (field.includes('.')) {
       const [parent, child] = field.split('.')
       setFormData((prev) => ({
@@ -216,6 +224,22 @@ const PatientProfile = () => {
     const token = getAuthToken('patient')
     if (!token) {
       toast.error('Please login to save profile')
+      return
+    }
+
+    // Validation
+    if (formData.phone && formData.phone.length !== 10) {
+      toast.warning('Mobile number must be exactly 10 digits')
+      return
+    }
+
+    if (formData.emergencyContact?.phone && formData.emergencyContact.phone.length !== 10) {
+      toast.warning('Emergency contact number must be exactly 10 digits')
+      return
+    }
+
+    if (formData.address?.postalCode && formData.address.postalCode.length !== 6) {
+      toast.warning('Pincode must be exactly 6 digits')
       return
     }
 
@@ -601,12 +625,27 @@ const PatientProfile = () => {
                     Date of Birth
                   </label>
                   {isEditing ? (
-                    <input
-                      type="date"
-                      value={formData.dateOfBirth}
-                      onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 transition hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-[rgba(0,119,194,0.2)]"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        readOnly
+                        value={formData.dateOfBirth ? (() => {
+                          const [y, m, d] = formData.dateOfBirth.split('-');
+                          return `${d}/${m}/${y.slice(-2)}`;
+                        })() : ''}
+                        onClick={() => dobInputRef.current?.showPicker?.() || dobInputRef.current?.click()}
+                        placeholder="DD/MM/YY"
+                        className="w-full cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 transition hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-[rgba(0,119,194,0.2)]"
+                      />
+                      <input
+                        ref={dobInputRef}
+                        type="date"
+                        value={formData.dateOfBirth}
+                        onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                        max={new Date().toISOString().split('T')[0]}
+                        className="absolute inset-0 h-full w-full opacity-0 cursor-pointer pointer-events-none"
+                      />
+                    </div>
                   ) : (
                     <div className="flex items-center gap-2 text-sm text-slate-600 py-2.5">
                       <IoCalendarOutline className="h-4 w-4 text-slate-400" />
@@ -716,10 +755,13 @@ const PatientProfile = () => {
                   Phone
                 </label>
                 {isEditing ? (
-                  <input
+                   <input
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => handleInputChange('phone', e.target.value)}
+                    pattern="[0-9]{10}"
+                    maxLength="10"
+                    title="Phone number should be 10 digits"
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 transition hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-[rgba(0,119,194,0.2)]"
                   />
                 ) : (
@@ -772,6 +814,9 @@ const PatientProfile = () => {
                         placeholder="Postal Code"
                         value={formData.address?.postalCode || ''}
                         onChange={(e) => handleInputChange('address.postalCode', e.target.value)}
+                        pattern="[0-9]{6}"
+                        maxLength="6"
+                        title="Pincode should be 6 digits"
                         className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 transition hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-[rgba(0,119,194,0.2)]"
                       />
                       <input
@@ -972,6 +1017,9 @@ const PatientProfile = () => {
                     type="tel"
                     value={formData.emergencyContact?.phone || ''}
                     onChange={(e) => handleInputChange('emergencyContact.phone', e.target.value)}
+                    pattern="[0-9]{10}"
+                    maxLength="10"
+                    title="Emergency contact number should be 10 digits"
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 transition hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-[rgba(0,119,194,0.2)]"
                   />
                 ) : (
