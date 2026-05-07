@@ -30,6 +30,7 @@ import {
   getDoctorConsultations,
 } from "../doctor-services/doctorService";
 import Pagination from "../../../components/Pagination";
+import VideoCall from "../../../components/VideoCall";
 
 // Default appointments (will be replaced by API data)
 const defaultAppointments = [];
@@ -127,6 +128,7 @@ const DoctorAppointments = () => {
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
   const [pagination, setPagination] = useState(null);
+  const [activeCall, setActiveCall] = useState(null); // Active call appointment
 
   const handleMarkAsPaid = async (appointment) => {
     const remaining = appointment.remainingAmount || (appointment.fee - (appointment.paidAmount || 0));
@@ -1057,6 +1059,30 @@ const DoctorAppointments = () => {
                             <span>Mark as Completed</span>
                           </button>
                         )}
+                        
+                        {/* Join Call Button for Video/Audio Consultations */}
+                        {(() => {
+                          const mode = appointment.consultationMode;
+                          const isCallSupported = mode === "video_call" || mode === "voice_call" || mode === "online";
+                          const isActionable = appointment.status === "confirmed";
+
+                          if (isCallSupported && isActionable) {
+                            return (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveCall(appointment);
+                                }}
+                                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 sm:py-2 text-sm sm:text-xs font-bold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700 active:scale-95 animate-pulse"
+                              >
+                                {mode === "video_call" ? <IoVideocamOutline className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> : <IoCallOutline className="h-4 w-4 sm:h-3.5 sm:w-3.5" />}
+                                <span>Join {mode === "video_call" ? "Video" : "Voice"} Call</span>
+                              </button>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                     )}
 
@@ -1304,6 +1330,14 @@ const DoctorAppointments = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {activeCall && (
+        <VideoCall
+          channelName={activeCall.id || activeCall._id} // Use appointment ID as channel name
+          callType={activeCall.consultationMode === "video_call" ? "video" : "audio"}
+          onEndCall={() => setActiveCall(null)}
+        />
       )}
     </>
   );

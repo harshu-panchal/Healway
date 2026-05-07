@@ -101,6 +101,16 @@ const VideoCallInterface = ({ appId, channelName, token, callType, onEndCall }) 
         }
     }, [joinError]);
 
+    // Local Tracks
+    const { localMicrophoneTrack } = useLocalMicrophoneTrack(true);
+    const { localCameraTrack } = useLocalCameraTrack(callType === "video");
+
+    // Publish Tracks
+    usePublish([localMicrophoneTrack, callType === "video" ? localCameraTrack : null]);
+
+    // Remote Users
+    const remoteUsers = useRemoteUsers();
+
     if (error) {
         return (
             <div className="fixed inset-0 z-[100] bg-slate-950/90 flex items-center justify-center p-4">
@@ -133,16 +143,6 @@ const VideoCallInterface = ({ appId, channelName, token, callType, onEndCall }) 
             </div>
         );
     }
-
-    // Local Tracks
-    const { localMicrophoneTrack } = useLocalMicrophoneTrack(true);
-    const { localCameraTrack } = useLocalCameraTrack(callType === "video");
-
-    // Publish Tracks
-    usePublish([localMicrophoneTrack, callType === "video" ? localCameraTrack : null]);
-
-    // Remote Users
-    const remoteUsers = useRemoteUsers();
 
     // If call type is AUDIO (online), just show Audio UI
     // If call type is VIDEO (video_call), show Video UI

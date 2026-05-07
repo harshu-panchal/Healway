@@ -13,7 +13,6 @@ import {
   IoWalletOutline,
   IoGiftOutline,
 } from "react-icons/io5";
-import VideoCall from "../../../components/VideoCall";
 import {
   getPatientAppointments,
   rescheduleAppointment,
@@ -119,7 +118,6 @@ const PatientAppointments = () => {
   // Modal state
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [activeCall, setActiveCall] = useState(null); // Active call appointment
 
   // Handler to open details modal
   const handleViewDetails = (appointment) => {
@@ -679,42 +677,12 @@ const PatientAppointments = () => {
                         )}
                       </div>
                     )}
-
-
-
-                  {/* Join Call Button for Video/Audio Consultations */}
-                  {(() => {
-                    const mode = appointment.consultationMode;
-                    const isCallSupported = mode === "video_call" || mode === "voice_call" || mode === "online";
-                    const isActionable = appointment.status !== "cancelled" && appointment.status !== "completed";
-
-                    if (isCallSupported && isActionable) {
-                      return (
-                        <button
-                          onClick={() => setActiveCall(appointment)}
-                          className="mt-3 w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-bold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700 active:scale-95 animate-pulse"
-                        >
-                          {mode === "video_call" ? <IoVideocamOutline className="h-4 w-4" /> : <IoCallOutline className="h-4 w-4" />}
-                          Join {mode === "video_call" ? "Video" : "Voice"} Call
-                        </button>
-                      );
-                    }
-                    return null;
-                  })()}
                 </div>
               </div>
             </article>
           );
         })}
       </div>
-
-      {activeCall && (
-        <VideoCall
-          channelName={activeCall.id || activeCall._id} // Use appointment ID as channel name
-          callType={activeCall.consultationMode === "video_call" ? "video" : "audio"}
-          onEndCall={() => setActiveCall(null)}
-        />
-      )}
 
       {!loading && filteredAppointments.length === 0 && (
         <div className="flex flex-col items-center justify-center py-12 text-center">
