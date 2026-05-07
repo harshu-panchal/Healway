@@ -119,6 +119,9 @@ const PatientAppointments = () => {
   // Modal state
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [appointmentToCancel, setAppointmentToCancel] = useState(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   // Handler to open details modal
   const handleViewDetails = (appointment) => {
@@ -126,22 +129,50 @@ const PatientAppointments = () => {
     setShowDetailsModal(true);
   };
 
-  const handleCancelAppointment = async (appointmentId) => {
-    if (!window.confirm("Are you sure you want to cancel this appointment? If paid, the amount will be refunded to your wallet.")) {
-      return;
-    }
+  const handleCancelAppointment = (appointmentId) => {
+    setAppointmentToCancel(appointmentId);
+    setShowCancelModal(true);
+  };
+
+  const confirmCancelAppointment = async () => {
+    if (!appointmentToCancel) return;
 
     try {
-      setLoading(true);
-      const response = await cancelAppointment(appointmentId);
-      toast.success(response.message || "Appointment cancelled successfully");
-      // Refresh list
+      setIsCancelling(true);
+      const response = await cancelAppointment(appointmentToCancel);
+      
+      // Update local state instead of full reload/fetch
+      if (response.deleted) {
+        setAppointments(prev => prev.filter(apt => apt.id !== appointmentToCancel));
+      } else {
+        setAppointments(prev => prev.map(apt => 
+          apt.id === appointmentToCancel 
+            ? { 
+                ...apt, 
+                status: 'cancelled', 
+                paymentStatus: response.refunded ? 'refunded' : apt.paymentStatus,
+                cancelledBy: 'patient',
+                cancelledAt: new Date().toISOString()
+              } 
+            : apt
+        ));
+      }
+
+      if (response.refunded) {
+        toast.success(`₹${response.refundAmount} refunded to your wallet!`);
+      } else {
+        toast.success(response.message || "Appointment cancelled successfully");
+      }
+
+      // Notify other components if they are listening
       window.dispatchEvent(new CustomEvent("appointmentBooked"));
+      setShowCancelModal(false);
+      setAppointmentToCancel(null);
     } catch (err) {
       console.error("Error cancelling appointment:", err);
       toast.error(err.message || "Failed to cancel appointment");
     } finally {
-      setLoading(false);
+      setIsCancelling(false);
     }
   };
 
@@ -671,7 +702,7 @@ const PatientAppointments = () => {
                             >
                               View Details
                             </button>
-                            {appointment.status === "scheduled" && (
+                            {(appointment.status === "scheduled" || appointment.status === "pending_payment" || isPendingPayment) && (
                               <button
                                 onClick={() => handleCancelAppointment(appointment.id)}
                                 className="flex-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100 active:scale-95"
@@ -729,6 +760,56 @@ const PatientAppointments = () => {
           onPageChange={setCurrentPage}
           loading={loading}
         />
+      )}
+
+      {/* Cancellation Confirmation Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+            onClick={() => !isCancelling && setShowCancelModal(false)}
+          ></div>
+          
+          {/* Modal Content */}
+          <div className="relative w-full max-w-sm transform overflow-hidden rounded-3xl bg-white p-6 shadow-2xl transition-all animate-in fade-in zoom-in duration-200">
+            <div className="flex flex-col items-center text-center">
+              {/* Icon Wrapper */}
+              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-red-50 ring-8 ring-red-50/50">
+                <IoCloseCircleOutline className="h-12 w-12 text-red-500" />
+              </div>
+              
+              <h3 className="mb-2 text-xl font-bold text-slate-900">Cancel Appointment?</h3>
+              <p className="mb-8 text-sm leading-relaxed text-slate-500">
+                Are you sure you want to cancel this appointment? If you've already paid, the amount will be <span className="font-bold text-slate-900">refunded to your wallet</span> immediately.
+              </p>
+              
+              <div className="flex w-full flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={confirmCancelAppointment}
+                  disabled={isCancelling}
+                  className="flex h-12 w-full items-center justify-center rounded-2xl bg-red-600 text-sm font-bold text-white shadow-lg shadow-red-200 transition-all hover:bg-red-700 active:scale-95 disabled:opacity-50 disabled:active:scale-100"
+                >
+                  {isCancelling ? (
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-r-transparent"></div>
+                  ) : (
+                    "Yes, Cancel Appointment"
+                  )}
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setShowCancelModal(false)}
+                  disabled={isCancelling}
+                  className="flex h-12 w-full items-center justify-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-600 transition-all hover:bg-slate-200 active:scale-95 disabled:opacity-50"
+                >
+                  No, Keep It
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Appointment Details Modal */}

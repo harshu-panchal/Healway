@@ -50,30 +50,79 @@ const getSessionSlots = (doctor, appointmentDate, consultationMode) => {
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const dayName = dayNames[appointmentDate.getDay()];
   const mode = normalizeConsultationMode(consultationMode);
+  const dayNameLower = dayName.toLowerCase();
 
-  // New Logic: availabilitySlots with arrays
+  // New Logic: availabilitySlots with day-wise arrays
   if (doctor.availabilitySlots) {
-    const sessionTimingDays = doctor.availabilitySlots.selectedDays;
+    // 1. Check mode-specific availability days
+    let modeSpecificDays = [];
+    let modeArray = [];
+    if (mode === 'IN_PERSON') {
+      modeSpecificDays = doctor.availabilitySlots.inPersonSelectedDays || [];
+      modeArray = doctor.availabilitySlots.inPerson || [];
+    } else if (mode === 'VIDEO') {
+      modeSpecificDays = doctor.availabilitySlots.videoCallSelectedDays || [];
+      modeArray = doctor.availabilitySlots.videoCall || [];
+    } else if (mode === 'CALL') {
+      modeSpecificDays = doctor.availabilitySlots.voiceCallSelectedDays || [];
+      modeArray = doctor.availabilitySlots.voiceCall || [];
+    }
 
-    // Check if day is selected
-    let dayIncluded = false;
-    if (Array.isArray(sessionTimingDays) && sessionTimingDays.length > 0) {
-      const dayNameLower = dayName.toLowerCase();
-      dayIncluded = sessionTimingDays.some(day => day && day.toLowerCase() === dayNameLower);
+    let dayIncluded = Array.isArray(modeSpecificDays) &&
+      modeSpecificDays.length > 0 &&
+      modeSpecificDays.some(day => day && day.toLowerCase() === dayNameLower);
+
+    // 2. Check if day exists in the slots array itself (Robust fallback)
+    if (!dayIncluded && Array.isArray(modeArray)) {
+      dayIncluded = modeArray.some(d => d.day && d.day.toLowerCase() === dayNameLower && Array.isArray(d.slots) && d.slots.length > 0);
+    }
+
+    // 3. Check global selectedDays (LEGACY/GLOBAL)
+    if (!dayIncluded) {
+      const sessionTimingDays = doctor.availabilitySlots.selectedDays || [];
+      dayIncluded = Array.isArray(sessionTimingDays) &&
+        sessionTimingDays.length > 0 &&
+        sessionTimingDays.some(day => day && day.toLowerCase() === dayNameLower);
+    }
+
+    // 4. FALLBACK: Check mode-specific fees for selected days
+    if (!dayIncluded && doctor.fees) {
+      let modeFeeBlock = null;
+      if (mode === 'IN_PERSON') modeFeeBlock = doctor.fees.inPerson;
+      if (mode === 'VIDEO') modeFeeBlock = doctor.fees.videoCall;
+      if (mode === 'CALL') modeFeeBlock = doctor.fees.voiceCall;
+
+      if (modeFeeBlock && Array.isArray(modeFeeBlock.selectedDays)) {
+        dayIncluded = modeFeeBlock.selectedDays.some(day => day && day.toLowerCase() === dayNameLower);
+      }
     }
 
     if (dayIncluded) {
       let slots = [];
+      
+      // Retrieval logic based on mode
       if (mode === 'IN_PERSON' && Array.isArray(doctor.availabilitySlots.inPerson)) {
-        slots = doctor.availabilitySlots.inPerson;
+        if (doctor.availabilitySlots.inPerson.length > 0 && doctor.availabilitySlots.inPerson[0].day) {
+          const dayConfig = doctor.availabilitySlots.inPerson.find(d => d.day && d.day.toLowerCase() === dayNameLower);
+          slots = dayConfig ? (dayConfig.slots || []) : [];
+        } else {
+          slots = doctor.availabilitySlots.inPerson;
+        }
       } else if (mode === 'VIDEO' && Array.isArray(doctor.availabilitySlots.videoCall)) {
-        slots = doctor.availabilitySlots.videoCall;
+        if (doctor.availabilitySlots.videoCall.length > 0 && doctor.availabilitySlots.videoCall[0].day) {
+          const dayConfig = doctor.availabilitySlots.videoCall.find(d => d.day && d.day.toLowerCase() === dayNameLower);
+          slots = dayConfig ? (dayConfig.slots || []) : [];
+        } else {
+          slots = doctor.availabilitySlots.videoCall;
+        }
       } else if (mode === 'CALL' && Array.isArray(doctor.availabilitySlots.voiceCall)) {
-        slots = doctor.availabilitySlots.voiceCall;
-      } else if ((mode === 'VIDEO' || mode === 'CALL') && doctor.availabilitySlots.callVideo && 
-                (!Array.isArray(doctor.availabilitySlots.videoCall) || doctor.availabilitySlots.videoCall.length === 0) && 
-                (!Array.isArray(doctor.availabilitySlots.voiceCall) || doctor.availabilitySlots.voiceCall.length === 0)) {
-        // Fallback to old shared callVideo object if strict arrays not found or empty
+        if (doctor.availabilitySlots.voiceCall.length > 0 && doctor.availabilitySlots.voiceCall[0].day) {
+          const dayConfig = doctor.availabilitySlots.voiceCall.find(d => d.day && d.day.toLowerCase() === dayNameLower);
+          slots = dayConfig ? (dayConfig.slots || []) : [];
+        } else {
+          slots = doctor.availabilitySlots.voiceCall;
+        }
+      } else if ((mode === 'VIDEO' || mode === 'CALL') && doctor.availabilitySlots.callVideo && !Array.isArray(doctor.availabilitySlots.videoCall) && !Array.isArray(doctor.availabilitySlots.voiceCall)) {
         if (doctor.availabilitySlots.callVideo.startTime) {
           return [{
             startTime: doctor.availabilitySlots.callVideo.startTime,
@@ -107,11 +156,9 @@ const getSessionSlots = (doctor, appointmentDate, consultationMode) => {
         slot = dayAvailability.slots?.find(s => s.consultationType === 'in_person');
       }
 
-      // If slot found in old structure
       if (slot && slot.startTime) {
         return [{ startTime: slot.startTime, endTime: slot.endTime || dayAvailability.endTime, isFree: slot.isFree || false }];
       }
-      // Very old structure fallback
       if (dayAvailability.startTime) {
         return [{ startTime: dayAvailability.startTime, endTime: dayAvailability.endTime, isFree: false }];
       }
@@ -122,29 +169,28 @@ const getSessionSlots = (doctor, appointmentDate, consultationMode) => {
 };
 
 /**
- * Helper: Get the overall start time of the session (earliest slot)
+ * Helper: Get session start time (Earliest)
  */
 const getSessionStartTime = (doctor, appointmentDate, consultationMode) => {
   const slots = getSessionSlots(doctor, appointmentDate, consultationMode);
   if (slots.length > 0) {
-    const sortedSlots = [...slots].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
-    return sortedSlots[0].startTime;
+    const sorted = [...slots].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+    return sorted[0].startTime;
   }
   return null;
 };
 
 /**
- * Helper: Get the overall end time of the session (latest slot)
+ * Helper: Get session end time (Latest)
  */
 const getSessionEndTime = (doctor, appointmentDate, consultationMode) => {
   const slots = getSessionSlots(doctor, appointmentDate, consultationMode);
   if (slots.length > 0) {
-    const sortedSlots = [...slots].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
-    return sortedSlots[sortedSlots.length - 1].endTime;
+    const sorted = [...slots].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+    return sorted[sorted.length - 1].endTime;
   }
   return null;
 };
-
 
 /**
  * Helper: Convert time string (HH:MM or HH:MM AM/PM) to minutes from midnight
@@ -152,7 +198,6 @@ const getSessionEndTime = (doctor, appointmentDate, consultationMode) => {
 const timeToMinutes = (timeStr) => {
   if (!timeStr) return null;
 
-  // Handle 12-hour format (e.g., "10:00 AM", "2:30 PM")
   const pmMatch = timeStr.match(/(\d+):(\d+)\s*PM/i);
   if (pmMatch) {
     let hours = parseInt(pmMatch[1], 10);
@@ -169,14 +214,14 @@ const timeToMinutes = (timeStr) => {
     return hours * 60 + minutes;
   }
 
-  // Handle 24-hour format (e.g., "10:00", "14:30")
   const match = timeStr.match(/(\d+):(\d+)/);
   if (match) {
     const hours = parseInt(match[1], 10);
     const minutes = parseInt(match[2], 10);
-    return hours * 60 + minutes;
+    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+      return hours * 60 + minutes;
+    }
   }
-
   return null;
 };
 
@@ -204,8 +249,8 @@ const calculateExpectedTime = (appointmentDate, slots, tokenNumber, averageConsu
       let duration = endMins - startMins;
       if (duration < 0) duration += 1440;
 
-      // Calculate capacity of this slot
-      const slotCapacity = Math.floor(duration / averageConsultationMinutes);
+      // Calculate capacity of this slot - Use Math.round to match availability logic
+      const slotCapacity = Math.max(0, Math.round(duration / averageConsultationMinutes));
 
       // Check if token falls in this slot
       if (tokenNumber <= currentTokenCount + slotCapacity) {
@@ -218,7 +263,6 @@ const calculateExpectedTime = (appointmentDate, slots, tokenNumber, averageConsu
         const minutes = expectedMinutes % 60;
         expectedDate.setHours(hours, minutes, 0, 0);
 
-        // Adjust for day overflow if needed (simplified)
         return expectedDate;
       }
 
@@ -396,22 +440,15 @@ exports.createAppointment = asyncHandler(async (req, res) => {
     });
   }
 
-  // Parse appointment date properly (YYYY-MM-DD format)
+  // Parse appointment date properly (YYYY-MM-DD format) - Timezone safe
   let parsedAppointmentDate;
-  if (
-    typeof appointmentDate === "string" &&
-    appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)
-  ) {
-    const [year, month, day] = appointmentDate.split("-").map(Number);
-    const utcDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-    const localYear = utcDate.getFullYear();
-    const localMonth = utcDate.getMonth();
-    const localDay = utcDate.getDate();
-    parsedAppointmentDate = new Date(localYear, localMonth, localDay, 0, 0, 0, 0);
+  if (typeof appointmentDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(appointmentDate)) {
+    const [y, m, d] = appointmentDate.split('-').map(Number);
+    parsedAppointmentDate = new Date(y, m - 1, d, 0, 0, 0, 0);
   } else {
     parsedAppointmentDate = new Date(appointmentDate);
+    parsedAppointmentDate.setHours(0, 0, 0, 0);
   }
-  parsedAppointmentDate.setHours(0, 0, 0, 0);
 
   // Parallelize doctor lookup and duplicate appointment checks
   const [doctor, existingAppointment, doctorCancelledToday] = await Promise.all([
@@ -503,29 +540,20 @@ exports.createAppointment = asyncHandler(async (req, res) => {
       if (startMins !== null && endMins !== null) {
         let duration = endMins - startMins;
         if (duration < 0) duration += 1440; // Handle cross midnight
-        const slotsInrange = Math.floor(duration / avgTime);
-        totalSlots += Math.max(0, slotsInrange);
+        
+        // Use Math.round to match availability logic
+        const slotsInRange = Math.max(0, Math.round(duration / avgTime));
+        totalSlots += slotsInRange;
       }
     });
 
     if (totalSlots > 0) {
       // Define strict mode filter for capacity check to avoid cross-mode interference
-      let bookingModes;
-      if (normalizedMode === 'IN_PERSON') {
-        bookingModes = ['IN_PERSON', 'in_person', 'clinic_visit', 'CLINIC_VISIT', 'clinic', 'CLINIC'];
-      } else {
-        // Both CALL and VIDEO share the same 'callVideo' time slots/capacity?
-        // Wait, if I separated them in Doctor Model, they should have separate capacity if configured separately.
-        // However, existing appointments might use legacy modes.
-        // If doctor uses 'videoCall' array, he has capacity for video.
-        // If doctor uses 'voiceCall' array, he has capacity for voice.
-        // They are now distinct capacities.
-
-        if (normalizedMode === 'VIDEO') {
-          bookingModes = ['VIDEO', 'VIDEO_CALL', 'video', 'video_call', 'video_meeting'];
-        } else {
-          bookingModes = ['CALL', 'VOICE_CALL', 'call', 'voice_call'];
-        }
+      let bookingModes = [];
+      if (normalizedMode === 'CALL') {
+        bookingModes = ['CALL', 'VOICE_CALL', 'call', 'voice_call'];
+      } else if (normalizedMode === 'VIDEO') {
+        bookingModes = ['VIDEO', 'VIDEO_CALL', 'video', 'video_call', 'video_meeting'];
       }
 
       // Count existing bookings (paid or pending payment within 30 mins)
@@ -921,6 +949,7 @@ exports.cancelAppointment = asyncHandler(async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Appointment deleted successfully",
+      deleted: true
     });
   }
 
@@ -999,9 +1028,6 @@ exports.cancelAppointment = asyncHandler(async (req, res) => {
   } catch (error) {
     console.error("Socket.IO error:", error);
   }
-  } catch (error) {
-    console.error("Socket.IO error:", error);
-  }
 
   // Send email notifications
   try {
@@ -1050,7 +1076,12 @@ exports.cancelAppointment = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     success: true,
-    message: "Appointment cancelled successfully",
+    message: appointment.refundAmount > 0 
+      ? `Appointment cancelled. ₹${appointment.refundAmount} refunded to your wallet.` 
+      : "Appointment cancelled successfully",
+    refunded: (appointment.refundAmount || 0) > 0,
+    refundAmount: appointment.refundAmount || 0,
+    deleted: appointment.isDeleted || false, // If we ever use soft delete or need to know if it was removed
   });
 });
 
@@ -1145,13 +1176,12 @@ exports.rescheduleAppointment = asyncHandler(async (req, res) => {
   if (newConsultationMode) {
     const requestedMode = normalizeConsultationMode(newConsultationMode);
 
-    // Only allow mode change for doctor-cancelled appointments (free reschedule benefit)
-    if (appointment.cancelledBy !== "doctor") {
-      return res.status(400).json({
-        success: false,
-        message: "Cannot change consultation mode. Mode change is only allowed for appointments cancelled by the doctor.",
-      });
-    }
+    // Allow mode change for all reschedules. 
+    // We will handle refunds/payments via wallet.
+    console.log("🔄 Requested consultation mode change:", {
+      from: currentMode,
+      to: requestedMode
+    });
 
     // Verify the new mode is available for this doctor
     const availableModes = (doctor.consultationModes || []).map(m => normalizeConsultationMode(m));
@@ -1208,7 +1238,7 @@ exports.rescheduleAppointment = asyncHandler(async (req, res) => {
             newMode: requestedMode,
             originalPaidAmount: currentPaidAmount,
             newFee: newFee,
-            reason: "doctor_cancelled_reschedule",
+            reason: "reschedule_mode_change",
           },
         });
 
@@ -1227,42 +1257,43 @@ exports.rescheduleAppointment = asyncHandler(async (req, res) => {
       const additionalNeeded = newFee - currentPaidAmount;
       const patient = await Patient.findById(id);
 
-      if (patient && patient.walletBalance > 0) {
-        const deduction = Math.min(patient.walletBalance, additionalNeeded);
-
-        if (deduction > 0) {
-          patient.walletBalance -= deduction;
-          await patient.save();
-
-          // Create transaction record for wallet deduction
-          await Transaction.create({
-            userId: id,
-            userType: "patient",
-            type: "payment",
-            amount: deduction,
-            status: "completed",
-            description: `Payment for consultation mode change from ${currentMode} to ${requestedMode} (Wallet)`,
-            referenceId: appointment._id.toString(),
-            category: "appointment",
-            appointmentId: appointment._id,
-            metadata: {
-              originalMode: currentMode,
-              newMode: requestedMode,
-              additionalNeeded,
-              deduction
-            },
-          });
-
-          // Update appointment's paid amount
-          appointment.paidAmount = (appointment.paidAmount || 0) + deduction;
-
-          console.log("✅ Wallet deducted for reschedule:", {
-            patientId: id,
-            amount: deduction,
-            newBalance: patient.walletBalance,
-          });
-        }
+      if (!patient || (patient.walletBalance || 0) < additionalNeeded) {
+        return res.status(400).json({
+          success: false,
+          message: `Additional ₹${additionalNeeded} required for ${requestedMode} consultation. Please add money to your wallet to continue.`,
+        });
       }
+
+      // Deduct full amount from wallet
+      patient.walletBalance -= additionalNeeded;
+      await patient.save();
+
+      // Create transaction record for wallet deduction
+      await Transaction.create({
+        userId: id,
+        userType: "patient",
+        type: "payment",
+        amount: additionalNeeded,
+        status: "completed",
+        description: `Payment for consultation mode change from ${currentMode} to ${requestedMode} (Wallet)`,
+        referenceId: appointment._id.toString(),
+        category: "appointment",
+        appointmentId: appointment._id,
+        metadata: {
+          originalMode: currentMode,
+          newMode: requestedMode,
+          additionalNeeded
+        },
+      });
+
+      // Update appointment's paid amount
+      appointment.paidAmount = (appointment.paidAmount || 0) + additionalNeeded;
+
+      console.log("✅ Wallet deducted for reschedule:", {
+        patientId: id,
+        amount: additionalNeeded,
+        newBalance: patient.walletBalance,
+      });
     }
     // Update appointment with new mode and fee
     finalMode = requestedMode;

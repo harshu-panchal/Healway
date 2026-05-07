@@ -232,7 +232,7 @@ export const cancelAppointment = async (appointmentId, reason = '') => {
     if (!response.success) {
       throw new Error(response.message || 'Failed to cancel appointment')
     }
-    return response.data
+    return response // Return full response to access deleted/refunded flags
   } catch (error) {
     console.error('Error cancelling appointment:', error)
     throw error
