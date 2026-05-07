@@ -196,7 +196,6 @@ const formatEducation = (education, qualification = "") => {
   return qualification || "MBBS";
 };
 
-// Get available dates filtered by doctor's working days
 const getAvailableDates = (doctor, mode) => {
   if (!doctor) return [];
 
@@ -212,7 +211,9 @@ const getAvailableDates = (doctor, mode) => {
       ? "inPerson"
       : normalized === "VIDEO"
         ? "videoCall"
-        : "voiceCall";
+        : normalized === "HOME_VISIT"
+          ? "homeVisit"
+          : "voiceCall";
 
   if (doctor.availabilitySlots) {
     // 1. Try mode-specific selected days
@@ -228,13 +229,9 @@ const getAvailableDates = (doctor, mode) => {
     else if (Array.isArray(doctor.availabilitySlots.selectedDays) && doctor.availabilitySlots.selectedDays.length > 0) {
       workingDays = doctor.availabilitySlots.selectedDays;
     }
-    // 4. Legacy check - check if callVideo exists (for VIDEO/VOICE)
-    else if ((normalized === "VIDEO" || normalized === "CALL") && doctor.availabilitySlots.callVideo) {
-      workingDays = Array.isArray(doctor.availabilitySlots.selectedDays) ? doctor.availabilitySlots.selectedDays : [];
-    }
   }
 
-  // 5. Fallback to old availability structure
+  // 4. Fallback to old availability structure
   if (workingDays.length === 0 && Array.isArray(doctor.availability)) {
     workingDays = doctor.availability.map((a) => a.day);
   }
@@ -298,6 +295,7 @@ const normalizeConsultationMode = (mode) => {
   const m = mode.toUpperCase();
   if (m === "CALL" || m === "VOICE_CALL" || m === "VOICE") return "CALL";
   if (m === "VIDEO" || m === "VIDEO_CALL") return "VIDEO";
+  if (m === "HOME_VISIT" || m === "HOME") return "HOME_VISIT";
   if (m === "IN_PERSON" || m === "INPERSON" || m === "CLINIC")
     return "IN_PERSON";
   return "IN_PERSON";
@@ -310,6 +308,7 @@ const getConsultationFee = (mode, doctor) => {
   if (normalized === "IN_PERSON") return doctor.fees?.inPerson?.final || 0;
   if (normalized === "CALL") return doctor.fees?.voiceCall?.final || 0;
   if (normalized === "VIDEO") return doctor.fees?.videoCall?.final || 0;
+  if (normalized === "HOME_VISIT") return doctor.fees?.homeVisit?.final || 0;
   return doctor.consultationFee || 0;
 };
 
@@ -602,6 +601,33 @@ const PatientDoctorDetails = () => {
                         }))
                       }]
                       : [])),
+                homeVisit: Array.isArray(doctorData.availabilitySlots.homeVisit) && doctorData.availabilitySlots.homeVisit.length > 0 && doctorData.availabilitySlots.homeVisit[0].day
+                  ? doctorData.availabilitySlots.homeVisit.map(dayConfig => ({
+                    day: dayConfig.day,
+                    slots: Array.isArray(dayConfig.slots) ? dayConfig.slots.map(slot => ({
+                      startTime: convert12HourTo24Hour(slot.startTime) || "",
+                      endTime: convert12HourTo24Hour(slot.endTime) || "",
+                      isFree: !!slot.isFree
+                    })) : []
+                  }))
+                  : (Array.isArray(doctorData.availabilitySlots?.homeVisitSelectedDays) && doctorData.availabilitySlots.homeVisitSelectedDays.length > 0
+                    ? doctorData.availabilitySlots.homeVisitSelectedDays.map(day => ({
+                      day,
+                      slots: Array.isArray(doctorData.availabilitySlots.homeVisit) ? doctorData.availabilitySlots.homeVisit.map(slot => ({
+                        startTime: convert12HourTo24Hour(slot.startTime) || "",
+                        endTime: convert12HourTo24Hour(slot.endTime) || "",
+                        isFree: !!slot.isFree
+                      })) : []
+                    }))
+                    : (Array.isArray(doctorData.availabilitySlots.homeVisit)
+                      ? [{
+                        day: (Array.isArray(doctorData.availabilitySlots.selectedDays) && doctorData.availabilitySlots.selectedDays[0]) || "Monday", slots: doctorData.availabilitySlots.homeVisit.map(slot => ({
+                          startTime: convert12HourTo24Hour(slot.startTime) || "",
+                          endTime: convert12HourTo24Hour(slot.endTime) || "",
+                          isFree: !!slot.isFree
+                        }))
+                      }]
+                      : [])),
                 inPersonSelectedDays: Array.isArray(doctorData.availabilitySlots?.inPersonSelectedDays)
                   ? doctorData.availabilitySlots.inPersonSelectedDays
                   : [],
@@ -610,6 +636,9 @@ const PatientDoctorDetails = () => {
                   : [],
                 voiceCallSelectedDays: Array.isArray(doctorData.availabilitySlots?.voiceCallSelectedDays)
                   ? doctorData.availabilitySlots.voiceCallSelectedDays
+                  : [],
+                homeVisitSelectedDays: Array.isArray(doctorData.availabilitySlots?.homeVisitSelectedDays)
+                  ? doctorData.availabilitySlots.homeVisitSelectedDays
                   : [],
                 selectedDays: Array.isArray(doctorData.availabilitySlots.selectedDays)
                   ? doctorData.availabilitySlots.selectedDays
@@ -816,6 +845,7 @@ const PatientDoctorDetails = () => {
     if (consultationMode === "video_call") feeType = "videoCall";
     if (consultationMode === "voice_call" || consultationMode === "call")
       feeType = "voiceCall";
+    if (consultationMode === "home_visit") feeType = "homeVisit";
 
     // Working days source of truth
     const workingDays = doctor.availabilitySlots?.selectedDays || [];
@@ -2562,6 +2592,24 @@ const PatientDoctorDetails = () => {
                         });
                       }
 
+                      // Home Visit slot
+                      if (
+                        doctor.availabilitySlots.homeVisit?.startTime &&
+                        doctor.availabilitySlots.homeVisit?.endTime
+                      ) {
+                        const homeVisitStart = formatTimeTo12Hour(
+                          doctor.availabilitySlots.homeVisit.startTime,
+                        );
+                        const homeVisitEnd = formatTimeTo12Hour(
+                          doctor.availabilitySlots.homeVisit.endTime,
+                        );
+                        slots.push({
+                          type: "Home Visit",
+                          days: selectedDays.join(", "),
+                          time: `${homeVisitStart} - ${homeVisitEnd}`,
+                        });
+                      }
+
                       if (slots.length > 0) {
                         return (
                           <div className="space-y-2">
@@ -2630,8 +2678,12 @@ const PatientDoctorDetails = () => {
                 doctor.fees?.voiceCall &&
                 (doctor.fees.voiceCall.final > 0 ||
                   doctor.fees.voiceCall.original > 0);
+              const hasHomeVisitFee =
+                doctor.fees?.homeVisit &&
+                (doctor.fees.homeVisit.final > 0 ||
+                  doctor.fees.homeVisit.original > 0);
 
-              if (hasInPersonFee || hasVideoCallFee || hasVoiceCallFee) {
+              if (hasInPersonFee || hasVideoCallFee || hasVoiceCallFee || hasHomeVisitFee) {
                 return (
                   <div className="space-y-2 pt-2 border-t border-slate-200">
                     <div className="text-xs font-semibold text-slate-700 mb-2">
@@ -2741,6 +2793,48 @@ const PatientDoctorDetails = () => {
                           </div>
                           {(() => {
                             const fee = doctor.fees.voiceCall;
+                            const original = fee.original || 0;
+                            const final = fee.final || 0;
+                            const discount = fee.discount || 0;
+                            const isFree = isFreeConsultation(final);
+                            return (
+                              <div className="w-full">
+                                <div className="flex items-center justify-between w-full">
+                                  <div className="flex flex-col">
+                                    {!isFree && original > final && original > 0 && (
+                                      <span className="text-[10px] line-through text-slate-400 block -mb-0.5">
+                                        ₹{original}
+                                      </span>
+                                    )}
+                                    <span className={`text-sm font-black ${isFree ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                      {formatPrice(final)}
+                                    </span>
+                                  </div>
+                                  {!isFree && discount > 0 && (
+                                    <div className="text-[11px] text-emerald-600 font-black bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 whitespace-nowrap">
+                                      ₹{discount} OFF
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+
+                      {/* Home Visit Fee */}
+                      {hasHomeVisitFee && (
+                        <div className="flex flex-col p-2 bg-slate-50 rounded-lg border border-slate-200">
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-1.5">
+                              <IoLocationOutline className="h-4 w-4 text-orange-600" />
+                              <span className="text-xs font-semibold text-slate-700">
+                                Home Visit
+                              </span>
+                            </div>
+                          </div>
+                          {(() => {
+                            const fee = doctor.fees.homeVisit;
                             const original = fee.original || 0;
                             const final = fee.final || 0;
                             const discount = fee.discount || 0;
@@ -3438,6 +3532,44 @@ const PatientDoctorDetails = () => {
                           </div>
                         </Card>
                       )}
+
+                    {/* Home Visit Card */}
+                    {doctor.consultationModes?.some(
+                      (m) => normalizeConsultationMode(m) === "HOME_VISIT",
+                    ) && (
+                        <Card
+                          hoverable
+                          className={`cursor-pointer transition-all border-2 rounded-2xl ${appointmentType === "home_visit" ? "border-orange-500 bg-orange-50 shadow-md shadow-orange-500/10" : "border-slate-100"}`}
+                          onClick={() => setAppointmentType("home_visit")}
+                          styles={{ body: { padding: "16px" } }}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div
+                              className={`h-12 w-12 flex items-center justify-center rounded-xl ${appointmentType === "home_visit" ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-500"}`}
+                            >
+                              <EnvironmentOutlined style={{ fontSize: 20 }} />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex justify-between items-center">
+                                <span className="font-bold text-slate-800">
+                                  Home Visit
+                                </span>
+                                <Radio checked={appointmentType === "home_visit"} />
+                              </div>
+                              <div className="flex items-center justify-between mt-1">
+                                <p className="text-xs text-slate-500">
+                                  Doctor visits your home
+                                </p>
+                                <span className="text-sm font-bold text-orange-600">
+                                  {getFeeForDay(dayjs().format('YYYY-MM-DD'), 'home_visit') > 0
+                                    ? `₹${getFeeForDay(dayjs().format('YYYY-MM-DD'), 'home_visit')}`
+                                    : "FREE"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      )}
                   </div>
                 )}
 
@@ -3668,7 +3800,9 @@ const PatientDoctorDetails = () => {
                               ? "inPerson"
                               : normalizedMode === "VIDEO"
                                 ? "videoCall"
-                                : "voiceCall";
+                                : normalizedMode === "HOME_VISIT"
+                                  ? "homeVisit"
+                                  : "voiceCall";
 
                           const dayConfig = Array.isArray(
                             doctor.availabilitySlots[modeKey],

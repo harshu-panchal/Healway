@@ -20,7 +20,7 @@ const doctorSchema = new mongoose.Schema(
     languages: [{ type: String, trim: true }],
     services: [{ type: String, trim: true }],
     isDoctor: { type: Boolean, default: true },
-    consultationModes: [{ type: String, enum: ['in_person', 'video_call', 'voice_call', 'chat', 'call'] }],
+    consultationModes: [{ type: String, enum: ['in_person', 'video_call', 'voice_call', 'chat', 'call', 'home_visit'] }],
     clinicDetails: {
       images: [
         {
@@ -92,6 +92,16 @@ const doctorSchema = new mongoose.Schema(
           enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
           trim: true
         }]
+      },
+      homeVisit: {
+        original: { type: Number, default: 0 },
+        discount: { type: Number, default: 0 },
+        final: { type: Number, default: 0 },
+        selectedDays: [{
+          type: String,
+          enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+          trim: true
+        }]
       }
     },
     // Keep for backward compatibility
@@ -142,10 +152,19 @@ const doctorSchema = new mongoose.Schema(
           isFree: { type: Boolean, default: false }
         }]
       }],
+      homeVisit: [{
+        day: { type: String, enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], trim: true },
+        slots: [{
+          startTime: { type: String, trim: true },
+          endTime: { type: String, trim: true },
+          isFree: { type: Boolean, default: false }
+        }]
+      }],
       // Keep these for tracking selected days at a high level or for backward compatibility
       inPersonSelectedDays: [{ type: String, enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], trim: true }],
       videoCallSelectedDays: [{ type: String, enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], trim: true }],
       voiceCallSelectedDays: [{ type: String, enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], trim: true }],
+      homeVisitSelectedDays: [{ type: String, enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], trim: true }],
       // Backward compatibility fields
       callVideo: {
         startTime: { type: String, trim: true },
@@ -164,7 +183,7 @@ const doctorSchema = new mongoose.Schema(
           {
             consultationType: {
               type: String,
-              enum: ['in_person', 'video_call', 'voice_call', 'call_video'],
+              enum: ['in_person', 'video_call', 'voice_call', 'call_video', 'home_visit'],
               default: 'in_person',
               trim: true
             },
@@ -222,7 +241,7 @@ const doctorSchema = new mongoose.Schema(
           {
             consultationType: {
               type: String,
-              enum: ['in_person', 'video_call', 'voice_call'],
+              enum: ['in_person', 'video_call', 'voice_call', 'home_visit'],
               required: true,
               trim: true
             },

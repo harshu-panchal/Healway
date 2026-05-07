@@ -16,6 +16,13 @@ const DOCTOR_ACCESS_MODES = {
   VISIBLE_UNBOOKABLE: 'visible_unbookable',
 };
 
+const CONSULTATION_MODES = {
+  IN_PERSON: 'in_person',
+  VIDEO_CALL: 'video_call',
+  VOICE_CALL: 'voice_call',
+  HOME_VISIT: 'home_visit',
+};
+
 const OTP_CONFIG = {
   OTP_LENGTH: Number(process.env.OTP_LENGTH) || 4,
   OTP_EXPIRY_MINUTES: Number(process.env.OTP_EXPIRY_MINUTES) || 5,
@@ -49,6 +56,7 @@ module.exports = {
   JOB_NAMES,
   OTP_CONFIG,
   PASSWORD_RESET_CONFIG,
+  CONSULTATION_MODES,
 };
 
 

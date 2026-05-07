@@ -138,6 +138,7 @@ const DoctorProfile = () => {
       inPerson: { original: 0, discount: 0, final: 0, selectedDays: [] },
       videoCall: { original: 0, discount: 0, final: 0, selectedDays: [] },
       voiceCall: { original: 0, discount: 0, final: 0, selectedDays: [] },
+      homeVisit: { original: 0, discount: 0, final: 0, selectedDays: [] },
     },
     // Keep top-level for internal logic if needed, but primary source is now fees object
     original_fees: 0,
@@ -163,9 +164,11 @@ const DoctorProfile = () => {
       inPerson: [], // Array of { day, slots: [] }
       videoCall: [],
       voiceCall: [],
+      homeVisit: [],
       inPersonSelectedDays: [],
       videoCallSelectedDays: [],
       voiceCallSelectedDays: [],
+      homeVisitSelectedDays: [],
       callVideo: { startTime: "", endTime: "" },
       selectedDays: [],
     },
@@ -240,6 +243,16 @@ const DoctorProfile = () => {
               ? doctor.fees.voiceCall.selectedDays
               : [],
           },
+          homeVisit: {
+            original: doctor.fees.homeVisit?.original || 0,
+            discount: doctor.fees.homeVisit?.discount || 0,
+            final: doctor.fees.homeVisit?.final || 0,
+            selectedDays: Array.isArray(
+              doctor.fees.homeVisit?.selectedDays,
+            )
+              ? doctor.fees.homeVisit.selectedDays
+              : [],
+          },
         }
         : {
           inPerson: {
@@ -255,6 +268,12 @@ const DoctorProfile = () => {
             selectedDays: [],
           },
           voiceCall: {
+            original: 0,
+            discount: 0,
+            final: 0,
+            selectedDays: [],
+          },
+          homeVisit: {
             original: 0,
             discount: 0,
             final: 0,
@@ -374,6 +393,32 @@ const DoctorProfile = () => {
                     isFree: !!slot.isFree
                   }))}]
                 : [])),
+          // Handle homeVisit slots
+          homeVisit: Array.isArray(doctor.availabilitySlots.homeVisit) && doctor.availabilitySlots.homeVisit.length > 0 && doctor.availabilitySlots.homeVisit[0].day
+            ? doctor.availabilitySlots.homeVisit.map(dayConfig => ({
+              day: dayConfig.day,
+              slots: Array.isArray(dayConfig.slots) ? dayConfig.slots.map(slot => ({
+                startTime: convert12HourTo24Hour(slot.startTime) || "",
+                endTime: convert12HourTo24Hour(slot.endTime) || "",
+                isFree: !!slot.isFree
+              })) : []
+            }))
+            : (Array.isArray(doctor.availabilitySlots?.homeVisitSelectedDays) && doctor.availabilitySlots.homeVisitSelectedDays.length > 0
+              ? doctor.availabilitySlots.homeVisitSelectedDays.map(day => ({
+                day,
+                slots: Array.isArray(doctor.availabilitySlots.homeVisit) ? doctor.availabilitySlots.homeVisit.map(slot => ({
+                  startTime: convert12HourTo24Hour(slot.startTime) || "",
+                  endTime: convert12HourTo24Hour(slot.endTime) || "",
+                  isFree: !!slot.isFree
+                })) : []
+              }))
+              : (Array.isArray(doctor.availabilitySlots.homeVisit)
+                ? [{ day: (Array.isArray(doctor.availabilitySlots.selectedDays) && doctor.availabilitySlots.selectedDays[0]) || "Monday", slots: doctor.availabilitySlots.homeVisit.map(slot => ({
+                    startTime: convert12HourTo24Hour(slot.startTime) || "",
+                    endTime: convert12HourTo24Hour(slot.endTime) || "",
+                    isFree: !!slot.isFree
+                  }))}]
+                : [])),
           inPersonSelectedDays: Array.isArray(doctor.availabilitySlots?.inPersonSelectedDays)
             ? doctor.availabilitySlots.inPersonSelectedDays
             : [],
@@ -382,6 +427,9 @@ const DoctorProfile = () => {
             : [],
           voiceCallSelectedDays: Array.isArray(doctor.availabilitySlots?.voiceCallSelectedDays)
             ? doctor.availabilitySlots.voiceCallSelectedDays
+            : [],
+          homeVisitSelectedDays: Array.isArray(doctor.availabilitySlots?.homeVisitSelectedDays)
+            ? doctor.availabilitySlots.homeVisitSelectedDays
             : [],
           selectedDays: Array.isArray(doctor.availabilitySlots?.selectedDays)
             ? doctor.availabilitySlots.selectedDays
@@ -430,6 +478,8 @@ const DoctorProfile = () => {
               selectedDays: selectedDays,
               inPersonSelectedDays: inPersonSlotsByDay.map(d => d.day),
               videoCallSelectedDays: videoCallSlotsByDay.map(d => d.day),
+              voiceCallSelectedDays: [],
+              homeVisitSelectedDays: [],
             };
           }
           return { inPerson: [], videoCall: [], voiceCall: [], selectedDays: [] };
@@ -525,6 +575,16 @@ const DoctorProfile = () => {
                     ? cachedProfile.fees.voiceCall.selectedDays
                     : [],
                 },
+                homeVisit: {
+                  original: cachedProfile.fees.homeVisit?.original || 0,
+                  discount: cachedProfile.fees.homeVisit?.discount || 0,
+                  final: cachedProfile.fees.homeVisit?.final || 0,
+                  selectedDays: Array.isArray(
+                    cachedProfile.fees.homeVisit?.selectedDays,
+                  )
+                    ? cachedProfile.fees.homeVisit.selectedDays
+                    : [],
+                },
               }
               : {
                 inPerson: {
@@ -540,6 +600,12 @@ const DoctorProfile = () => {
                   selectedDays: [],
                 },
                 voiceCall: {
+                  original: 0,
+                  discount: 0,
+                  final: 0,
+                  selectedDays: [],
+                },
+                homeVisit: {
                   original: 0,
                   discount: 0,
                   final: 0,
@@ -615,6 +681,18 @@ const DoctorProfile = () => {
                     ? [{
                       startTime: convert12HourTo24Hour(cachedProfile.availabilitySlots.voiceCall.startTime) || "",
                       endTime: convert12HourTo24Hour(cachedProfile.availabilitySlots.voiceCall.endTime) || "",
+                    }]
+                    : [],
+                // Handle homeVisit slots - convert to array if needed
+                homeVisit: Array.isArray(cachedProfile.availabilitySlots.homeVisit)
+                  ? cachedProfile.availabilitySlots.homeVisit.map(slot => ({
+                    startTime: convert12HourTo24Hour(slot.startTime) || "",
+                    endTime: convert12HourTo24Hour(slot.endTime) || "",
+                  }))
+                  : cachedProfile.availabilitySlots.homeVisit?.startTime && cachedProfile.availabilitySlots.homeVisit?.endTime
+                    ? [{
+                      startTime: convert12HourTo24Hour(cachedProfile.availabilitySlots.homeVisit.startTime) || "",
+                      endTime: convert12HourTo24Hour(cachedProfile.availabilitySlots.homeVisit.endTime) || "",
                     }]
                     : [],
                 // Keep callVideo for backward compatibility
@@ -731,6 +809,16 @@ const DoctorProfile = () => {
                     ? doctor.fees.voiceCall.selectedDays
                     : [],
                 },
+                homeVisit: {
+                  original: doctor.fees.homeVisit?.original || 0,
+                  discount: doctor.fees.homeVisit?.discount || 0,
+                  final: doctor.fees.homeVisit?.final || 0,
+                  selectedDays: Array.isArray(
+                    doctor.fees.homeVisit?.selectedDays,
+                  )
+                    ? doctor.fees.homeVisit.selectedDays
+                    : [],
+                },
               }
               : {
                 inPerson: {
@@ -746,6 +834,12 @@ const DoctorProfile = () => {
                   selectedDays: [],
                 },
                 voiceCall: {
+                  original: 0,
+                  discount: 0,
+                  final: 0,
+                  selectedDays: [],
+                },
+                homeVisit: {
                   original: 0,
                   discount: 0,
                   final: 0,
@@ -3154,9 +3248,138 @@ const DoctorProfile = () => {
                                   </p>
                                 </div>
                               )}
+                        </div>
+
+                        {/* Home Visit Fee */}
+                        <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-200 border-l-4 border-l-emerald-400">
+                          <h4 className="text-[11px] font-bold text-emerald-600 mb-3 flex items-center gap-1.5 uppercase tracking-wider">
+                            <IoLocationOutline className="h-3.5 w-3.5" />
+                            Home Visit
+                          </h4>
+                          <div className="space-y-3">
+                            <div>
+                              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                                Base Fee (₹)
+                              </label>
+                              {isEditing ? (
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={formData.fees.homeVisit.original || ""}
+                                  onChange={(e) =>
+                                    handleInputChange(
+                                      "fees.homeVisit.original",
+                                      e.target.value,
+                                    )
+                                  }
+                                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition focus:ring-2 focus:ring-emerald-500/20"
+                                />
+                              ) : (
+                                <p className="text-sm font-bold text-slate-900">
+                                  ₹{formData.fees.homeVisit.original || 0}
+                                </p>
+                              )}
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                                Discount (₹)
+                              </label>
+                              {isEditing ? (
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={formData.fees.homeVisit.discount || ""}
+                                  onChange={(e) =>
+                                    handleInputChange(
+                                      "fees.homeVisit.discount",
+                                      e.target.value,
+                                    )
+                                  }
+                                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition focus:ring-2 focus:ring-emerald-500/20"
+                                />
+                              ) : (
+                                <p className="text-sm font-bold text-emerald-600">
+                                  ₹{formData.fees.homeVisit.discount || 0}
+                                </p>
+                              )}
+                            </div>
+                            <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase">
+                                Final
+                              </span>
+                              <span className="text-sm font-black text-emerald-600">
+                                ₹{formData.fees.homeVisit.final}
+                              </span>
+                            </div>
+                            {isEditing && (
+                              <div className="pt-2 border-t border-slate-200">
+                                <label className="mb-2 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                                  Select Days
+                                </label>
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  {[
+                                    "Monday",
+                                    "Tuesday",
+                                    "Wednesday",
+                                    "Thursday",
+                                    "Friday",
+                                    "Saturday",
+                                    "Sunday",
+                                  ].map((day) => (
+                                    <label
+                                      key={day}
+                                      className="flex items-center gap-1.5 cursor-pointer"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={
+                                          formData.fees.homeVisit.selectedDays?.includes(
+                                            day,
+                                          ) || false
+                                        }
+                                        onChange={(e) => {
+                                          const currentDays =
+                                            formData.fees.homeVisit
+                                              .selectedDays || [];
+                                          const newDays = e.target.checked
+                                            ? [...currentDays, day]
+                                            : currentDays.filter(
+                                              (d) => d !== day,
+                                            );
+                                          handleInputChange(
+                                            "fees.homeVisit.selectedDays",
+                                            newDays,
+                                          );
+                                        }}
+                                        className="h-3 w-3 rounded border-slate-300 text-emerald-600 focus:ring-1 focus:ring-emerald-500"
+                                      />
+                                      <span className="text-[9px] text-slate-700">
+                                        {day.substring(0, 3)}
+                                      </span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {!isEditing &&
+                              formData.fees.homeVisit.selectedDays &&
+                              formData.fees.homeVisit.selectedDays.length >
+                              0 && (
+                                <div className="pt-2 border-t border-slate-200">
+                                  <p className="text-[9px] text-slate-500 mb-1">
+                                    Selected Days:
+                                  </p>
+                                  <p className="text-[10px] text-slate-700">
+                                    {formData.fees.homeVisit.selectedDays.join(
+                                      ", ",
+                                    )}
+                                  </p>
+                                </div>
+                              )}
                           </div>
                         </div>
                       </div>
+                    </div>
                     </div>
                   </div>
 
@@ -3896,7 +4119,8 @@ const DoctorProfile = () => {
                         {[
                           { id: "inPerson", label: "In-Person Consultation", icon: IoPersonOutline, color: "primary" },
                           { id: "videoCall", label: "Video Call Consultation", icon: IoVideocamOutline, color: "blue-600" },
-                          { id: "voiceCall", label: "Voice Call Consultation", icon: IoCallOutline, color: "indigo-600" }
+                          { id: "voiceCall", label: "Voice Call Consultation", icon: IoCallOutline, color: "indigo-600" },
+                          { id: "homeVisit", label: "Home Visit Consultation", icon: IoLocationOutline, color: "emerald-600" }
                         ].map((mode) => {
                           const Icon = mode.icon;
                           const selectedDays = formData.availabilitySlots?.[`${mode.id}SelectedDays`] || [];
@@ -4053,7 +4277,8 @@ const DoctorProfile = () => {
                         {[
                           { id: "inPerson", label: "In-Person Consultation", icon: IoPersonOutline, color: "primary" },
                           { id: "videoCall", label: "Video Call Consultation", icon: IoVideocamOutline, color: "blue-600" },
-                          { id: "voiceCall", label: "Voice Call Consultation", icon: IoCallOutline, color: "indigo-600" }
+                          { id: "voiceCall", label: "Voice Call Consultation", icon: IoCallOutline, color: "indigo-600" },
+                          { id: "homeVisit", label: "Home Visit Consultation", icon: IoLocationOutline, color: "emerald-600" }
                         ].map((mode) => {
                           const Icon = mode.icon;
                           const modeData = formData.availabilitySlots?.[mode.id] || [];
@@ -4095,7 +4320,8 @@ const DoctorProfile = () => {
                         })}
                         {(!formData.availabilitySlots?.inPerson || formData.availabilitySlots.inPerson.length === 0) &&
                           (!formData.availabilitySlots?.videoCall || formData.availabilitySlots.videoCall.length === 0) &&
-                          (!formData.availabilitySlots?.voiceCall || formData.availabilitySlots.voiceCall.length === 0) && (
+                          (!formData.availabilitySlots?.voiceCall || formData.availabilitySlots.voiceCall.length === 0) &&
+                          (!formData.availabilitySlots?.homeVisit || formData.availabilitySlots.homeVisit.length === 0) && (
                             <p className="text-xs text-slate-500">
                               No availability set
                             </p>

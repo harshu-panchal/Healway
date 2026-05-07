@@ -336,6 +336,11 @@ exports.createDoctor = asyncHandler(async (req, res) => {
         discount: fees?.voiceCall?.discount ?? 0,
         final: fees?.voiceCall?.final ?? 0,
       },
+      homeVisit: {
+        original: fees?.homeVisit?.original ?? 0,
+        discount: fees?.homeVisit?.discount ?? 0,
+        final: fees?.homeVisit?.final ?? 0,
+      },
     },
     isDoctor: Boolean(isDoctor),
     status: APPROVAL_STATUS.APPROVED,
@@ -744,6 +749,7 @@ exports.updateDoctor = asyncHandler(async (req, res) => {
     const existingInPerson = existingFees.inPerson || {};
     const existingVideoCall = existingFees.videoCall || {};
     const existingVoiceCall = existingFees.voiceCall || {};
+    const existingHomeVisit = existingFees.homeVisit || {};
 
     doctor.fees = {
       ...existingFees,
@@ -764,6 +770,12 @@ exports.updateDoctor = asyncHandler(async (req, res) => {
         original: fees?.voiceCall?.original ?? existingVoiceCall.original ?? 0,
         discount: fees?.voiceCall?.discount ?? existingVoiceCall.discount ?? 0,
         final: fees?.voiceCall?.final ?? existingVoiceCall.final ?? 0,
+      },
+      homeVisit: {
+        ...existingHomeVisit,
+        original: fees?.homeVisit?.original ?? existingHomeVisit.original ?? 0,
+        discount: fees?.homeVisit?.discount ?? existingHomeVisit.discount ?? 0,
+        final: fees?.homeVisit?.final ?? existingHomeVisit.final ?? 0,
       },
     };
   }

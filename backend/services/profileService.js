@@ -141,26 +141,30 @@ const mergeObjects = (existingValue, newValue) => {
     newValue.inPersonSelectedDays !== undefined ||
     newValue.videoCallSelectedDays !== undefined ||
     newValue.voiceCallSelectedDays !== undefined ||
+    newValue.homeVisitSelectedDays !== undefined ||
     newValue.inPerson !== undefined ||
     newValue.videoCall !== undefined ||
     newValue.voiceCall !== undefined ||
+    newValue.homeVisit !== undefined ||
     newValue.callVideo !== undefined
   ) && (
     // Check if any of the mode fields are arrays (which means it's availabilitySlots, not fees)
     Array.isArray(newValue.inPerson) || 
     Array.isArray(newValue.videoCall) || 
     Array.isArray(newValue.voiceCall) ||
+    Array.isArray(newValue.homeVisit) ||
     // Or if it has day-specific selected days
     newValue.inPersonSelectedDays !== undefined ||
     newValue.videoCallSelectedDays !== undefined ||
-    newValue.voiceCallSelectedDays !== undefined
+    newValue.voiceCallSelectedDays !== undefined ||
+    newValue.homeVisitSelectedDays !== undefined
   );
 
   if (isAvailabilitySlots) {
     const merged = { ...base, ...newValue };
 
     // Sort selectedDays if present
-    const dayFields = ['selectedDays', 'inPersonSelectedDays', 'videoCallSelectedDays', 'voiceCallSelectedDays'];
+    const dayFields = ['selectedDays', 'inPersonSelectedDays', 'videoCallSelectedDays', 'voiceCallSelectedDays', 'homeVisitSelectedDays'];
 
     const dayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -175,7 +179,7 @@ const mergeObjects = (existingValue, newValue) => {
     });
 
     // Sort day-wise slots for each mode
-    ['inPerson', 'videoCall', 'voiceCall'].forEach(modeField => {
+    ['inPerson', 'videoCall', 'voiceCall', 'homeVisit'].forEach(modeField => {
       if (Array.isArray(merged[modeField])) {
         merged[modeField].sort((a, b) => dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day));
       }
@@ -185,7 +189,7 @@ const mergeObjects = (existingValue, newValue) => {
   }
 
   // Special handling for fees object to ensure all consultation types are preserved
-  if (newValue && typeof newValue === 'object' && (newValue.inPerson !== undefined || newValue.videoCall !== undefined || newValue.voiceCall !== undefined)) {
+  if (newValue && typeof newValue === 'object' && (newValue.inPerson !== undefined || newValue.videoCall !== undefined || newValue.voiceCall !== undefined || newValue.homeVisit !== undefined)) {
     const merged = { ...base };
 
     // Merge each fee type individually to preserve structure
@@ -267,6 +271,33 @@ const mergeObjects = (existingValue, newValue) => {
         } else {
           // Ensure it's an array
           merged.voiceCall.selectedDays = [];
+        }
+      }
+    }
+    if (newValue.homeVisit !== undefined) {
+      // If homeVisit is explicitly set (even if null or empty object), merge it
+      if (newValue.homeVisit === null) {
+        merged.homeVisit = null;
+      } else if (typeof newValue.homeVisit === 'object') {
+        // Preserve existing homeVisit fields if they exist
+        const existingHomeVisit = base.homeVisit || {};
+        merged.homeVisit = { ...existingHomeVisit, ...newValue.homeVisit };
+
+        // Always process selectedDays if homeVisit object is provided
+        if (newValue.homeVisit.selectedDays !== undefined) {
+          // Explicitly set selectedDays - handle empty arrays
+          merged.homeVisit.selectedDays = Array.isArray(newValue.homeVisit.selectedDays)
+            ? sortDays(newValue.homeVisit.selectedDays)
+            : [];
+        } else if (merged.homeVisit.selectedDays === undefined) {
+          // If not provided and doesn't exist, set to empty array
+          merged.homeVisit.selectedDays = [];
+        } else if (Array.isArray(merged.homeVisit.selectedDays)) {
+          // Sort existing selectedDays
+          merged.homeVisit.selectedDays = sortDays(merged.homeVisit.selectedDays);
+        } else {
+          // Ensure it's an array
+          merged.homeVisit.selectedDays = [];
         }
       }
     }
@@ -456,10 +487,22 @@ const applyDoctorUpdates = async (doc, updates, Model) => {
             });
           }
         }
+        if (doc.fees.homeVisit !== undefined) {
+          doc.markModified('fees.homeVisit');
+          if (doc.fees.homeVisit.selectedDays !== undefined) {
+            doc.markModified('fees.homeVisit.selectedDays');
+            console.log('📝 Marking fees.homeVisit.selectedDays as modified:', {
+              doctorId: doc._id?.toString(),
+              selectedDays: doc.fees.homeVisit.selectedDays,
+              isArray: Array.isArray(doc.fees.homeVisit.selectedDays),
+              length: Array.isArray(doc.fees.homeVisit.selectedDays) ? doc.fees.homeVisit.selectedDays.length : 'N/A'
+            });
+          }
+        }
       }
       // For availabilitySlots, mark nested paths
       if (field === 'availabilitySlots' && doc.availabilitySlots) {
-        const dayFields = ['selectedDays', 'inPersonSelectedDays', 'videoCallSelectedDays', 'voiceCallSelectedDays'];
+        const dayFields = ['selectedDays', 'inPersonSelectedDays', 'videoCallSelectedDays', 'voiceCallSelectedDays', 'homeVisitSelectedDays'];
         dayFields.forEach(dayField => {
           if (doc.availabilitySlots[dayField] !== undefined) {
             doc.markModified(`availabilitySlots.${dayField}`);
@@ -468,6 +511,7 @@ const applyDoctorUpdates = async (doc, updates, Model) => {
         if (doc.availabilitySlots.inPerson) doc.markModified('availabilitySlots.inPerson');
         if (doc.availabilitySlots.videoCall) doc.markModified('availabilitySlots.videoCall');
         if (doc.availabilitySlots.voiceCall) doc.markModified('availabilitySlots.voiceCall');
+        if (doc.availabilitySlots.homeVisit) doc.markModified('availabilitySlots.homeVisit');
         if (doc.availabilitySlots.callVideo) doc.markModified('availabilitySlots.callVideo');
       }
     }

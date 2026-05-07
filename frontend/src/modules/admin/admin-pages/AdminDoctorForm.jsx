@@ -90,6 +90,7 @@ const AdminDoctorForm = () => {
       inPerson: { original: '', discount: 0, final: 0 },
       videoCall: { original: '', discount: 0, final: 0 },
       voiceCall: { original: '', discount: 0, final: 0 },
+      homeVisit: { original: '', discount: 0, final: 0 },
     },
     referenceName: '',
   })
@@ -186,6 +187,11 @@ const AdminDoctorForm = () => {
               original: doctor.fees?.voiceCall?.original ?? '', 
               discount: doctor.fees?.voiceCall?.discount ?? 0, 
               final: doctor.fees?.voiceCall?.final ?? 0 
+            },
+            homeVisit: { 
+              original: doctor.fees?.homeVisit?.original ?? '', 
+              discount: doctor.fees?.homeVisit?.discount ?? 0, 
+              final: doctor.fees?.homeVisit?.final ?? 0 
             },
           },
           referenceName: doctor.referenceName || '',
@@ -396,6 +402,7 @@ const AdminDoctorForm = () => {
       if (mode === 'in_person') return formData.fees.inPerson.original !== ''
       if (mode === 'voice_call') return formData.fees.voiceCall.original !== ''
       if (mode === 'video_call') return formData.fees.videoCall.original !== ''
+      if (mode === 'home_visit') return formData.fees.homeVisit.original !== ''
       return true
     })
 
@@ -479,6 +486,11 @@ const AdminDoctorForm = () => {
             original: formData.fees.voiceCall.original ? Number(formData.fees.voiceCall.original) : 0,
             discount: Number(formData.fees.voiceCall.discount || 0),
             final: formData.fees.voiceCall.original ? Number(formData.fees.voiceCall.original) - Number(formData.fees.voiceCall.discount || 0) : 0,
+          },
+          homeVisit: {
+            original: formData.fees.homeVisit.original ? Number(formData.fees.homeVisit.original) : 0,
+            discount: Number(formData.fees.homeVisit.discount || 0),
+            final: formData.fees.homeVisit.original ? Number(formData.fees.homeVisit.original) - Number(formData.fees.homeVisit.discount || 0) : 0,
           },
         },
         referenceName: formData.referenceName || '',
@@ -930,6 +942,7 @@ const AdminDoctorForm = () => {
                     { value: 'in_person', label: 'Clinic Visit', icon: IoPersonOutline },
                     { value: 'voice_call', label: 'Voice Call', icon: IoCallOutline },
                     { value: 'video_call', label: 'Video Call', icon: IoVideocamOutline },
+                    { value: 'home_visit', label: 'Home Visit', icon: IoLocationOutline },
                   ].map(mode => (
                     <label 
                       key={mode.value} 
@@ -1000,6 +1013,21 @@ const AdminDoctorForm = () => {
                             onChange={(e) => handleInputChange('fees.videoCall.original', e.target.value)}
                             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
                             placeholder="e.g. 400"
+                          />
+                        </div>
+                      )}
+                      {formData.consultationModes.includes('home_visit') && (
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
+                            <IoLocationOutline className="h-3 w-3" /> Home Visit Fee
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.fees.homeVisit.original}
+                            onChange={(e) => handleInputChange('fees.homeVisit.original', e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+                            placeholder="e.g. 1000"
                           />
                         </div>
                       )}

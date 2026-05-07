@@ -196,6 +196,7 @@ const DoctorSlotManagement = () => {
             in_person: 'In-Person',
             video_call: 'Video Call',
             voice_call: 'Voice Call',
+            home_visit: 'Home Visit',
         };
         return labels[type] || type;
     };
@@ -205,6 +206,7 @@ const DoctorSlotManagement = () => {
             in_person: '#4CAF50',
             video_call: '#2196F3',
             voice_call: '#FF9800',
+            home_visit: '#10B981',
         };
         return colors[type] || '#757575';
     };
@@ -257,6 +259,7 @@ const DoctorSlotManagement = () => {
                                 <option value="in_person">In-Person</option>
                                 <option value="video_call">Video Call</option>
                                 <option value="voice_call">Voice Call</option>
+                                <option value="home_visit">Home Visit</option>
                             </select>
                         </div>
 

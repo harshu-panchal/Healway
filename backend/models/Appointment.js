@@ -28,7 +28,7 @@ const appointmentSchema = new mongoose.Schema(
     },
     consultationMode: {
       type: String,
-      enum: ['in_person', 'video_call', 'call', 'IN_PERSON', 'VIDEO', 'CALL'], // Support both old and new formats
+      enum: ['in_person', 'video_call', 'call', 'home_visit', 'IN_PERSON', 'VIDEO', 'CALL', 'HOME_VISIT'], // Support both old and new formats
       default: 'in_person',
     },
     // Patient Details (for 'Someone Else' booking)
@@ -193,7 +193,7 @@ const appointmentSchema = new mongoose.Schema(
 appointmentSchema.pre('save', function (next) {
   // Normalize consultation mode
   const mode = this.consultationMode?.toUpperCase();
-  const isInPerson = mode === 'IN_PERSON' || mode === 'INPERSON';
+  const isInPerson = mode === 'IN_PERSON' || mode === 'INPERSON' || mode === 'HOME_VISIT';
   const isCallOrVideo = mode === 'CALL' || mode === 'VIDEO' || mode === 'VIDEO_CALL' || mode === 'VOICE_CALL';
 
   // For IN_PERSON: Enforce strict rules

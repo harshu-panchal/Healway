@@ -28,6 +28,7 @@ const normalizeConsultationMode = (mode) => {
   const normalized = mode.toUpperCase();
   if (normalized === 'VIDEO_CALL' || normalized === 'VIDEO') return 'VIDEO';
   if (normalized === 'VOICE_CALL' || normalized === 'CALL') return 'CALL';
+  if (normalized === 'HOME_VISIT' || normalized === 'HOME') return 'HOME_VISIT';
   if (normalized === 'IN_PERSON') return 'IN_PERSON';
   // Backward compatibility
   if (normalized === 'INPERSON') return 'IN_PERSON';
@@ -66,6 +67,9 @@ const getSessionSlots = (doctor, appointmentDate, consultationMode) => {
     } else if (mode === 'CALL') {
       modeSpecificDays = doctor.availabilitySlots.voiceCallSelectedDays || [];
       modeArray = doctor.availabilitySlots.voiceCall || [];
+    } else if (mode === 'HOME_VISIT') {
+      modeSpecificDays = doctor.availabilitySlots.homeVisitSelectedDays || [];
+      modeArray = doctor.availabilitySlots.homeVisit || [];
     }
 
     let dayIncluded = Array.isArray(modeSpecificDays) &&
@@ -91,6 +95,7 @@ const getSessionSlots = (doctor, appointmentDate, consultationMode) => {
       if (mode === 'IN_PERSON') modeFeeBlock = doctor.fees.inPerson;
       if (mode === 'VIDEO') modeFeeBlock = doctor.fees.videoCall;
       if (mode === 'CALL') modeFeeBlock = doctor.fees.voiceCall;
+      if (mode === 'HOME_VISIT') modeFeeBlock = doctor.fees.homeVisit;
 
       if (modeFeeBlock && Array.isArray(modeFeeBlock.selectedDays)) {
         dayIncluded = modeFeeBlock.selectedDays.some(day => day && day.toLowerCase() === dayNameLower);
@@ -122,6 +127,13 @@ const getSessionSlots = (doctor, appointmentDate, consultationMode) => {
         } else {
           slots = doctor.availabilitySlots.voiceCall;
         }
+      } else if (mode === 'HOME_VISIT' && Array.isArray(doctor.availabilitySlots.homeVisit)) {
+        if (doctor.availabilitySlots.homeVisit.length > 0 && doctor.availabilitySlots.homeVisit[0].day) {
+          const dayConfig = doctor.availabilitySlots.homeVisit.find(d => d.day && d.day.toLowerCase() === dayNameLower);
+          slots = dayConfig ? (dayConfig.slots || []) : [];
+        } else {
+          slots = doctor.availabilitySlots.homeVisit;
+        }
       } else if ((mode === 'VIDEO' || mode === 'CALL') && doctor.availabilitySlots.callVideo && !Array.isArray(doctor.availabilitySlots.videoCall) && !Array.isArray(doctor.availabilitySlots.voiceCall)) {
         if (doctor.availabilitySlots.callVideo.startTime) {
           return [{
@@ -152,8 +164,8 @@ const getSessionSlots = (doctor, appointmentDate, consultationMode) => {
           s.consultationType === 'video_call' || 
           s.consultationType === 'voice_call'
         );
-      } else if (mode === 'IN_PERSON') {
-        slot = dayAvailability.slots?.find(s => s.consultationType === 'in_person');
+      } else if (mode === 'IN_PERSON' || mode === 'HOME_VISIT') {
+        slot = dayAvailability.slots?.find(s => s.consultationType === 'in_person' || s.consultationType === 'home_visit');
       }
 
       if (slot && slot.startTime) {
@@ -580,10 +592,10 @@ exports.createAppointment = asyncHandler(async (req, res) => {
     }
   }
 
-  // Get clinic times for IN_PERSON - Use 1st slot for backward compat
+  // Get clinic times for IN_PERSON or HOME_VISIT - Use 1st slot for backward compat
   let clinicStartTime = null;
   let clinicEndTime = null;
-  if (normalizedMode === 'IN_PERSON') {
+  if (normalizedMode === 'IN_PERSON' || normalizedMode === 'HOME_VISIT') {
     const slots = getSessionSlots(doctor, parsedAppointmentDate, normalizedMode);
     if (slots.length > 0) {
       clinicStartTime = slots[0].startTime;
@@ -598,6 +610,7 @@ exports.createAppointment = asyncHandler(async (req, res) => {
   let feeType = 'inPerson';
   if (normalizedMode === 'VIDEO') feeType = 'videoCall';
   if (normalizedMode === 'CALL') feeType = 'voiceCall';
+  if (normalizedMode === 'HOME_VISIT') feeType = 'homeVisit';
 
   // Check if this day requires payment (fees structure days)
   let calculatedFee = 0;

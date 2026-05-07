@@ -800,6 +800,26 @@ exports.updateDoctorProfile = asyncHandler(async (req, res) => {
         }
       }
 
+      // Sort selectedDays for homeVisit - handle empty arrays explicitly
+      if (processedFees.homeVisit !== undefined) {
+        if (processedFees.homeVisit === null) {
+          // Keep null as is
+        } else if (typeof processedFees.homeVisit === 'object') {
+          processedFees.homeVisit = { ...processedFees.homeVisit };
+          // Always process selectedDays if homeVisit object is provided
+          if (processedFees.homeVisit.selectedDays !== undefined) {
+            processedFees.homeVisit.selectedDays = Array.isArray(processedFees.homeVisit.selectedDays)
+              ? sortDays(processedFees.homeVisit.selectedDays)
+              : [];
+            console.log('✅ Processed homeVisit.selectedDays:', processedFees.homeVisit.selectedDays);
+          } else {
+            // If selectedDays not provided but homeVisit object is, ensure it's an empty array
+            processedFees.homeVisit.selectedDays = [];
+            console.log('⚠️ homeVisit.selectedDays not provided, setting to empty array');
+          }
+        }
+      }
+
       updates.fees = processedFees;
       console.log('💰 Final processed fees:', JSON.stringify(processedFees, null, 2));
     }
