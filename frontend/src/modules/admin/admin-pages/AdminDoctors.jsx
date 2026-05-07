@@ -115,6 +115,8 @@ const AdminDoctors = () => {
           registeredAt: doctor.createdAt || new Date().toISOString(),
           rejectionReason: doctor.rejectionReason || '',
           referenceName: doctor.referenceName || '',
+          followersCount: doctor.followerCount || 0,
+          profileViews: doctor.viewCount || 0,
         }))
         setAllDoctors(allTransformed)
       }
@@ -166,6 +168,8 @@ const AdminDoctors = () => {
           registeredAt: doctor.createdAt || new Date().toISOString(),
           rejectionReason: doctor.rejectionReason || '',
           referenceName: doctor.referenceName || '',
+          followersCount: doctor.followerCount || 0,
+          profileViews: doctor.viewCount || 0,
         }))
         setDoctors(transformedDoctors)
         setTotalPages(pagination.totalPages || 1)
@@ -924,6 +928,32 @@ const AdminDoctors = () => {
                         {statsFilter === 'today' ? 'Today' : 'All time'}
                       </p>
                     </div>
+
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 p-5 rounded-xl border border-purple-200/50 shadow-sm">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500 shadow-lg">
+                          <IoPeopleOutline className="h-6 w-6 text-white" />
+                        </div>
+                      </div>
+                      <p className="text-sm font-medium text-purple-700 mb-1">Total Followers</p>
+                      <p className="text-3xl font-black text-purple-900">
+                        {doctorStats.followerCount || 0}
+                      </p>
+                      <p className="text-xs text-purple-600 mt-2">All time</p>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 p-5 rounded-xl border border-amber-200/50 shadow-sm">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500 shadow-lg">
+                          <IoEyeOutline className="h-6 w-6 text-white" />
+                        </div>
+                      </div>
+                      <p className="text-sm font-medium text-amber-700 mb-1">Profile Views</p>
+                      <p className="text-3xl font-black text-amber-900">
+                        {doctorStats.viewCount || 0}
+                      </p>
+                      <p className="text-xs text-amber-600 mt-2">All time</p>
+                    </div>
                   </div>
 
                   {doctorStats.stats.statusBreakdown && Object.keys(doctorStats.stats.statusBreakdown).length > 0 && (
@@ -1237,9 +1267,20 @@ const DoctorItem = ({
               </div>
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
-            <span>Consultations: {doctor.totalConsultations}</span>
-            <span>Registered: {formatDate(doctor.registeredAt)}</span>
+          <div className="mt-3 flex items-center gap-4 text-xs font-medium">
+            <span className="flex items-center gap-1 text-slate-500">
+              <IoCalendarOutline className="h-3 w-3" />
+              Consultations: <span className="text-slate-900">{doctor.totalConsultations}</span>
+            </span>
+            <span className="flex items-center gap-1 text-slate-500">
+              <IoPeopleOutline className="h-3 w-3" />
+              Followers: <span className="text-primary font-bold">{doctor.followersCount}</span>
+            </span>
+            <span className="flex items-center gap-1 text-slate-500">
+              <IoEyeOutline className="h-3 w-3" />
+              Views: <span className="text-blue-600 font-bold">{doctor.profileViews}</span>
+            </span>
+            <span className="ml-auto text-slate-400">Registered: {formatDate(doctor.registeredAt)}</span>
           </div>
         </div>
       </div>

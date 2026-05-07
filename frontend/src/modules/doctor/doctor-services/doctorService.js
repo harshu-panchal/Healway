@@ -948,6 +948,50 @@ export const getAvailableSlots = async (date) => {
   }
 }
 
+/**
+ * Get analytics summary
+ * @returns {Promise<object>}
+ */
+export const getAnalyticsSummary = async () => {
+  try {
+    const response = await apiClient.get('/doctors/analytics/summary')
+    return response
+  } catch (error) {
+    console.error('Error fetching analytics summary:', error)
+    throw error
+  }
+}
+
+/**
+ * Get followers list
+ * @param {object} params - Query params (limit, page)
+ * @returns {Promise<object>}
+ */
+export const getFollowersList = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/doctors/analytics/followers', params)
+    return response
+  } catch (error) {
+    console.error('Error fetching followers list:', error)
+    throw error
+  }
+}
+
+/**
+ * Get analytics charts data
+ * @param {object} params - Query params (timeframe)
+ * @returns {Promise<object>}
+ */
+export const getAnalyticsCharts = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/doctors/analytics/charts', params)
+    return response
+  } catch (error) {
+    console.error('Error fetching analytics charts:', error)
+    throw error
+  }
+}
+
 // ============== PATIENT AUTH (Unified Login) ==============
 
 // Create a separate patient API client for patient auth calls
@@ -1015,6 +1059,11 @@ export const loginPatientFromDoctor = async (credentials) => {
 export const storePatientTokensFromDoctor = (tokens, remember = true) => {
   storeTokens('patient', tokens, remember)
 }
+
+/**
+ * Get states list
+ * @returns {Promise<Array>}
+ */
 export const getStates = async () => {
   try {
     const response = await apiClient.get('/location/state')

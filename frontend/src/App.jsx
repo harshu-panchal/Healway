@@ -39,6 +39,7 @@ const PatientAppointments = lazy(() => import('./modules/patient/patient-pages/P
 const PatientAnnouncements = lazy(() => import('./modules/patient/patient-pages/PatientAnnouncements'))
 
 const PatientSupport = lazy(() => import('./modules/patient/patient-pages/PatientSupport'))
+const PatientFollowedDoctors = lazy(() => import('./modules/patient/patient-pages/PatientFollowedDoctors'))
 
 
 // Doctor Pages
@@ -64,6 +65,7 @@ const MedicalGuidelines = lazy(() => import('./modules/doctor/doctor-pages/Medic
 const DoctorFAQ = lazy(() => import('./modules/doctor/doctor-pages/DoctorFAQ'))
 const HIPAACompliance = lazy(() => import('./modules/doctor/doctor-pages/HIPAACompliance'))
 const DataProtection = lazy(() => import('./modules/doctor/doctor-pages/DataProtection'))
+const DoctorBusinessAnalytics = lazy(() => import('./modules/doctor/doctor-pages/DoctorBusinessAnalytics'))
 
 
 
@@ -144,6 +146,9 @@ function PatientRoutes() {
           } />
           <Route path="/specialties" element={
             <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><PatientSpecialties /></ProtectedRoute></Suspense>
+          } />
+          <Route path="/followed-doctors" element={
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><PatientFollowedDoctors /></ProtectedRoute></Suspense>
           } />
           <Route path="/specialties/:specialtyId/doctors" element={
             <Suspense fallback={<PageLoader />}><ProtectedRoute module="patient"><PatientSpecialtyDoctors /></ProtectedRoute></Suspense>
@@ -368,6 +373,16 @@ function DoctorRoutes() {
                 <Suspense fallback={<PageLoader />}>
                   <ProtectedRoute module="doctor">
                     <DoctorDashboard />
+                  </ProtectedRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <ProtectedRoute module="doctor">
+                    <DoctorBusinessAnalytics />
                   </ProtectedRoute>
                 </Suspense>
               }

@@ -9,6 +9,7 @@ import {
   IoReceiptOutline,
   IoArchiveOutline,
   IoMegaphoneOutline,
+  IoHeartOutline,
 } from 'react-icons/io5'
 import healwayLogo from '../../../assets/logo/healway-logo.png'
 import PatientSidebar from './PatientSidebar'
@@ -24,13 +25,14 @@ const allNavItems = [
   { id: 'announcements', label: 'Announcements', to: '/patient/announcements', Icon: IoMegaphoneOutline },
   { id: 'doctors', label: 'Doctors', to: '/patient/doctors', Icon: IoPeopleOutline },
   { id: 'transactions', label: 'Transactions', to: '/patient/transactions', Icon: IoReceiptOutline },
+  { id: 'following', label: 'Following', to: '/patient/followed-doctors', Icon: IoHeartOutline },
   { id: 'support', label: 'Support', to: '/patient/support', Icon: IoHelpCircleOutline },
   { id: 'profile', label: 'Profile', to: '/patient/profile', Icon: IoPersonCircleOutline },
 ]
 
-// Nav items for mobile bottom navbar ONLY (excludes Support)
+// Nav items for mobile bottom navbar ONLY (excludes Support and Following)
 // Note: Sidebar uses allNavItems, bottom nav uses navItems
-const navItems = allNavItems.filter((item) => item.id !== 'support')
+const navItems = allNavItems.filter((item) => item.id !== 'support' && item.id !== 'following')
 
 const PatientNavbar = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -102,7 +104,7 @@ const PatientNavbar = () => {
             />
           </div>
           <nav className="hidden items-center gap-2 rounded-full bg-white/90 px-2 py-1 shadow-lg ring-1 ring-slate-200 md:flex" style={{ boxShadow: '0 10px 15px -3px var(--color-primary-surface), 0 4px 6px -2px rgba(0, 119, 194, 0.05)' }}>
-            {allNavItems.map(({ id, label, to, Icon }) => (
+            {allNavItems.filter(item => item.id !== 'following').map(({ id, label, to, Icon }) => (
               <NavLink
                 key={id}
                 to={to}

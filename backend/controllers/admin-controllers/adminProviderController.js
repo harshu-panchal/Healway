@@ -478,6 +478,8 @@ exports.getDoctorStats = asyncHandler(async (req, res) => {
     data: {
       doctorId: id,
       doctorName: `${doctor.firstName} ${doctor.lastName || ''}`.trim(),
+      followerCount: doctor.followerCount || 0,
+      viewCount: doctor.viewCount || 0,
       filter,
       stats: {
         totalPatients,
@@ -918,6 +920,38 @@ exports.getPendingVerifications = asyncHandler(async (req, res) => {
     data: {
       doctors,
     },
+  });
+});
+
+/**
+ * GET /api/admin/doctors-popularity - Get all doctors with followers and views count
+ */
+exports.getDoctorPopularityStats = asyncHandler(async (req, res) => {
+  const { page, limit, skip } = buildPagination(req);
+  const { sortBy = 'followerCount', sortOrder = 'desc' } = req.query;
+
+  const sort = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
+
+  const [items, total] = await Promise.all([
+    Doctor.find({ status: APPROVAL_STATUS.APPROVED })
+      .select('firstName lastName specialization profileImage followerCount viewCount createdAt')
+      .sort(sort)
+      .skip(skip)
+      .limit(limit),
+    Doctor.countDocuments({ status: APPROVAL_STATUS.APPROVED }),
+  ]);
+
+  return res.status(200).json({
+    success: true,
+    data: {
+      items,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit) || 1
+      }
+    }
   });
 });
 

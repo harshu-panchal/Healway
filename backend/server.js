@@ -207,6 +207,10 @@ app.use(
   "/api/doctors/announcements",
   require("./routes/doctor-routes/announcement.routes")
 );
+app.use(
+  "/api/doctors/analytics",
+  require("./routes/doctor-routes/analytics.routes")
+);
 
 
 

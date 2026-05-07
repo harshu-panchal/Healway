@@ -4,6 +4,8 @@ const Appointment = require('../../models/Appointment');
 const Specialty = require('../../models/Specialty');
 const City = require('../../models/City');
 const State = require('../../models/State');
+const Follow = require('../../models/Follow');
+const ProfileView = require('../../models/ProfileView');
 const { APPROVAL_STATUS } = require('../../utils/constants');
 const { isDoctorVisibleToPatients, isDoctorBookableByPatients, getDoctorAccessMode } = require('../../utils/doctorAccess');
 
@@ -582,10 +584,20 @@ exports.getDoctorById = asyncHandler(async (req, res) => {
     }
   }
 
+  // Check if current user is following this doctor
+  let isFollowing = false;
+  if (req.auth?.id) {
+    const follow = await Follow.findOne({ patientId: req.auth.id, doctorId: id });
+    isFollowing = !!follow;
+  }
+
   return res.status(200).json({
     success: true,
     data: {
-      doctor,
+      doctor: {
+        ...doctor,
+        isFollowing
+      },
     },
   });
 });
@@ -896,5 +908,140 @@ exports.checkDoctorSlotAvailability = asyncHandler(async (req, res) => {
       sessionStartTime: slots[0]?.startTime,
       sessionEndTime: slots[slots.length - 1]?.endTime
     }
+  });
+});
+
+/**
+ * POST /api/patients/doctors/:id/follow - Toggle follow status
+ */
+exports.toggleFollowDoctor = asyncHandler(async (req, res) => {
+  const patientId = req.auth.id;
+  const doctorId = req.params.id;
+
+  if (patientId === doctorId) {
+    return res.status(400).json({
+      success: false,
+      message: "Doctors cannot follow themselves",
+    });
+  }
+
+  const doctor = await Doctor.findById(doctorId);
+  if (!doctor) {
+    return res.status(404).json({
+      success: false,
+      message: "Doctor not found",
+    });
+  }
+
+  const existingFollow = await Follow.findOne({ patientId, doctorId });
+
+  if (existingFollow) {
+    // Unfollow
+    await Follow.deleteOne({ _id: existingFollow._id });
+    
+    // Decrement count atomically
+    await Doctor.findByIdAndUpdate(doctorId, { $inc: { followerCount: -1 } });
+    
+    return res.status(200).json({
+      success: true,
+      message: "Unfollowed successfully",
+      isFollowing: false,
+    });
+  } else {
+    // Follow
+    await Follow.create({ patientId, doctorId });
+    
+    // Increment count atomically
+    await Doctor.findByIdAndUpdate(doctorId, { $inc: { followerCount: 1 } });
+    
+    return res.status(200).json({
+      success: true,
+      message: "Followed successfully",
+      isFollowing: true,
+    });
+  }
+});
+
+/**
+ * GET /api/patients/doctors/following - Get followed doctors list
+ */
+exports.getFollowedDoctors = asyncHandler(async (req, res) => {
+  const patientId = req.auth.id;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const total = await Follow.countDocuments({ patientId });
+  const follows = await Follow.find({ patientId })
+    .populate({
+      path: 'doctorId',
+      select: 'firstName lastName specialization profileImage clinicDetails fees experienceYears',
+    })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  // Filter out any null doctorId (if doctor was deleted)
+  const doctors = follows.map(f => f.doctorId).filter(d => d !== null);
+
+  res.status(200).json({
+    success: true,
+    data: doctors,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  });
+});
+
+/**
+ * POST /api/patients/doctors/:id/view - Track profile view
+ */
+exports.recordProfileView = asyncHandler(async (req, res) => {
+  const doctorId = req.params.id;
+  const viewerId = req.auth?.id; // Optional
+  const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const userAgent = req.headers['user-agent'];
+
+  // Cooldown period: 30 minutes
+  const cooldownPeriod = 30 * 60 * 1000;
+  const cooldownDate = new Date(Date.now() - cooldownPeriod);
+
+  // Check for recent view from same IP or Viewer
+  const query = {
+    doctorId,
+    createdAt: { $gte: cooldownDate },
+    $or: [{ ipAddress }]
+  };
+  
+  if (viewerId) {
+    query.$or.push({ viewerId });
+  }
+
+  const recentView = await ProfileView.findOne(query);
+
+  if (!recentView) {
+    // Record new view
+    await ProfileView.create({
+      doctorId,
+      viewerId,
+      ipAddress,
+      userAgent
+    });
+
+    // Increment count atomically
+    await Doctor.findByIdAndUpdate(doctorId, { $inc: { viewCount: 1 } });
+    
+    return res.status(200).json({
+      success: true,
+      message: "View recorded",
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "View skipped (cooldown active)",
   });
 });

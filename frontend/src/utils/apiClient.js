@@ -173,15 +173,17 @@ const apiRequest = async (endpoint, options = {}, module = 'admin') => {
     endpoint.includes('/auth/check-exists')
 
   // Check if this is a public discovery endpoint (doctors, specialties)
-  const isPublicDiscoveryEndpoint = (endpoint.includes('/patients/doctors') ||
+  // We exclude interactive endpoints like /follow which REQUIRE authentication
+  const isPublicDiscoveryEndpoint = (
     endpoint.includes('/patients/specialties') ||
     endpoint.includes('/specialties') ||
     endpoint.includes('/services') ||
     endpoint.includes('/location/state') ||
     endpoint.includes('/location/city') ||
     endpoint.includes('/public/legal') ||
-    endpoint.includes('/public/settings')) &&
-    !endpoint.includes('/admin/')
+    endpoint.includes('/public/settings') ||
+    (endpoint.includes('/patients/doctors') && !endpoint.includes('/follow'))
+  ) && !endpoint.includes('/admin/')
 
   // For protected endpoints (not auth or public discovery), check token before making request
   if (!isAuthEndpoint && !isPublicDiscoveryEndpoint) {
@@ -219,15 +221,19 @@ const apiRequest = async (endpoint, options = {}, module = 'admin') => {
   // If it is explicitly an auth endpoint OR public discovery, and we are missing token,
   // we still shouldn't have thrown. We already handled the throw block above.
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
   const config = {
     method: options.method || 'GET',
     headers: headers,
     body: options.body,
-    signal: options.signal,
+    signal: options.signal || controller.signal,
   }
 
   try {
     let response = await fetch(url, config)
+    clearTimeout(timeoutId);
 
     // Handle 429 Too Many Requests with retry logic
     if (response.status === 429) {
@@ -287,6 +293,10 @@ const apiRequest = async (endpoint, options = {}, module = 'admin') => {
 
     return response
   } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError' || error.name === 'DOMException') {
+      throw new Error('Request timed out. Please check your connection.');
+    }
     if (error.name === 'AbortError') {
       throw error
     }

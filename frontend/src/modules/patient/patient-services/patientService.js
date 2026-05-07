@@ -677,3 +677,49 @@ export const cancelPatientRequest = async (requestId) => {
     throw error
   }
 }
+
+/**
+ * Toggle follow doctor status
+ * @param {string} doctorId - Doctor ID
+ * @returns {Promise<object>} Follow response { success, isFollowing, message }
+ */
+export const toggleFollowDoctor = async (doctorId) => {
+  try {
+    const response = await apiClient.post(`/patients/doctors/${doctorId}/follow`)
+    return response
+  } catch (error) {
+    console.error('Error toggling follow status:', error)
+    throw error
+  }
+}
+
+/**
+ * Get followed doctors
+ * @param {object} params - Pagination params (page, limit)
+ * @returns {Promise<object>} Followed doctors list
+ */
+export const getFollowedDoctors = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/patients/doctors/following', params)
+    return response
+  } catch (error) {
+    console.error('Error fetching followed doctors:', error)
+    throw error
+  }
+}
+
+/**
+ * Record doctor profile view
+ * @param {string} doctorId - Doctor ID
+ * @returns {Promise<object>} Track response
+ */
+export const recordDoctorProfileView = async (doctorId) => {
+  try {
+    const response = await apiClient.post(`/patients/doctors/${doctorId}/view`)
+    return response
+  } catch (error) {
+    // We don't throw error for tracking as it shouldn't break UI
+    console.error('Error recording profile view:', error)
+    return { success: false }
+  }
+}

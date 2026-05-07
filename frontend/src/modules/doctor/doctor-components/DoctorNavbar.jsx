@@ -10,6 +10,7 @@ import {
   IoHelpCircleOutline,
   IoMegaphoneOutline,
   IoTimeOutline,
+  IoTrendingUpOutline,
 } from 'react-icons/io5'
 import healwayLogo from '../../../assets/logo/healway-logo.png'
 import DoctorSidebar from './DoctorSidebar'
@@ -18,6 +19,7 @@ import NotificationBell from '../../../components/NotificationBell'
 
 const allNavItems = [
   { id: 'home', label: 'Dashboard', to: '/doctor/dashboard', Icon: IoHomeOutline },
+  { id: 'analytics', label: 'Analytics', to: '/doctor/analytics', Icon: IoTrendingUpOutline },
   { id: 'queue', label: 'Queue', to: '/doctor/queue', Icon: IoTimeOutline },
   { id: 'consultations', label: 'Consultations', to: '/doctor/consultations', Icon: IoDocumentTextOutline },
   { id: 'patients', label: 'Patients', to: '/doctor/patients', Icon: IoPeopleOutline },

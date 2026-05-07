@@ -536,6 +536,7 @@ const DoctorDashboard = () => {
   // Sidebar navigation items
   const sidebarNavItems = [
     { id: 'home', label: 'Dashboard', to: '/doctor/dashboard', Icon: IoHomeOutline },
+    { id: 'analytics', label: 'Business & Analytics', to: '/doctor/analytics', Icon: IoTrendingUpOutline },
     { id: 'queue', label: 'Queue', to: '/doctor/queue', Icon: IoTimeOutline },
     { id: 'consultations', label: 'Consultations', to: '/doctor/consultations', Icon: IoDocumentTextOutline },
     { id: 'patients', label: 'Patients', to: '/doctor/patients', Icon: IoPeopleOutline },

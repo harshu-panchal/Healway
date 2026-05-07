@@ -313,6 +313,16 @@ const doctorSchema = new mongoose.Schema(
         upiId: { type: String, trim: true },
       },
     },
+    followerCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    viewCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   {
     timestamps: true,

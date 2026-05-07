@@ -10,6 +10,9 @@ const {
   getSpecialtyDoctors,
   getLocations,
   checkDoctorSlotAvailability,
+  toggleFollowDoctor,
+  getFollowedDoctors,
+  recordProfileView,
 } = require('../../controllers/patient-controllers/patientDoctorController');
 
 // Public routes (no auth required for discovery)
@@ -26,7 +29,12 @@ router.get('/locations', getLocations);
 router.get('/featured', getFeaturedDoctors);
 router.get('/suggestions', getDoctorSearchSuggestions);
 
+// Followed doctors list (must be before :id)
+router.get('/following', protect(), getFollowedDoctors);
+
 // Parameterized routes (must come after specific routes)
+router.post('/:id/follow', protect(), toggleFollowDoctor);
+router.post('/:id/view', recordProfileView); // Optionally tracked
 router.get('/:id/slots', checkDoctorSlotAvailability);
 router.get('/:id', getDoctorById);
 router.get('/', getDoctors);

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   IoArrowBackOutline,
   IoLocationOutline,
@@ -18,6 +19,8 @@ import {
   IoMedicalOutline,
   IoLanguageOutline,
   IoSchoolOutline,
+  IoHeart,
+  IoHeartOutline,
 } from "react-icons/io5";
 import {
   Modal,
@@ -57,6 +60,8 @@ import {
   verifyAppointmentPayment,
   rescheduleAppointment,
   cancelAppointment,
+  toggleFollowDoctor,
+  recordDoctorProfileView,
 } from "../patient-services/patientService";
 import { useToast } from "../../../contexts/ToastContext";
 import { formatPrice, isFreeConsultation } from "../../../utils/feeUtils";
@@ -356,8 +361,17 @@ const PatientDoctorDetails = () => {
   const [doctor, setDoctor] = useState(defaultDoctor);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followLoading, setFollowLoading] = useState(false);
 
-  console.log("doctor", doctor)
+  // Record profile view on mount
+  useEffect(() => {
+    if (id) {
+      recordDoctorProfileView(id);
+    }
+  }, [id]);
+
   // Fetch doctor details from API
   useEffect(() => {
     const fetchDoctorDetails = async () => {
@@ -659,6 +673,8 @@ const PatientDoctorDetails = () => {
           }
 
           setDoctor(transformed);
+          setIsFollowing(!!doctorData.isFollowing);
+          setFollowerCount(doctorData.followerCount || 0);
           setLoading(false);
         }
       } catch (err) {
@@ -679,6 +695,33 @@ const PatientDoctorDetails = () => {
       setLoading(false);
     }
   }, [id, navigate, toast]);
+
+  const handleFollow = async () => {
+    if (!id) {
+      toast.error("Doctor ID is missing");
+      return;
+    }
+
+    try {
+      setFollowLoading(true);
+      const response = await toggleFollowDoctor(id);
+      
+      if (response && response.success) {
+        setIsFollowing(response.isFollowing);
+        setFollowerCount((prev) =>
+          response.isFollowing ? prev + 1 : Math.max(0, prev - 1)
+        );
+        toast.success(response.message);
+      } else {
+        toast.error(response?.message || "Failed to follow/unfollow doctor");
+      }
+    } catch (err) {
+      console.error("Follow interaction error:", err);
+      toast.error(err.message || "An unexpected error occurred");
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [showQuickBookConfirmation, setShowQuickBookConfirmation] = useState(false); // Quick book popup
@@ -2355,17 +2398,90 @@ const PatientDoctorDetails = () => {
           </div>
 
           <div className="flex-1 space-y-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 flex items-center gap-2">
-                {doctor.name}
-                {doctor.isFeatured && (
-                  <IoStar className="h-6 w-6 text-amber-500" />
-                )}
-              </h1>
-              <p className="mt-1 text-base font-medium text-primary">
-                {doctor.specialty}
-              </p>
-            </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 flex items-center gap-2">
+                    {doctor.name}
+                    {doctor.isFeatured && (
+                      <IoStar className="h-6 w-6 text-amber-500" />
+                    )}
+                  </h1>
+                  <p className="mt-1 text-base font-medium text-primary">
+                    {doctor.specialty}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col items-center justify-center min-w-[70px] px-3 py-2 bg-slate-50 rounded-2xl border border-slate-100"
+                  >
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Followers</p>
+                    <AnimatePresence mode="wait">
+                      <motion.p 
+                        key={followerCount}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 1.2 }}
+                        className="text-lg font-black text-slate-900 leading-none"
+                      >
+                        {followerCount}
+                      </motion.p>
+                    </AnimatePresence>
+                  </motion.div>
+                  
+                  <motion.button
+                    type="button"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    disabled={followLoading}
+                    onClick={handleFollow}
+                    className={`relative overflow-hidden h-12 px-6 rounded-2xl font-bold flex items-center gap-2 transition-all duration-300 ${
+                      isFollowing 
+                        ? "bg-slate-100 text-slate-600 border border-slate-200 shadow-sm" 
+                        : "bg-gradient-to-r from-primary to-primary-dark text-white shadow-lg shadow-primary/30 border-none"
+                    }`}
+                  >
+                    {followLoading ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        <span>{isFollowing ? 'Unfollowing...' : 'Following...'}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <AnimatePresence mode="wait">
+                          {isFollowing ? (
+                            <motion.div
+                              key="following"
+                              initial={{ opacity: 0, scale: 0.5, rotate: -45 }}
+                              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                              className="flex items-center gap-2"
+                            >
+                              <IoHeart className="h-5 w-5 text-rose-500" />
+                              <span>Following</span>
+                            </motion.div>
+                          ) : (
+                            <motion.div
+                              key="follow"
+                              initial={{ opacity: 0, scale: 0.5 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="flex items-center gap-2"
+                            >
+                              <IoHeartOutline className="h-5 w-5" />
+                              <span>Follow</span>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </>
+                    )}
+                    
+                    {/* Gloss effect for Follow button */}
+                    {!isFollowing && !followLoading && (
+                      <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent pointer-events-none" />
+                    )}
+                  </motion.button>
+                </div>
+              </div>
 
             <div className="space-y-2 text-sm text-slate-600">
               {doctor.clinicName && (

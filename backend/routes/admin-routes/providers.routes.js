@@ -11,6 +11,7 @@ const {
   rejectDoctor,
   toggleFeatured,
   getPendingVerifications,
+  getDoctorPopularityStats,
 } = require('../../controllers/admin-controllers/adminProviderController');
 const { protect } = require('../../middleware/authMiddleware');
 const { sanitizeInput } = require('../../middleware/validationMiddleware');
@@ -22,6 +23,7 @@ const router = express.Router();
 router.use(protect(ROLES.ADMIN));
 
 // Doctors management
+router.get('/doctors/popularity', getDoctorPopularityStats);
 router.get('/doctors', getDoctors);
 router.post('/doctors', sanitizeInput, createDoctor);
 router.patch('/doctors/reorder', sanitizeInput, require('../../controllers/admin-controllers/adminProviderController').updateDoctorsOrder);
