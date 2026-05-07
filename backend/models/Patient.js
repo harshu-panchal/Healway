@@ -9,6 +9,7 @@ const patientSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     phone: { type: String, required: true, unique: true, trim: true },
     password: { type: String, minlength: 8 },
+    referenceName: { type: String, trim: true },
     dateOfBirth: { type: Date },
     gender: { type: String, enum: ['male', 'female', 'other', 'prefer_not_to_say'] },
     bloodGroup: {

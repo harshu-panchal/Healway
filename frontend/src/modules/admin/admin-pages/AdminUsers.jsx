@@ -66,6 +66,7 @@ const AdminUsers = () => {
           status: user.isActive ? 'active' : 'inactive', // Map isActive to status
           registeredAt: user.createdAt || new Date().toISOString(),
           totalConsultations: 0, // TODO: Add when appointments API is ready
+          referenceName: user.referenceName || '',
         }))
         setAllUsers(allTransformed)
       }
@@ -102,6 +103,7 @@ const AdminUsers = () => {
           status: user.isActive ? 'active' : 'inactive', // Map isActive to status
           registeredAt: user.createdAt || new Date().toISOString(),
           totalConsultations: 0, // TODO: Add when appointments API is ready
+          referenceName: user.referenceName || '',
         }))
         console.log('📋 Transformed users:', transformedUsers) // Debug log
         setUsers(transformedUsers)
@@ -295,6 +297,10 @@ const AdminUsers = () => {
                         <div className="flex items-center gap-2">
                           <IoCalendarOutline className="h-4 w-4 shrink-0" />
                           <span>Registered: {formatDate(user.registeredAt)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <IoPersonOutline className="h-4 w-4 shrink-0 text-amber-600" />
+                          <span className="font-medium text-amber-700">Reference: <span className={user.referenceName ? "text-slate-900" : "text-slate-400 italic"}>{user.referenceName || 'No Reference'}</span></span>
                         </div>
                       </div>
                     </div>

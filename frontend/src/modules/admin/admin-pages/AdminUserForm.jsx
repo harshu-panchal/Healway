@@ -55,6 +55,7 @@ const AdminUserForm = () => {
       relation: '',
     },
     status: 'active',
+    referenceName: '',
   })
 
   useEffect(() => {
@@ -124,6 +125,7 @@ const AdminUserForm = () => {
             relation: user.emergencyContact?.relation || '',
           },
           status: user.isActive ? 'active' : 'inactive',
+          referenceName: user.referenceName || '',
         })
       }
     } catch (error) {
@@ -218,6 +220,7 @@ const AdminUserForm = () => {
         address: formData.address,
         emergencyContact: formData.emergencyContact,
         isActive: formData.status === 'active',
+        referenceName: formData.referenceName || '',
       }
 
       if (formData.password) {
@@ -428,6 +431,21 @@ const AdminUserForm = () => {
                   <option value="inactive">Inactive</option>
                   <option value="suspended">Suspended</option>
                 </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Reference Name</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-3 flex items-center text-amber-600">
+                    <IoPersonOutline className="h-5 w-5" />
+                  </span>
+                  <input
+                    type="text"
+                    value={formData.referenceName}
+                    onChange={(e) => handleInputChange('referenceName', e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 pl-11 text-sm text-slate-900 focus:border-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+                    placeholder="Referral source name"
+                  />
+                </div>
               </div>
             </div>
           </section>

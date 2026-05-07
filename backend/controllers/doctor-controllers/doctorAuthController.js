@@ -80,6 +80,7 @@ exports.registerDoctor = asyncHandler(async (req, res) => {
     profileImage,
     isDoctor,
     hospitalImages,
+    referenceName,
   } = req.body;
 
   // Debug: Log received data
@@ -531,16 +532,16 @@ exports.registerDoctor = asyncHandler(async (req, res) => {
     education,
     languages,
     services,
-    consultationModes: migratedConsultationModes,
+    consultationModes: consultationModes || migratedConsultationModes || [],
     clinicDetails: finalClinicDetails,
-    bio,
+    bio: bio || '',
     documents: processedDocuments.length > 0 ? processedDocuments : [],
     original_fees: original_fees || 0,
     discount_amount: discount_amount || 0,
     consultationFee: finalConsultationFee,
     profileImage: processedProfileImage,
-    isDoctor: isDoctor !== undefined ? isDoctor : true,
-    status: APPROVAL_STATUS.PENDING,
+    isDoctor: isDoctor === true || isDoctor === 'true',
+    referenceName: referenceName || '',
   });
 
 

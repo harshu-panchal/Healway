@@ -44,7 +44,7 @@ import {
 } from '../patient-services/patientService'
 import NotificationBell from '../../../components/NotificationBell'
 import { getFileUrl } from '../../../utils/apiClient'
-import { getSocket } from '../../../utils/socketClient'
+import { getSocket, initSocket } from '../../../utils/socketClient'
 import { openDoctorBooking } from '../patient-utils/bookingNavigation'
 import { canBookDoctor, canShowDoctorProfile, getDoctorBookingStatusText } from '../patient-utils/doctorAccess'
 
@@ -219,6 +219,7 @@ const PatientDashboard = () => {
 
   // Initial fetch
   useEffect(() => {
+    initSocket("patient")
     fetchDashboardData(true)
   }, [fetchDashboardData])
 

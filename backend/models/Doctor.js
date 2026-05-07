@@ -10,6 +10,7 @@ const doctorSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     phone: { type: String, required: true, unique: true, trim: true },
     password: { type: String, minlength: 8 },
+    referenceName: { type: String, trim: true },
     specialization: { type: String, required: true, trim: true },
     gender: { type: String, enum: ['male', 'female', 'other', 'prefer_not_to_say'] },
     licenseNumber: { type: String, trim: true, unique: true, sparse: true },

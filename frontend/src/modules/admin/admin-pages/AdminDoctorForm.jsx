@@ -90,7 +90,8 @@ const AdminDoctorForm = () => {
       inPerson: { original: '', discount: 0, final: 0 },
       videoCall: { original: '', discount: 0, final: 0 },
       voiceCall: { original: '', discount: 0, final: 0 },
-    }
+    },
+    referenceName: '',
   })
 
   useEffect(() => {
@@ -186,7 +187,8 @@ const AdminDoctorForm = () => {
               discount: doctor.fees?.voiceCall?.discount ?? 0, 
               final: doctor.fees?.voiceCall?.final ?? 0 
             },
-          }
+          },
+          referenceName: doctor.referenceName || '',
         })
         setSpecializationSearchTerm(doctor.specialization || '')
       }
@@ -479,6 +481,7 @@ const AdminDoctorForm = () => {
             final: formData.fees.voiceCall.original ? Number(formData.fees.voiceCall.original) - Number(formData.fees.voiceCall.discount || 0) : 0,
           },
         },
+        referenceName: formData.referenceName || '',
       }
 
       if (isEditMode) {
@@ -657,6 +660,22 @@ const AdminDoctorForm = () => {
                       placeholder="Enter 10-digit number"
                     />
                   </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Reference Name</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-3 flex items-center text-amber-600">
+                    <IoPersonOutline className="h-5 w-5" />
+                  </span>
+                  <input
+                    type="text"
+                    value={formData.referenceName}
+                    onChange={(e) => handleInputChange('referenceName', e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 pl-11 text-sm text-slate-900 focus:border-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+                    placeholder="Referral source name"
+                  />
                 </div>
               </div>
             </div>

@@ -163,6 +163,7 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
     clinicImages: [], // Array for clinic/hospital images
     termsAccepted: false,
     isDoctor: true,
+    referenceName: '',
   }
   const [doctorSignupData, setDoctorSignupData] = useState(() => {
     const saved = localStorage.getItem('doctorSignupData')
@@ -175,6 +176,7 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
     lastName: '',
     email: '',
     phone: '',
+    referenceName: '',
     termsAccepted: false,
   }
   const [patientSignupData, setPatientSignupData] = useState(() => {
@@ -654,6 +656,7 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
         lastName: patientSignupData.lastName || '',
         email: patientSignupData.email,
         phone: patientSignupData.phone,
+        referenceName: patientSignupData.referenceName || '',
       }
 
       const response = await signupPatientFromDoctor(payload)
@@ -1092,6 +1095,7 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
           : undefined,
         clinicImages: doctorSignupData.clinicImages.length > 0 ? doctorSignupData.clinicImages : undefined,
         documents: doctorSignupData.documents.length > 0 ? doctorSignupData.documents : undefined,
+        referenceName: doctorSignupData.referenceName || undefined,
       }
 
       delete payload.gender
@@ -1496,6 +1500,26 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
                   </div>
                 </div>
 
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="patient-reference" className="text-sm font-semibold text-slate-700">
+                    Reference Name (Optional)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-3 flex items-center text-primary">
+                      <IoPersonOutline className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <input
+                      id="patient-reference"
+                      name="referenceName"
+                      type="text"
+                      value={patientSignupData.referenceName}
+                      onChange={handlePatientSignupChange}
+                      placeholder="Who referred you?"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 pl-11 text-sm text-slate-900 shadow-sm outline-none transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+                </div>
+
                 {/* Terms */}
                 <div className="flex items-start gap-2 text-sm">
                   <label className="flex items-start gap-2 text-slate-600 cursor-pointer">
@@ -1699,6 +1723,27 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
                           <p className="text-xs text-slate-500">
                             Only specializations added by admin can be selected.
                           </p>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                          <label htmlFor="doctor-reference" className="text-sm font-semibold text-slate-700">
+                            Reference Name (Optional)
+                          </label>
+                          <div className="relative">
+                            <span className="absolute inset-y-0 left-3 flex items-center text-primary">
+                              <IoPersonOutline className="h-5 w-5" aria-hidden="true" />
+                            </span>
+                            <input
+                              id="doctor-reference"
+                              name="referenceName"
+                              type="text"
+                              value={doctorSignupData.referenceName}
+                              onChange={handleDoctorSignupChange}
+                              placeholder="Who referred you?"
+                              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 pl-11 text-sm text-slate-900 shadow-sm outline-none transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              style={{ '--tw-ring-color': 'var(--color-primary-border)' }}
+                            />
+                          </div>
                         </div>
 
                         <label className="flex items-start gap-3 rounded-xl bg-slate-50 px-4 py-4 text-sm text-slate-600">

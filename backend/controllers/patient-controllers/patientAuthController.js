@@ -43,6 +43,7 @@ exports.registerPatient = asyncHandler(async (req, res) => {
     lastName,
     email,
     phone,
+    referenceName,
   } = req.body;
 
   const resolvedName = parseName({ name, firstName, lastName });
@@ -78,6 +79,7 @@ exports.registerPatient = asyncHandler(async (req, res) => {
     lastName: resolvedName.lastName || '',
     email,
     phone,
+    referenceName: referenceName || '',
   });
 
 

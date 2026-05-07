@@ -113,6 +113,7 @@ const AdminDoctors = () => {
           accessMode: doctor.accessMode || (doctor.isActive === false ? 'hidden' : 'active'),
           registeredAt: doctor.createdAt || new Date().toISOString(),
           rejectionReason: doctor.rejectionReason || '',
+          referenceName: doctor.referenceName || '',
         }))
         setAllDoctors(allTransformed)
       }
@@ -163,6 +164,7 @@ const AdminDoctors = () => {
           accessMode: doctor.accessMode || (doctor.isActive === false ? 'hidden' : 'active'),
           registeredAt: doctor.createdAt || new Date().toISOString(),
           rejectionReason: doctor.rejectionReason || '',
+          referenceName: doctor.referenceName || '',
         }))
         setDoctors(transformedDoctors)
         setTotalPages(pagination.totalPages || 1)
@@ -702,6 +704,12 @@ const AdminDoctors = () => {
                         <p className="text-xs text-slate-500">Status</p>
                         <div className="mt-1">{getStatusBadge(viewingDoctor.status === 'approved' ? 'verified' : viewingDoctor.status || 'pending')}</div>
                       </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Reference Name</p>
+                        <p className="mt-1 text-sm font-semibold text-amber-700">
+                          {viewingDoctor.referenceName || 'No Reference'}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -1090,6 +1098,10 @@ const DoctorItem = ({
                 <div className="flex items-center gap-2">
                   <IoCallOutline className="h-4 w-4 shrink-0" />
                   <span>{doctor.phone}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <IoPersonOutline className="h-4 w-4 shrink-0 text-amber-600" />
+                  <span className="font-medium text-amber-700 text-xs">Reference: <span className={doctor.referenceName ? "text-slate-900" : "text-slate-400 italic"}>{doctor.referenceName || 'No Reference'}</span></span>
                 </div>
               </div>
             </div>

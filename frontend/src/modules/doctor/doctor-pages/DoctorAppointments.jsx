@@ -31,6 +31,8 @@ import {
 } from "../doctor-services/doctorService";
 import Pagination from "../../../components/Pagination";
 import VideoCall from "../../../components/VideoCall";
+import { initSocket, getSocket } from "../../../utils/socketClient";
+import { getDoctorProfile } from "../doctor-services/doctorService";
 
 // Default appointments (will be replaced by API data)
 const defaultAppointments = [];
@@ -129,6 +131,7 @@ const DoctorAppointments = () => {
   const [limit] = useState(20);
   const [pagination, setPagination] = useState(null);
   const [activeCall, setActiveCall] = useState(null); // Active call appointment
+  const [doctorName, setDoctorName] = useState("Doctor");
 
   const handleMarkAsPaid = async (appointment) => {
     const remaining = appointment.remainingAmount || (appointment.fee - (appointment.paidAmount || 0));
@@ -157,6 +160,24 @@ const DoctorAppointments = () => {
   useEffect(() => {
     setPage(1);
   }, [filterPeriod, searchTerm, selectedDate]);
+
+  // Initialize socket and fetch doctor profile
+  useEffect(() => {
+    initSocket("doctor");
+    
+    const fetchProfile = async () => {
+      try {
+        const profile = await getDoctorProfile();
+        if (profile) {
+          setDoctorName(`${profile.firstName} ${profile.lastName}`);
+        }
+      } catch (err) {
+        console.error("Error fetching doctor profile:", err);
+      }
+    };
+    
+    fetchProfile();
+  }, []);
 
   // Fetch appointments from API
   useEffect(() => {
@@ -1072,6 +1093,22 @@ const DoctorAppointments = () => {
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  
+                                  // Emit call:initiate event via socket to notify patient
+                                  const socket = getSocket();
+                                  if (socket && socket.connected) {
+                                    console.log('📞 Emitting call:initiate for patient:', appointment.patientId);
+                                    socket.emit('call:initiate', {
+                                      callId: appointment.id || appointment._id,
+                                      appointmentId: appointment.id || appointment._id,
+                                      patientId: appointment.patientId,
+                                      doctorName: doctorName,
+                                      callType: mode === "video_call" ? "video" : "audio"
+                                    });
+                                  } else {
+                                    console.warn('⚠️ Socket not connected, call invitation not sent');
+                                  }
+                                  
                                   setActiveCall(appointment);
                                 }}
                                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 sm:py-2 text-sm sm:text-xs font-bold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700 active:scale-95 animate-pulse"

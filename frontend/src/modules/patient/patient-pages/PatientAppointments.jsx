@@ -20,7 +20,7 @@ import {
   verifyAppointmentPayment,
 } from "../patient-services/patientService";
 import { useToast } from "../../../contexts/ToastContext";
-import { getSocket } from "../../../utils/socketClient";
+import { getSocket, initSocket } from "../../../utils/socketClient";
 import Pagination from "../../../components/Pagination";
 import AppointmentDetailsModal from "../patient-components/AppointmentDetailsModal";
 
@@ -127,6 +127,7 @@ const PatientAppointments = () => {
 
   // Fetch appointments from API - Always fetch all appointments, filter on frontend
   useEffect(() => {
+    initSocket("patient");
     const fetchAppointments = async () => {
       try {
         setLoading(true);
