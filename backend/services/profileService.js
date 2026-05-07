@@ -136,14 +136,27 @@ const mergeObjects = (existingValue, newValue) => {
   };
 
   // Special handling for availabilitySlots - sort selectedDays
-  if (newValue && typeof newValue === 'object' && (
+  const isAvailabilitySlots = newValue && typeof newValue === 'object' && (
     newValue.selectedDays !== undefined ||
     newValue.inPersonSelectedDays !== undefined ||
     newValue.videoCallSelectedDays !== undefined ||
     newValue.voiceCallSelectedDays !== undefined ||
     newValue.inPerson !== undefined ||
+    newValue.videoCall !== undefined ||
+    newValue.voiceCall !== undefined ||
     newValue.callVideo !== undefined
-  )) {
+  ) && (
+    // Check if any of the mode fields are arrays (which means it's availabilitySlots, not fees)
+    Array.isArray(newValue.inPerson) || 
+    Array.isArray(newValue.videoCall) || 
+    Array.isArray(newValue.voiceCall) ||
+    // Or if it has day-specific selected days
+    newValue.inPersonSelectedDays !== undefined ||
+    newValue.videoCallSelectedDays !== undefined ||
+    newValue.voiceCallSelectedDays !== undefined
+  );
+
+  if (isAvailabilitySlots) {
     const merged = { ...base, ...newValue };
 
     // Sort selectedDays if present

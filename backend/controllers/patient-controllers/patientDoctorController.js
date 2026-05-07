@@ -43,15 +43,28 @@ const getSessionSlots = (doctor, appointmentDate, consultationMode) => {
   if (doctor.availabilitySlots) {
     // 1. Check mode-specific availability days
     let modeSpecificDays = [];
-    if (mode === 'IN_PERSON') modeSpecificDays = doctor.availabilitySlots.inPersonSelectedDays || [];
-    else if (mode === 'VIDEO') modeSpecificDays = doctor.availabilitySlots.videoCallSelectedDays || [];
-    else if (mode === 'CALL') modeSpecificDays = doctor.availabilitySlots.voiceCallSelectedDays || [];
+    let modeArray = [];
+    if (mode === 'IN_PERSON') {
+      modeSpecificDays = doctor.availabilitySlots.inPersonSelectedDays || [];
+      modeArray = doctor.availabilitySlots.inPerson || [];
+    } else if (mode === 'VIDEO') {
+      modeSpecificDays = doctor.availabilitySlots.videoCallSelectedDays || [];
+      modeArray = doctor.availabilitySlots.videoCall || [];
+    } else if (mode === 'CALL') {
+      modeSpecificDays = doctor.availabilitySlots.voiceCallSelectedDays || [];
+      modeArray = doctor.availabilitySlots.voiceCall || [];
+    }
 
     let dayIncluded = Array.isArray(modeSpecificDays) &&
       modeSpecificDays.length > 0 &&
       modeSpecificDays.some(day => day && day.toLowerCase() === dayNameLower);
 
-    // 2. Check global selectedDays (LEGACY/GLOBAL)
+    // 2. Check if day exists in the slots array itself (Robust fallback)
+    if (!dayIncluded && Array.isArray(modeArray)) {
+      dayIncluded = modeArray.some(d => d.day && d.day.toLowerCase() === dayNameLower && Array.isArray(d.slots) && d.slots.length > 0);
+    }
+
+    // 3. Check global selectedDays (LEGACY/GLOBAL)
     if (!dayIncluded) {
       const sessionTimingDays = doctor.availabilitySlots.selectedDays || [];
       dayIncluded = Array.isArray(sessionTimingDays) &&
@@ -59,7 +72,7 @@ const getSessionSlots = (doctor, appointmentDate, consultationMode) => {
         sessionTimingDays.some(day => day && day.toLowerCase() === dayNameLower);
     }
 
-    // 3. FALLBACK: Check mode-specific fees for selected days
+    // 4. FALLBACK: Check mode-specific fees for selected days
     if (!dayIncluded && doctor.fees) {
       let modeFeeBlock = null;
       if (mode === 'IN_PERSON') modeFeeBlock = doctor.fees.inPerson;
@@ -121,7 +134,11 @@ const getSessionSlots = (doctor, appointmentDate, consultationMode) => {
     if (dayAvailability) {
       let slot;
       if (mode === 'CALL' || mode === 'VIDEO') {
-        slot = dayAvailability.slots?.find(s => s.consultationType === 'call_video');
+        slot = dayAvailability.slots?.find(s => 
+          s.consultationType === 'call_video' || 
+          s.consultationType === 'video_call' || 
+          s.consultationType === 'voice_call'
+        );
       } else if (mode === 'IN_PERSON') {
         slot = dayAvailability.slots?.find(s => s.consultationType === 'in_person');
       }

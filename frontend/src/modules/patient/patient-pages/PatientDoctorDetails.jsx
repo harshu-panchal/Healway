@@ -66,8 +66,7 @@ import { canBookDoctor, getDoctorBookingStatusText } from "../patient-utils/doct
 // Default doctor data (will be replaced by API)
 const defaultDoctor = null;
 
-// Helper function to convert 24-hour format to 12-hour format (or return as is if already 12-hour)
-const convertTo12Hour = (time) => {
+const formatTimeTo12Hour = (time) => {
   if (!time) return "";
 
   // If already in 12-hour format (contains AM/PM), return as is
@@ -76,7 +75,8 @@ const convertTo12Hour = (time) => {
   }
 
   // Handle both "HH:MM" and "HH:MM:SS" formats (24-hour format)
-  const [hours, minutes] = time.split(":").map(Number);
+  const timeStr = time.toString().trim();
+  const [hours, minutes] = timeStr.split(":").map(Number);
   if (isNaN(hours) || isNaN(minutes)) return time;
 
   const period = hours >= 12 ? "PM" : "AM";
@@ -84,6 +84,33 @@ const convertTo12Hour = (time) => {
   const minutesStr = minutes.toString().padStart(2, "0");
 
   return `${hours12}:${minutesStr} ${period}`;
+};
+
+// Utility function to convert 12-hour format to 24-hour format for time logic
+const convert12HourTo24Hour = (time12) => {
+  if (!time12) return "";
+
+  // If already in 24-hour format (no AM/PM), return as is
+  if (!time12.toString().includes("AM") && !time12.toString().includes("PM")) {
+    return time12;
+  }
+
+  const timeStr = time12.toString().trim();
+  const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+
+  if (!match) return time12;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = match[2];
+  const period = match[3].toUpperCase();
+
+  if (period === "PM" && hours !== 12) {
+    hours += 12;
+  } else if (period === "AM" && hours === 12) {
+    hours = 0;
+  }
+
+  return `${hours.toString().padStart(2, "0")}:${minutes}`;
 };
 
 // Helper function to format availability
@@ -119,8 +146,8 @@ const formatAvailability = (availability) => {
 
   // Format each time group
   const formattedGroups = Object.values(timeGroups).map((group) => {
-    const startTime12 = convertTo12Hour(group.startTime);
-    const endTime12 = convertTo12Hour(group.endTime);
+    const startTime12 = formatTimeTo12Hour(group.startTime);
+    const endTime12 = formatTimeTo12Hour(group.endTime);
     const daysStr = group.days.join(", ");
     return `${daysStr}: ${startTime12} - ${endTime12}`;
   });
@@ -173,23 +200,38 @@ const getAvailableDates = (doctor, mode) => {
   today.setHours(0, 0, 0, 0);
 
   // NEW LOGIC: Session timing days determine booking availability
-  // Fees structure days determine if payment is required
-  // Use session timing days (availabilitySlots.selectedDays) for available dates
   let workingDays = [];
   const normalized = normalizeConsultationMode(mode);
+  const modeKey =
+    normalized === "IN_PERSON"
+      ? "inPerson"
+      : normalized === "VIDEO"
+        ? "videoCall"
+        : "voiceCall";
 
-  // Use session timing days (availabilitySlots.selectedDays) for booking availability
-  const sessionTimingDays = doctor.availabilitySlots?.selectedDays;
-
-  if (Array.isArray(sessionTimingDays) && sessionTimingDays.length > 0) {
-    workingDays = sessionTimingDays;
+  if (doctor.availabilitySlots) {
+    // 1. Try mode-specific selected days
+    const modeSelectedDays = doctor.availabilitySlots[`${modeKey}SelectedDays`];
+    if (Array.isArray(modeSelectedDays) && modeSelectedDays.length > 0) {
+      workingDays = modeSelectedDays;
+    } 
+    // 2. Try day-wise array structure
+    else if (Array.isArray(doctor.availabilitySlots[modeKey]) && doctor.availabilitySlots[modeKey].length > 0 && doctor.availabilitySlots[modeKey][0].day) {
+      workingDays = doctor.availabilitySlots[modeKey].map(d => d.day).filter(Boolean);
+    }
+    // 3. Try global selectedDays
+    else if (Array.isArray(doctor.availabilitySlots.selectedDays) && doctor.availabilitySlots.selectedDays.length > 0) {
+      workingDays = doctor.availabilitySlots.selectedDays;
+    }
+    // 4. Legacy check - check if callVideo exists (for VIDEO/VOICE)
+    else if ((normalized === "VIDEO" || normalized === "CALL") && doctor.availabilitySlots.callVideo) {
+      workingDays = Array.isArray(doctor.availabilitySlots.selectedDays) ? doctor.availabilitySlots.selectedDays : [];
+    }
   }
 
-  // If no specific days are set, fallback to old availability structure
-  if (workingDays.length === 0) {
-    if (doctor.availability && Array.isArray(doctor.availability)) {
-      workingDays = doctor.availability.map((a) => a.day);
-    }
+  // 5. Fallback to old availability structure
+  if (workingDays.length === 0 && Array.isArray(doctor.availability)) {
+    workingDays = doctor.availability.map((a) => a.day);
   }
 
   const dayNames = [
@@ -463,7 +505,131 @@ const PatientDoctorDetails = () => {
             about: doctorData.bio || doctorData.about || "",
             phone: doctorData.phone || doctorData.clinicDetails?.phone || "N/A",
             fees: doctorData.fees || {},
-            availabilitySlots: doctorData.availabilitySlots || null,
+            availabilitySlots: doctorData.availabilitySlots
+              ? {
+                // Handle inPerson slots - convert to array if needed
+                inPerson: Array.isArray(doctorData.availabilitySlots.inPerson) && doctorData.availabilitySlots.inPerson.length > 0 && doctorData.availabilitySlots.inPerson[0].day
+                  ? doctorData.availabilitySlots.inPerson.map(dayConfig => ({
+                    day: dayConfig.day,
+                    slots: Array.isArray(dayConfig.slots) ? dayConfig.slots.map(slot => ({
+                      startTime: convert12HourTo24Hour(slot.startTime) || "",
+                      endTime: convert12HourTo24Hour(slot.endTime) || "",
+                      isFree: !!slot.isFree
+                    })) : []
+                  }))
+                  : (Array.isArray(doctorData.availabilitySlots?.inPersonSelectedDays) ? doctorData.availabilitySlots.inPersonSelectedDays.map(day => ({
+                    day,
+                    slots: Array.isArray(doctorData.availabilitySlots.inPerson) ? doctorData.availabilitySlots.inPerson.map(slot => ({
+                      startTime: convert12HourTo24Hour(slot.startTime) || "",
+                      endTime: convert12HourTo24Hour(slot.endTime) || "",
+                      isFree: !!slot.isFree
+                    })) : []
+                  })) : []),
+                // Handle videoCall slots - fallback to callVideo for backward compatibility
+                videoCall: (Array.isArray(doctorData.availabilitySlots.videoCall) && doctorData.availabilitySlots.videoCall.length > 0 && doctorData.availabilitySlots.videoCall[0].day)
+                  ? doctorData.availabilitySlots.videoCall.map(dayConfig => ({
+                    day: dayConfig.day,
+                    slots: Array.isArray(dayConfig.slots) ? dayConfig.slots.map(slot => ({
+                      startTime: convert12HourTo24Hour(slot.startTime) || "",
+                      endTime: convert12HourTo24Hour(slot.endTime) || "",
+                      isFree: !!slot.isFree
+                    })) : []
+                  }))
+                  : (Array.isArray(doctorData.availabilitySlots?.videoCallSelectedDays) && doctorData.availabilitySlots.videoCallSelectedDays.length > 0
+                    ? doctorData.availabilitySlots.videoCallSelectedDays.map(day => ({
+                      day,
+                      slots: Array.isArray(doctorData.availabilitySlots.videoCall) ? doctorData.availabilitySlots.videoCall.map(slot => ({
+                        startTime: convert12HourTo24Hour(slot.startTime) || "",
+                        endTime: convert12HourTo24Hour(slot.endTime) || "",
+                        isFree: !!slot.isFree
+                      })) : []
+                    }))
+                    : (doctorData.availabilitySlots.callVideo?.startTime
+                      ? [{
+                        day: (Array.isArray(doctorData.availabilitySlots.selectedDays) && doctorData.availabilitySlots.selectedDays[0]) || "Monday", slots: [{
+                          startTime: convert12HourTo24Hour(doctorData.availabilitySlots.callVideo.startTime) || "",
+                          endTime: convert12HourTo24Hour(doctorData.availabilitySlots.callVideo.endTime) || "",
+                          isFree: false
+                        }]
+                      }]
+                      : (Array.isArray(doctorData.availabilitySlots.videoCall)
+                        ? [{
+                          day: (Array.isArray(doctorData.availabilitySlots.selectedDays) && doctorData.availabilitySlots.selectedDays[0]) || "Monday", slots: doctorData.availabilitySlots.videoCall.map(slot => ({
+                            startTime: convert12HourTo24Hour(slot.startTime) || "",
+                            endTime: convert12HourTo24Hour(slot.endTime) || "",
+                            isFree: !!slot.isFree
+                          }))
+                        }]
+                        : []))),
+                voiceCall: Array.isArray(doctorData.availabilitySlots.voiceCall) && doctorData.availabilitySlots.voiceCall.length > 0 && doctorData.availabilitySlots.voiceCall[0].day
+                  ? doctorData.availabilitySlots.voiceCall.map(dayConfig => ({
+                    day: dayConfig.day,
+                    slots: Array.isArray(dayConfig.slots) ? dayConfig.slots.map(slot => ({
+                      startTime: convert12HourTo24Hour(slot.startTime) || "",
+                      endTime: convert12HourTo24Hour(slot.endTime) || "",
+                      isFree: !!slot.isFree
+                    })) : []
+                  }))
+                  : (Array.isArray(doctorData.availabilitySlots?.voiceCallSelectedDays) && doctorData.availabilitySlots.voiceCallSelectedDays.length > 0
+                    ? doctorData.availabilitySlots.voiceCallSelectedDays.map(day => ({
+                      day,
+                      slots: Array.isArray(doctorData.availabilitySlots.voiceCall) ? doctorData.availabilitySlots.voiceCall.map(slot => ({
+                        startTime: convert12HourTo24Hour(slot.startTime) || "",
+                        endTime: convert12HourTo24Hour(slot.endTime) || "",
+                        isFree: !!slot.isFree
+                      })) : []
+                    }))
+                    : (Array.isArray(doctorData.availabilitySlots.voiceCall)
+                      ? [{
+                        day: (Array.isArray(doctorData.availabilitySlots.selectedDays) && doctorData.availabilitySlots.selectedDays[0]) || "Monday", slots: doctorData.availabilitySlots.voiceCall.map(slot => ({
+                          startTime: convert12HourTo24Hour(slot.startTime) || "",
+                          endTime: convert12HourTo24Hour(slot.endTime) || "",
+                          isFree: !!slot.isFree
+                        }))
+                      }]
+                      : [])),
+                inPersonSelectedDays: Array.isArray(doctorData.availabilitySlots?.inPersonSelectedDays)
+                  ? doctorData.availabilitySlots.inPersonSelectedDays
+                  : [],
+                videoCallSelectedDays: Array.isArray(doctorData.availabilitySlots?.videoCallSelectedDays)
+                  ? doctorData.availabilitySlots.videoCallSelectedDays
+                  : [],
+                voiceCallSelectedDays: Array.isArray(doctorData.availabilitySlots?.voiceCallSelectedDays)
+                  ? doctorData.availabilitySlots.voiceCallSelectedDays
+                  : [],
+                selectedDays: Array.isArray(doctorData.availabilitySlots.selectedDays)
+                  ? doctorData.availabilitySlots.selectedDays
+                  : [],
+              }
+              : (() => {
+                // Fallback for old availability structure
+                if (Array.isArray(doctorData.availability) && doctorData.availability.length > 0) {
+                  const selectedDays = doctorData.availability.map(a => a.day).filter(Boolean);
+                  const videoCallSlotsByDay = doctorData.availability.map(dayAvail => {
+                    const vcSlot = dayAvail.slots?.find(s => s.consultationType === "call_video" || s.consultationType === "video_call");
+                    if (vcSlot && vcSlot.startTime) {
+                      return {
+                        day: dayAvail.day,
+                        slots: [{
+                          startTime: convert12HourTo24Hour(vcSlot.startTime) || "",
+                          endTime: convert12HourTo24Hour(vcSlot.endTime) || "",
+                          isFree: !!vcSlot.isFree
+                        }]
+                      };
+                    }
+                    return null;
+                  }).filter(Boolean);
+
+                  return {
+                    inPerson: [], // Handled by priority logic usually
+                    videoCall: videoCallSlotsByDay,
+                    voiceCall: [],
+                    selectedDays: selectedDays,
+                    videoCallSelectedDays: videoCallSlotsByDay.map(d => d.day),
+                  };
+                }
+                return null;
+              })(),
             services: doctorData.services || [],
             consultationModes: doctorData.consultationModes || [],
             averageConsultationMinutes:
@@ -2249,10 +2415,10 @@ const PatientDoctorDetails = () => {
                         doctor.availabilitySlots.inPerson?.startTime &&
                         doctor.availabilitySlots.inPerson?.endTime
                       ) {
-                        const inPersonStart = convertTo12Hour(
+                        const inPersonStart = formatTimeTo12Hour(
                           doctor.availabilitySlots.inPerson.startTime,
                         );
-                        const inPersonEnd = convertTo12Hour(
+                        const inPersonEnd = formatTimeTo12Hour(
                           doctor.availabilitySlots.inPerson.endTime,
                         );
                         slots.push({
@@ -2267,10 +2433,10 @@ const PatientDoctorDetails = () => {
                         doctor.availabilitySlots.callVideo?.startTime &&
                         doctor.availabilitySlots.callVideo?.endTime
                       ) {
-                        const callVideoStart = convertTo12Hour(
+                        const callVideoStart = formatTimeTo12Hour(
                           doctor.availabilitySlots.callVideo.startTime,
                         );
-                        const callVideoEnd = convertTo12Hour(
+                        const callVideoEnd = formatTimeTo12Hour(
                           doctor.availabilitySlots.callVideo.endTime,
                         );
                         slots.push({
@@ -3364,23 +3530,44 @@ const PatientDoctorDetails = () => {
                         // Extract session times for the specific selected day
                         let matchingSessions = [];
 
-                        // Priority 1: Check daily availability array if it exists
+                        // Priority 1: Check daily availability array if it exists (old structure)
                         const dailyAvail =
                           doctor.originalData?.availability?.find(
                             (a) => a.day === dayName,
                           );
                         if (dailyAvail && dailyAvail.slots) {
-                          const modeKey =
-                            normalizedMode === "IN_PERSON"
-                              ? "in_person"
-                              : "call_video";
                           matchingSessions = dailyAvail.slots.filter(
                             (s) =>
-                              s.consultationType === modeKey && s.startTime,
+                              (normalizedMode === "IN_PERSON" ? s.consultationType === "in_person" : (s.consultationType === "call_video" || s.consultationType === "video_call" || s.consultationType === "voice_call")) && s.startTime,
                           );
                         }
 
-                        // Priority 2: Fallback to global availabilitySlots if daily not found
+                        // Priority 2: Check new day-wise availabilitySlots structure (new structure)
+                        if (
+                          matchingSessions.length === 0 &&
+                          doctor.availabilitySlots
+                        ) {
+                          const modeKey =
+                            normalizedMode === "IN_PERSON"
+                              ? "inPerson"
+                              : normalizedMode === "VIDEO"
+                                ? "videoCall"
+                                : "voiceCall";
+
+                          const dayConfig = Array.isArray(
+                            doctor.availabilitySlots[modeKey],
+                          )
+                            ? doctor.availabilitySlots[modeKey].find(
+                              (d) => d.day === dayName,
+                            )
+                            : null;
+
+                          if (dayConfig && dayConfig.slots) {
+                            matchingSessions = dayConfig.slots;
+                          }
+                        }
+
+                        // Priority 3: Fallback to global callVideo if others not found
                         if (
                           matchingSessions.length === 0 &&
                           doctor.availabilitySlots
@@ -3389,16 +3576,14 @@ const PatientDoctorDetails = () => {
                             normalizedMode === "IN_PERSON"
                               ? "inPerson"
                               : "callVideo";
-                          if (
-                            doctor.availabilitySlots[sessionMode]?.startTime
-                          ) {
+                          
+                          // Only use if it's an object with startTime (old backward compatibility)
+                          const globalConfig = doctor.availabilitySlots[sessionMode];
+                          if (globalConfig && !Array.isArray(globalConfig) && globalConfig.startTime) {
                             matchingSessions = [
                               {
-                                startTime:
-                                  doctor.availabilitySlots[sessionMode]
-                                    .startTime,
-                                endTime:
-                                  doctor.availabilitySlots[sessionMode].endTime,
+                                startTime: globalConfig.startTime,
+                                endTime: globalConfig.endTime,
                               },
                             ];
                           }
@@ -3408,9 +3593,9 @@ const PatientDoctorDetails = () => {
                         const bookedSlots = availability.bookedSlots || 0;
                         const maxTokens = availability.totalSlots || 0;
 
-                        const slots = (availability.timeSlots && Array.isArray(availability.timeSlots))
+                        let slots = (availability.timeSlots && Array.isArray(availability.timeSlots))
                           ? availability.timeSlots.map((s, index) => ({
-                            time: s.startTime,
+                            time: formatTimeTo12Hour(s.startTime),
                             startTime: s.startTime,
                             endTime: s.endTime,
                             isFree: s.isFree,
@@ -3421,7 +3606,8 @@ const PatientDoctorDetails = () => {
                           }))
                           : appointmentType === "in_person"
                             ? matchingSessions.map((session, index) => ({
-                              time: `${convertTo12Hour(session.startTime)} - ${convertTo12Hour(session.endTime)}`,
+                              time: `${formatTimeTo12Hour(session.startTime)} - ${formatTimeTo12Hour(session.endTime)}`,
+                              startTime: session.startTime,
                               slotNumber: index + 1,
                               isBooked: false,
                               isAvailable: true,
@@ -3433,14 +3619,31 @@ const PatientDoctorDetails = () => {
                                 avgTime,
                                 bookedSlots,
                                 maxTokens || 100,
-                              )
+                              ).map(s => ({
+                                ...s,
+                                startTime: convert12HourTo24Hour(s.time)
+                              }))
                               : [];
+
+                        // Filter out past slots for today (and within 1 hour from now)
+                        const isToday = dayjs(selectedDate).isSame(dayjs(), "day");
+                        const nowPlusOneHour = dayjs().add(1, "hour");
+
+                        if (isToday) {
+                          slots = slots.filter(slot => {
+                            const timeToParse = slot.startTime || (slot.time && slot.time.includes(':') ? convert12HourTo24Hour(slot.time) : null);
+                            if (!timeToParse) return true;
+                            const [hours, mins] = timeToParse.split(":").map(Number);
+                            const slotTime = dayjs(selectedDate).hour(hours).minute(mins);
+                            return slotTime.isAfter(nowPlusOneHour);
+                          });
+                        }
 
                         if (slots.length === 0) {
                           return (
                             <div className="p-4 bg-slate-50 rounded-xl text-center border border-dashed border-slate-200">
                               <p className="text-xs text-slate-500">
-                                No time slots configured for this selection.
+                                {isToday ? "No more available slots for today. Please select another date." : "No time slots configured for this selection."}
                               </p>
                             </div>
                           );

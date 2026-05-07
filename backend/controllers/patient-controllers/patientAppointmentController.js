@@ -70,8 +70,10 @@ const getSessionSlots = (doctor, appointmentDate, consultationMode) => {
         slots = doctor.availabilitySlots.videoCall;
       } else if (mode === 'CALL' && Array.isArray(doctor.availabilitySlots.voiceCall)) {
         slots = doctor.availabilitySlots.voiceCall;
-      } else if ((mode === 'VIDEO' || mode === 'CALL') && doctor.availabilitySlots.callVideo && !Array.isArray(doctor.availabilitySlots.videoCall) && !Array.isArray(doctor.availabilitySlots.voiceCall)) {
-        // Fallback to old shared callVideo object if strict arrays not found
+      } else if ((mode === 'VIDEO' || mode === 'CALL') && doctor.availabilitySlots.callVideo && 
+                (!Array.isArray(doctor.availabilitySlots.videoCall) || doctor.availabilitySlots.videoCall.length === 0) && 
+                (!Array.isArray(doctor.availabilitySlots.voiceCall) || doctor.availabilitySlots.voiceCall.length === 0)) {
+        // Fallback to old shared callVideo object if strict arrays not found or empty
         if (doctor.availabilitySlots.callVideo.startTime) {
           return [{
             startTime: doctor.availabilitySlots.callVideo.startTime,
@@ -96,7 +98,11 @@ const getSessionSlots = (doctor, appointmentDate, consultationMode) => {
     if (dayAvailability) {
       let slot;
       if (mode === 'CALL' || mode === 'VIDEO') {
-        slot = dayAvailability.slots?.find(s => s.consultationType === 'call_video');
+        slot = dayAvailability.slots?.find(s => 
+          s.consultationType === 'call_video' || 
+          s.consultationType === 'video_call' || 
+          s.consultationType === 'voice_call'
+        );
       } else if (mode === 'IN_PERSON') {
         slot = dayAvailability.slots?.find(s => s.consultationType === 'in_person');
       }
@@ -113,6 +119,30 @@ const getSessionSlots = (doctor, appointmentDate, consultationMode) => {
   }
 
   return [];
+};
+
+/**
+ * Helper: Get the overall start time of the session (earliest slot)
+ */
+const getSessionStartTime = (doctor, appointmentDate, consultationMode) => {
+  const slots = getSessionSlots(doctor, appointmentDate, consultationMode);
+  if (slots.length > 0) {
+    const sortedSlots = [...slots].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+    return sortedSlots[0].startTime;
+  }
+  return null;
+};
+
+/**
+ * Helper: Get the overall end time of the session (latest slot)
+ */
+const getSessionEndTime = (doctor, appointmentDate, consultationMode) => {
+  const slots = getSessionSlots(doctor, appointmentDate, consultationMode);
+  if (slots.length > 0) {
+    const sortedSlots = [...slots].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+    return sortedSlots[sortedSlots.length - 1].endTime;
+  }
+  return null;
 };
 
 
@@ -251,12 +281,13 @@ exports.getAppointments = asyncHandler(async (req, res) => {
 
   // Only run maintenance (delete old pending) on the first page to save DB cycles
   if (page === 1) {
-    const thirtyMinutesAgo = new Date(getISTTime().getTime() - 30 * 60 * 1000);
+    // INCREASED to 60 minutes to prevent deleting appointments while user is in payment gateway
+    const sixtyMinutesAgo = new Date(Date.now() - 60 * 60 * 1000);
     await Appointment.deleteMany({
       patientId: id,
       paymentStatus: "pending",
       status: { $in: ["pending_payment", "scheduled", "confirmed"] },
-      createdAt: { $lt: thirtyMinutesAgo },
+      createdAt: { $lt: sixtyMinutesAgo },
     });
   }
 
@@ -1217,11 +1248,12 @@ exports.rescheduleAppointment = asyncHandler(async (req, res) => {
     if (newTokenNumber && doctor) {
       appointment.tokenNumber = newTokenNumber;
       appointment.averageConsultationTime = doctor.averageConsultationMinutes || 20;
-      const sessionStartTime = getSessionStartTime(doctor, normalizedAppointmentDate, finalMode);
-      if (sessionStartTime) {
+      
+      const slots = getSessionSlots(doctor, normalizedAppointmentDate, finalMode);
+      if (slots.length > 0) {
         appointment.expectedTime = calculateExpectedTime(
           normalizedAppointmentDate,
-          sessionStartTime,
+          slots,
           newTokenNumber,
           appointment.averageConsultationTime
         );
@@ -1316,6 +1348,15 @@ exports.createAppointmentPaymentOrder = asyncHandler(async (req, res) => {
     return res.status(404).json({
       success: false,
       message: "Appointment not found",
+    });
+  }
+
+  // Check for session timeout (30 minutes)
+  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+  if (appointment.paymentStatus === 'pending' && appointment.createdAt < thirtyMinutesAgo) {
+    return res.status(400).json({
+      success: false,
+      message: "Booking session has expired (30 minute timeout). Please try booking again.",
     });
   }
 
@@ -1538,14 +1579,14 @@ exports.verifyAppointmentPayment = asyncHandler(async (req, res) => {
     if (tokenNumber) {
       appointment.tokenNumber = tokenNumber;
 
-      // Calculate expectedTime ONCE: sessionStartTime + (tokenNumber - 1) * averageConsultationTime
+      // Calculate expectedTime using multiple slots logic
       const doctor = await Doctor.findById(appointment.doctorId);
       if (doctor && appointment.averageConsultationTime) {
-        const sessionStartTime = getSessionStartTime(doctor, appointment.appointmentDate, normalizedMode);
-        if (sessionStartTime) {
+        const slots = getSessionSlots(doctor, appointment.appointmentDate, normalizedMode);
+        if (slots.length > 0) {
           appointment.expectedTime = calculateExpectedTime(
             appointment.appointmentDate,
-            sessionStartTime,
+            slots,
             tokenNumber,
             appointment.averageConsultationTime
           );

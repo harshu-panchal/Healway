@@ -179,6 +179,274 @@ const DoctorProfile = () => {
     isActive: true,
   });
 
+  // Function to normalize doctor data from backend to frontend format
+  const normalizeDoctorData = (doctor) => {
+    if (!doctor) return null;
+    
+    return {
+      firstName: doctor.firstName || "",
+      lastName: doctor.lastName || "",
+      email: doctor.email || "",
+      phone: doctor.phone || "",
+      gender: doctor.gender || "",
+      profileImage: normalizeImageUrl(
+        doctor.profileImage ||
+        doctor.documents?.profileImage ||
+        "",
+      ),
+      specialization: doctor.specialization || "",
+      licenseNumber: doctor.licenseNumber || "",
+      experienceYears: doctor.experienceYears || 0,
+      qualification: doctor.qualification || "",
+      bio: doctor.bio || "",
+      fees: doctor.fees
+        ? {
+          inPerson: {
+            original:
+              doctor.fees.inPerson?.original ||
+              doctor.original_fees ||
+              0,
+            discount:
+              doctor.fees.inPerson?.discount ||
+              doctor.discount_amount ||
+              0,
+            final:
+              doctor.fees.inPerson?.final ||
+              doctor.consultationFee ||
+              0,
+            selectedDays: Array.isArray(
+              doctor.fees.inPerson?.selectedDays,
+            )
+              ? doctor.fees.inPerson.selectedDays
+              : [],
+          },
+          videoCall: {
+            original: doctor.fees.videoCall?.original || 0,
+            discount: doctor.fees.videoCall?.discount || 0,
+            final: doctor.fees.videoCall?.final || 0,
+            selectedDays: Array.isArray(
+              doctor.fees.videoCall?.selectedDays,
+            )
+              ? doctor.fees.videoCall.selectedDays
+              : [],
+          },
+          voiceCall: {
+            original: doctor.fees.voiceCall?.original || 0,
+            discount: doctor.fees.voiceCall?.discount || 0,
+            final: doctor.fees.voiceCall?.final || 0,
+            selectedDays: Array.isArray(
+              doctor.fees.voiceCall?.selectedDays,
+            )
+              ? doctor.fees.voiceCall.selectedDays
+              : [],
+          },
+        }
+        : {
+          inPerson: {
+            original: doctor.original_fees || 0,
+            discount: doctor.discount_amount || 0,
+            final: doctor.consultationFee || 0,
+            selectedDays: [],
+          },
+          videoCall: {
+            original: 0,
+            discount: 0,
+            final: 0,
+            selectedDays: [],
+          },
+          voiceCall: {
+            original: 0,
+            discount: 0,
+            final: 0,
+            selectedDays: [],
+          },
+        },
+      original_fees: doctor.original_fees || 0,
+      discount_amount: doctor.discount_amount || 0,
+      consultationFee: doctor.consultationFee || 0,
+      education: Array.isArray(doctor.education) ? doctor.education : [],
+      languages: Array.isArray(doctor.languages) ? doctor.languages : [],
+      services: Array.isArray(doctor.services) ? doctor.services : [],
+      consultationModes: Array.isArray(doctor.consultationModes)
+        ? doctor.consultationModes.map((mode) => {
+          if (mode === "video" || mode === "call") return "video_call";
+          if (mode === "audio") return "voice_call";
+          return mode;
+        })
+        : [],
+      clinicDetails: doctor.clinicDetails || {
+        name: "",
+        address: {
+          line1: "",
+          line2: "",
+          city: "",
+          state: "",
+          postalCode: "",
+          country: "",
+        },
+      },
+      availability: Array.isArray(doctor.availability)
+        ? doctor.availability
+        : [],
+      availabilitySlots: doctor.availabilitySlots
+        ? {
+          // Handle inPerson slots
+          inPerson: Array.isArray(doctor.availabilitySlots.inPerson) && doctor.availabilitySlots.inPerson.length > 0 && doctor.availabilitySlots.inPerson[0].day
+            ? doctor.availabilitySlots.inPerson.map(dayConfig => ({
+              day: dayConfig.day,
+              slots: Array.isArray(dayConfig.slots) ? dayConfig.slots.map(slot => ({
+                startTime: convert12HourTo24Hour(slot.startTime) || "",
+                endTime: convert12HourTo24Hour(slot.endTime) || "",
+                isFree: !!slot.isFree
+              })) : []
+            }))
+            : (Array.isArray(doctor.availabilitySlots?.inPersonSelectedDays) && doctor.availabilitySlots.inPersonSelectedDays.length > 0
+              ? doctor.availabilitySlots.inPersonSelectedDays.map(day => ({
+                day,
+                slots: Array.isArray(doctor.availabilitySlots.inPerson) ? doctor.availabilitySlots.inPerson.map(slot => ({
+                  startTime: convert12HourTo24Hour(slot.startTime) || "",
+                  endTime: convert12HourTo24Hour(slot.endTime) || "",
+                  isFree: !!slot.isFree
+                })) : []
+              }))
+              : (Array.isArray(doctor.availabilitySlots.inPerson) 
+                ? [{ day: (Array.isArray(doctor.availabilitySlots.selectedDays) && doctor.availabilitySlots.selectedDays[0]) || "Monday", slots: doctor.availabilitySlots.inPerson.map(slot => ({
+                    startTime: convert12HourTo24Hour(slot.startTime) || "",
+                    endTime: convert12HourTo24Hour(slot.endTime) || "",
+                    isFree: !!slot.isFree
+                  }))}]
+                : [])),
+          // Handle videoCall slots - fallback to callVideo for backward compatibility
+          videoCall: (Array.isArray(doctor.availabilitySlots.videoCall) && doctor.availabilitySlots.videoCall.length > 0 && doctor.availabilitySlots.videoCall[0].day)
+            ? doctor.availabilitySlots.videoCall.map(dayConfig => ({
+              day: dayConfig.day,
+              slots: Array.isArray(dayConfig.slots) ? dayConfig.slots.map(slot => ({
+                startTime: convert12HourTo24Hour(slot.startTime) || "",
+                endTime: convert12HourTo24Hour(slot.endTime) || "",
+                isFree: !!slot.isFree
+              })) : []
+            }))
+            : (Array.isArray(doctor.availabilitySlots?.videoCallSelectedDays) && doctor.availabilitySlots.videoCallSelectedDays.length > 0
+              ? doctor.availabilitySlots.videoCallSelectedDays.map(day => ({
+                day,
+                slots: Array.isArray(doctor.availabilitySlots.videoCall) ? doctor.availabilitySlots.videoCall.map(slot => ({
+                  startTime: convert12HourTo24Hour(slot.startTime) || "",
+                  endTime: convert12HourTo24Hour(slot.endTime) || "",
+                  isFree: !!slot.isFree
+                })) : []
+              }))
+              : (doctor.availabilitySlots.callVideo?.startTime 
+                ? [{ day: (Array.isArray(doctor.availabilitySlots.selectedDays) && doctor.availabilitySlots.selectedDays[0]) || "Monday", slots: [{
+                    startTime: convert12HourTo24Hour(doctor.availabilitySlots.callVideo.startTime) || "",
+                    endTime: convert12HourTo24Hour(doctor.availabilitySlots.callVideo.endTime) || "",
+                    isFree: false
+                  }]}]
+                : (Array.isArray(doctor.availabilitySlots.videoCall)
+                  ? [{ day: (Array.isArray(doctor.availabilitySlots.selectedDays) && doctor.availabilitySlots.selectedDays[0]) || "Monday", slots: doctor.availabilitySlots.videoCall.map(slot => ({
+                      startTime: convert12HourTo24Hour(slot.startTime) || "",
+                      endTime: convert12HourTo24Hour(slot.endTime) || "",
+                      isFree: !!slot.isFree
+                    }))}]
+                  : []))),
+          // Handle voiceCall slots
+          voiceCall: Array.isArray(doctor.availabilitySlots.voiceCall) && doctor.availabilitySlots.voiceCall.length > 0 && doctor.availabilitySlots.voiceCall[0].day
+            ? doctor.availabilitySlots.voiceCall.map(dayConfig => ({
+              day: dayConfig.day,
+              slots: Array.isArray(dayConfig.slots) ? dayConfig.slots.map(slot => ({
+                startTime: convert12HourTo24Hour(slot.startTime) || "",
+                endTime: convert12HourTo24Hour(slot.endTime) || "",
+                isFree: !!slot.isFree
+              })) : []
+            }))
+            : (Array.isArray(doctor.availabilitySlots?.voiceCallSelectedDays) && doctor.availabilitySlots.voiceCallSelectedDays.length > 0
+              ? doctor.availabilitySlots.voiceCallSelectedDays.map(day => ({
+                day,
+                slots: Array.isArray(doctor.availabilitySlots.voiceCall) ? doctor.availabilitySlots.voiceCall.map(slot => ({
+                  startTime: convert12HourTo24Hour(slot.startTime) || "",
+                  endTime: convert12HourTo24Hour(slot.endTime) || "",
+                  isFree: !!slot.isFree
+                })) : []
+              }))
+              : (Array.isArray(doctor.availabilitySlots.voiceCall)
+                ? [{ day: (Array.isArray(doctor.availabilitySlots.selectedDays) && doctor.availabilitySlots.selectedDays[0]) || "Monday", slots: doctor.availabilitySlots.voiceCall.map(slot => ({
+                    startTime: convert12HourTo24Hour(slot.startTime) || "",
+                    endTime: convert12HourTo24Hour(slot.endTime) || "",
+                    isFree: !!slot.isFree
+                  }))}]
+                : [])),
+          inPersonSelectedDays: Array.isArray(doctor.availabilitySlots?.inPersonSelectedDays)
+            ? doctor.availabilitySlots.inPersonSelectedDays
+            : [],
+          videoCallSelectedDays: Array.isArray(doctor.availabilitySlots?.videoCallSelectedDays)
+            ? doctor.availabilitySlots.videoCallSelectedDays
+            : [],
+          voiceCallSelectedDays: Array.isArray(doctor.availabilitySlots?.voiceCallSelectedDays)
+            ? doctor.availabilitySlots.voiceCallSelectedDays
+            : [],
+          selectedDays: Array.isArray(doctor.availabilitySlots?.selectedDays)
+            ? doctor.availabilitySlots.selectedDays
+            : [],
+        }
+        : (() => {
+          // Fallback logic for old availability format
+          if (Array.isArray(doctor.availability) && doctor.availability.length > 0) {
+            const selectedDays = doctor.availability.map(a => a.day).filter(Boolean);
+            
+            // Collect all slots by type across all days
+            const inPersonSlotsByDay = doctor.availability.map(dayAvail => {
+              const ipSlot = dayAvail.slots?.find(s => s.consultationType === "in_person") || (dayAvail.startTime ? { startTime: dayAvail.startTime, endTime: dayAvail.endTime } : null);
+              if (ipSlot && ipSlot.startTime) {
+                return {
+                  day: dayAvail.day,
+                  slots: [{
+                    startTime: convert12HourTo24Hour(ipSlot.startTime) || "",
+                    endTime: convert12HourTo24Hour(ipSlot.endTime) || "",
+                    isFree: !!ipSlot.isFree
+                  }]
+                };
+              }
+              return null;
+            }).filter(Boolean);
+
+            const videoCallSlotsByDay = doctor.availability.map(dayAvail => {
+              const vcSlot = dayAvail.slots?.find(s => s.consultationType === "call_video" || s.consultationType === "video_call");
+              if (vcSlot && vcSlot.startTime) {
+                return {
+                  day: dayAvail.day,
+                  slots: [{
+                    startTime: convert12HourTo24Hour(vcSlot.startTime) || "",
+                    endTime: convert12HourTo24Hour(vcSlot.endTime) || "",
+                    isFree: !!vcSlot.isFree
+                  }]
+                };
+              }
+              return null;
+            }).filter(Boolean);
+
+            return {
+              inPerson: inPersonSlotsByDay,
+              videoCall: videoCallSlotsByDay,
+              voiceCall: [],
+              selectedDays: selectedDays,
+              inPersonSelectedDays: inPersonSlotsByDay.map(d => d.day),
+              videoCallSelectedDays: videoCallSlotsByDay.map(d => d.day),
+            };
+          }
+          return { inPerson: [], videoCall: [], voiceCall: [], selectedDays: [] };
+        })(),
+      averageConsultationMinutes: doctor.averageConsultationMinutes || 20,
+      documents: Array.isArray(doctor.documents) ? doctor.documents : [],
+      digitalSignature: doctor.digitalSignature
+        ? {
+          imageUrl: normalizeImageUrl(doctor.digitalSignature.imageUrl || ""),
+          uploadedAt: doctor.digitalSignature.uploadedAt || null,
+        }
+        : { imageUrl: "", uploadedAt: null },
+      status: doctor.status || "pending",
+      isActive: doctor.isActive !== undefined ? doctor.isActive : true,
+    };
+  };
+
   // Fetch doctor profile from backend
   useEffect(() => {
     const fetchDoctorProfile = async () => {
@@ -948,7 +1216,7 @@ const DoctorProfile = () => {
       if (dayIndex === -1) {
         newModeData = [
           ...modeData,
-          { day, slots: [{ startTime: "", endTime: "", isFree: false }] },
+          { day, slots: [{ startTime: "09:00", endTime: "10:00", isFree: false }] },
         ];
       } else {
         newModeData = modeData.map((d, idx) =>
@@ -957,18 +1225,33 @@ const DoctorProfile = () => {
               ...d,
               slots: [
                 ...d.slots,
-                { startTime: "", endTime: "", isFree: false },
+                { startTime: "09:00", endTime: "10:00", isFree: false },
               ],
             }
             : d,
         );
       }
 
+      // Automatically add day to selected days if not present
+      const selectedDaysKey = `${type}SelectedDays`;
+      const currentSelectedDays = Array.isArray(prev.availabilitySlots?.[selectedDaysKey])
+        ? prev.availabilitySlots[selectedDaysKey]
+        : [];
+      
+      const updatedSelectedDays = currentSelectedDays.includes(day)
+        ? currentSelectedDays
+        : [...currentSelectedDays, day];
+
       return {
         ...prev,
         availabilitySlots: {
           ...prev.availabilitySlots,
           [type]: newModeData,
+          [selectedDaysKey]: updatedSelectedDays,
+          // Sync with global selectedDays for backward compatibility
+          selectedDays: prev.availabilitySlots?.selectedDays?.includes(day)
+            ? prev.availabilitySlots.selectedDays
+            : [...(prev.availabilitySlots?.selectedDays || []), day]
         },
       };
     });
@@ -1247,103 +1530,111 @@ const DoctorProfile = () => {
       const availabilitySlotsForBackend = formData.availabilitySlots
         ? {
           inPerson: Array.isArray(formData.availabilitySlots.inPerson)
-            ? formData.availabilitySlots.inPerson.map(slot => ({
-              startTime: convertTo12HourForStorage(slot.startTime),
-              endTime: convertTo12HourForStorage(slot.endTime),
-              isFree: !!slot.isFree,
+            ? formData.availabilitySlots.inPerson.map(dayConfig => ({
+              day: dayConfig.day,
+              slots: Array.isArray(dayConfig.slots) 
+                ? dayConfig.slots.map(slot => ({
+                    startTime: convertTo12HourForStorage(slot.startTime),
+                    endTime: convertTo12HourForStorage(slot.endTime),
+                    isFree: !!slot.isFree,
+                  }))
+                : []
             }))
             : [],
           videoCall: Array.isArray(formData.availabilitySlots.videoCall)
-            ? formData.availabilitySlots.videoCall.map(slot => ({
-              startTime: convertTo12HourForStorage(slot.startTime),
-              endTime: convertTo12HourForStorage(slot.endTime),
-              isFree: !!slot.isFree,
+            ? formData.availabilitySlots.videoCall.map(dayConfig => ({
+              day: dayConfig.day,
+              slots: Array.isArray(dayConfig.slots) 
+                ? dayConfig.slots.map(slot => ({
+                    startTime: convertTo12HourForStorage(slot.startTime),
+                    endTime: convertTo12HourForStorage(slot.endTime),
+                    isFree: !!slot.isFree,
+                  }))
+                : []
             }))
             : [],
           voiceCall: Array.isArray(formData.availabilitySlots.voiceCall)
-            ? formData.availabilitySlots.voiceCall.map(slot => ({
-              startTime: convertTo12HourForStorage(slot.startTime),
-              endTime: convertTo12HourForStorage(slot.endTime),
-              isFree: !!slot.isFree,
+            ? formData.availabilitySlots.voiceCall.map(dayConfig => ({
+              day: dayConfig.day,
+              slots: Array.isArray(dayConfig.slots) 
+                ? dayConfig.slots.map(slot => ({
+                    startTime: convertTo12HourForStorage(slot.startTime),
+                    endTime: convertTo12HourForStorage(slot.endTime),
+                    isFree: !!slot.isFree,
+                  }))
+                : []
             }))
             : [],
-          // Keep callVideo for backward compatibility (use first video slot or existing)
-          callVideo: {
-            startTime: formData.availabilitySlots.callVideo?.startTime
-              ? convertTo12HourForStorage(formData.availabilitySlots.callVideo.startTime)
-              : formData.availabilitySlots.videoCall?.[0]?.startTime
-                ? convertTo12HourForStorage(formData.availabilitySlots.videoCall[0].startTime)
-                : "",
-            endTime: formData.availabilitySlots.callVideo?.endTime
-              ? convertTo12HourForStorage(formData.availabilitySlots.callVideo.endTime)
-              : formData.availabilitySlots.videoCall?.[0]?.endTime
-                ? convertTo12HourForStorage(formData.availabilitySlots.videoCall[0].endTime)
-                : "",
-          },
+          // Mode-specific selected days
+          inPersonSelectedDays: Array.isArray(formData.availabilitySlots.inPersonSelectedDays)
+            ? formData.availabilitySlots.inPersonSelectedDays
+            : [],
+          videoCallSelectedDays: Array.isArray(formData.availabilitySlots.videoCallSelectedDays)
+            ? formData.availabilitySlots.videoCallSelectedDays
+            : [],
+          voiceCallSelectedDays: Array.isArray(formData.availabilitySlots.voiceCallSelectedDays)
+            ? formData.availabilitySlots.voiceCallSelectedDays
+            : [],
+          // Global selectedDays for backward compatibility
           selectedDays: Array.isArray(formData.availabilitySlots.selectedDays)
             ? formData.availabilitySlots.selectedDays
             : [],
         }
         : null;
 
-      // Generate availability array for backward compatibility
-      const availabilityForBackend =
-        availabilitySlotsForBackend &&
-          availabilitySlotsForBackend.selectedDays.length > 0
-          ? availabilitySlotsForBackend.selectedDays.map((day) => {
-            const slots = [];
+      // Generate flat availability array for backward compatibility
+      // This maps each day to its specific slots across all modes
+      const allDays = [
+        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+      ];
+      
+      const availabilityForBackend = [];
 
-            // Add In-Person slots
-            if (Array.isArray(availabilitySlotsForBackend.inPerson)) {
-              availabilitySlotsForBackend.inPerson.forEach(slot => {
-                if (slot.startTime && slot.endTime) {
-                  slots.push({
-                    consultationType: "in_person",
-                    startTime: slot.startTime,
-                    endTime: slot.endTime,
-                    isFree: !!slot.isFree,
-                  });
-                }
-              });
-            }
+      allDays.forEach(day => {
+        const slotsForDay = [];
+        
+        // Find In-Person slots for this day
+        const ipDay = availabilitySlotsForBackend?.inPerson?.find(d => d.day === day);
+        if (ipDay && Array.isArray(ipDay.slots)) {
+          ipDay.slots.forEach(s => slotsForDay.push({
+            consultationType: "in_person",
+            startTime: s.startTime,
+            endTime: s.endTime,
+            isFree: !!s.isFree
+          }));
+        }
 
-            // Add Video Call slots
-            if (Array.isArray(availabilitySlotsForBackend.videoCall)) {
-              availabilitySlotsForBackend.videoCall.forEach(slot => {
-                if (slot.startTime && slot.endTime) {
-                  slots.push({
-                    consultationType: "video_call",
-                    startTime: slot.startTime,
-                    endTime: slot.endTime,
-                    isFree: !!slot.isFree,
-                  });
-                }
-              });
-            }
+        // Find Video slots for this day
+        const vcDay = availabilitySlotsForBackend?.videoCall?.find(d => d.day === day);
+        if (vcDay && Array.isArray(vcDay.slots)) {
+          vcDay.slots.forEach(s => slotsForDay.push({
+            consultationType: "video_call",
+            startTime: s.startTime,
+            endTime: s.endTime,
+            isFree: !!s.isFree
+          }));
+        }
 
-            // Add Voice Call slots
-            if (Array.isArray(availabilitySlotsForBackend.voiceCall)) {
-              availabilitySlotsForBackend.voiceCall.forEach(slot => {
-                if (slot.startTime && slot.endTime) {
-                  slots.push({
-                    consultationType: "voice_call",
-                    startTime: slot.startTime,
-                    endTime: slot.endTime,
-                    isFree: !!slot.isFree,
-                  });
-                }
-              });
-            }
+        // Find Voice slots for this day
+        const voiceDay = availabilitySlotsForBackend?.voiceCall?.find(d => d.day === day);
+        if (voiceDay && Array.isArray(voiceDay.slots)) {
+          voiceDay.slots.forEach(s => slotsForDay.push({
+            consultationType: "voice_call",
+            startTime: s.startTime,
+            endTime: s.endTime,
+            isFree: !!s.isFree
+          }));
+        }
 
-            return {
-              day: day,
-              slots: slots,
-              // Backward compatibility for top-level startTime/endTime (use first available slot)
-              startTime: slots[0]?.startTime || "",
-              endTime: slots[0]?.endTime || "",
-            };
-          })
-          : [];
+        if (slotsForDay.length > 0) {
+          availabilityForBackend.push({
+            day: day,
+            slots: slotsForDay,
+            startTime: slotsForDay[0].startTime,
+            endTime: slotsForDay[0].endTime
+          });
+        }
+      });
 
       // Prepare data for backend (match backend expected format)
       const updateData = {
@@ -1388,6 +1679,10 @@ const DoctorProfile = () => {
           "doctorProfileActive",
           JSON.stringify(formData.isActive),
         );
+
+        // Normalize and set form data from response
+        const normalizedData = normalizeDoctorData(savedDoctor);
+        setFormData(normalizedData);
 
         // Update stable value with saved value
         if (savedDoctor?.averageConsultationMinutes !== undefined) {
@@ -2324,7 +2619,7 @@ const DoctorProfile = () => {
                                   <input
                                     type="number"
                                     min="0"
-                                    value={formData.fees.inPerson.original}
+                                    value={formData.fees.inPerson.original || ""}
                                     onChange={(e) =>
                                       handleInputChange(
                                         "fees.inPerson.original",
@@ -2347,7 +2642,7 @@ const DoctorProfile = () => {
                                   <input
                                     type="number"
                                     min="0"
-                                    value={formData.fees.inPerson.discount}
+                                    value={formData.fees.inPerson.discount || ""}
                                     onChange={(e) =>
                                       handleInputChange(
                                         "fees.inPerson.discount",
@@ -2379,7 +2674,7 @@ const DoctorProfile = () => {
                                     type="number"
                                     min="0"
                                     max="100"
-                                    value={formData.fees.inPerson.confirmSlotPercentage}
+                                    value={formData.fees.inPerson.confirmSlotPercentage || ""}
                                     onChange={(e) =>
                                       handleInputChange(
                                         "fees.inPerson.confirmSlotPercentage",
@@ -2551,7 +2846,7 @@ const DoctorProfile = () => {
                                   <input
                                     type="number"
                                     min="0"
-                                    value={formData.fees.videoCall.original}
+                                    value={formData.fees.videoCall.original || ""}
                                     onChange={(e) =>
                                       handleInputChange(
                                         "fees.videoCall.original",
@@ -2574,7 +2869,7 @@ const DoctorProfile = () => {
                                   <input
                                     type="number"
                                     min="0"
-                                    value={formData.fees.videoCall.discount}
+                                    value={formData.fees.videoCall.discount || ""}
                                     onChange={(e) =>
                                       handleInputChange(
                                         "fees.videoCall.discount",
@@ -2680,7 +2975,7 @@ const DoctorProfile = () => {
                                   <input
                                     type="number"
                                     min="0"
-                                    value={formData.fees.voiceCall.original}
+                                    value={formData.fees.voiceCall.original || ""}
                                     onChange={(e) =>
                                       handleInputChange(
                                         "fees.voiceCall.original",
@@ -2703,7 +2998,7 @@ const DoctorProfile = () => {
                                   <input
                                     type="number"
                                     min="0"
-                                    value={formData.fees.voiceCall.discount}
+                                    value={formData.fees.voiceCall.discount || ""}
                                     onChange={(e) =>
                                       handleInputChange(
                                         "fees.voiceCall.discount",
@@ -3719,7 +4014,7 @@ const DoctorProfile = () => {
                                           key={sIdx}
                                           className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border ${slot.isFree ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-white text-slate-700 border-slate-200'}`}
                                         >
-                                          {format24HourTo12Hour(slot.startTime)} - {format24HourTo12Hour(slot.endTime)}
+                                          {formatTimeTo12Hour(slot.startTime)} - {formatTimeTo12Hour(slot.endTime)}
                                           {slot.isFree && <span className="ml-1 text-[8px] font-bold uppercase">Free</span>}
                                         </div>
                                       ))}
