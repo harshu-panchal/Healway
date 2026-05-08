@@ -15,10 +15,11 @@ import { getAuthToken } from "../../utils/apiClient";
 import { useCall } from "../../contexts/CallContext";
 import { getSocket } from "../../utils/socketClient";
 import P2PCallManager from "../../utils/p2pCallManager";
+import { getSocketBaseUrl } from "../../utils/urlUtils";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
-const SOCKET_URL = API_BASE_URL.replace("/api", "").replace(/\/$/, "");
+const SOCKET_URL = getSocketBaseUrl(API_BASE_URL);
 
 const CallPopup = () => {
   const { activeCall, endCall, isMinimized, minimize, maximize, callType } = useCall();

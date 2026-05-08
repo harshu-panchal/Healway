@@ -1,10 +1,11 @@
 import { io } from 'socket.io-client'
+import { getSocketBaseUrl } from './urlUtils'
 
 // Get API base URL from environment variable
 // Note: VITE_API_BASE_URL should include /api suffix (e.g., http://localhost:5000/api)
 // Socket.IO needs the base URL without /api, so we remove it
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
-const SOCKET_URL = API_BASE_URL.replace('/api', '').replace(/\/$/, '') // Remove /api and trailing slash
+const SOCKET_URL = getSocketBaseUrl(API_BASE_URL)
 
 let socketInstance = null
 let connectionErrorCount = 0
