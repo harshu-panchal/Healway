@@ -90,11 +90,21 @@ const CallPopup = () => {
     }
   }, [mediaStreams, isVideoCall, status]); // Re-run when streams, mode or status changes
 
-  // Determine module from token
+  // Determine active module with stable priority:
+  // 1) Route path
+  // 2) Existing socket module marker
+  // 3) Token fallback
   const getModule = () => {
-    const token = getAuthToken("doctor") || getAuthToken("patient");
-    if (getAuthToken("doctor")) return "doctor";
+    const path = window.location?.pathname || "";
+    if (path.startsWith("/doctor")) return "doctor";
+    if (path.startsWith("/patient")) return "patient";
+    if (path.startsWith("/admin")) return "admin";
+
+    const sharedSocket = socketRef.current || getSocket();
+    if (sharedSocket?.__module) return sharedSocket.__module;
+
     if (getAuthToken("patient")) return "patient";
+    if (getAuthToken("doctor")) return "doctor";
     return "patient"; // default
   };
 
