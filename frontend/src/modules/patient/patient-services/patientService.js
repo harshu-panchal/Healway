@@ -688,6 +688,9 @@ export const toggleFollowDoctor = async (doctorId) => {
     const response = await apiClient.post(`/patients/doctors/${doctorId}/follow`)
     return response
   } catch (error) {
+    if (error?.statusCode === 404 || /Route not found/i.test(error?.message || '')) {
+      throw new Error('Follow feature is not available on this server build. Please contact support.')
+    }
     console.error('Error toggling follow status:', error)
     throw error
   }
@@ -719,7 +722,9 @@ export const recordDoctorProfileView = async (doctorId) => {
     return response
   } catch (error) {
     // We don't throw error for tracking as it shouldn't break UI
-    console.error('Error recording profile view:', error)
+    if (!(error?.statusCode === 404 || /Route not found/i.test(error?.message || ''))) {
+      console.error('Error recording profile view:', error)
+    }
     return { success: false }
   }
 }
