@@ -34,12 +34,6 @@ const getAuthToken = (module) => {
  * @returns {object} Socket instance
  */
 export const initSocket = (module) => {
-  // Disconnect existing socket if any
-  if (socketInstance) {
-    socketInstance.disconnect()
-    socketInstance = null
-  }
-
   const token = getAuthToken(module)
 
   if (!token) {
@@ -52,6 +46,24 @@ export const initSocket = (module) => {
     console.warn(`Invalid token format for ${module}, cannot connect to Socket.IO`)
     return null
   }
+  const normalizedToken = token.trim()
+
+  // Reuse existing socket if it already matches the same module + token.
+  // This avoids dropping listeners when multiple components call initSocket().
+  if (socketInstance) {
+    const sameModule = socketInstance.__module === module
+    const sameToken = socketInstance.__authToken === normalizedToken
+
+    if (sameModule && sameToken) {
+      if (!socketInstance.connected) {
+        socketInstance.connect()
+      }
+      return socketInstance
+    }
+
+    socketInstance.disconnect()
+    socketInstance = null
+  }
 
   // Only log connection attempt if it's the first time or after a long delay
   if (connectionErrorCount === 0) {
@@ -60,7 +72,7 @@ export const initSocket = (module) => {
 
   socketInstance = io(SOCKET_URL, {
     auth: {
-      token: token.trim(), // Ensure token is trimmed
+      token: normalizedToken, // Ensure token is trimmed
     },
     transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
     reconnection: true,
@@ -74,6 +86,8 @@ export const initSocket = (module) => {
     // Suppress connection errors in console when server is not available
     rejectUnauthorized: false, // For development only
   })
+  socketInstance.__module = module
+  socketInstance.__authToken = normalizedToken
 
   socketInstance.on('connect', () => {
     // Reset error count and warning flag on successful connection

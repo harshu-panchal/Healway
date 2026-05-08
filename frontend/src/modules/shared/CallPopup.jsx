@@ -3364,7 +3364,7 @@ const CallPopup = () => {
               </div>
 
               {/* Controls Bar Overlay (Bottom) */}
-              <div className="absolute bottom-0 left-0 right-0 p-8 pt-20 bg-gradient-to-t from-black/90 via-black/60 to-transparent z-30 flex items-center justify-center gap-6 opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity duration-300">
+              <div className="absolute bottom-0 left-0 right-0 p-8 pt-20 bg-gradient-to-t from-black/90 via-black/60 to-transparent z-30 flex items-center justify-center gap-6 opacity-100 transition-opacity duration-300">
                 {/* Video Toggle */}
                 <button
                   onClick={handleVideoToggle}

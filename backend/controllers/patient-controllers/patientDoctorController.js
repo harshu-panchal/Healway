@@ -10,6 +10,73 @@ const { APPROVAL_STATUS } = require('../../utils/constants');
 const { isDoctorVisibleToPatients, isDoctorBookableByPatients, getDoctorAccessMode } = require('../../utils/doctorAccess');
 
 /**
+ * Helper: Transform doctor fees for backward compatibility and consistency
+ * Ensures fees object is populated correctly from various sources
+ */
+const transformDoctorFees = (doctor) => {
+  if (!doctor) return doctor;
+  const doctorObj = typeof doctor.toObject === 'function' ? doctor.toObject() : { ...doctor };
+
+  // Ensure fees structure exists
+  if (!doctorObj.fees || typeof doctorObj.fees !== 'object') {
+    doctorObj.fees = {};
+  }
+
+  const modes = ['inPerson', 'videoCall', 'voiceCall', 'homeVisit'];
+  
+  modes.forEach(mode => {
+    const existingMode = doctorObj.fees[mode] || {};
+    
+    // Fallback values for inPerson from top-level fields
+    let original = existingMode.original;
+    let discount = existingMode.discount;
+    let final = existingMode.final;
+
+    if (mode === 'inPerson') {
+      original = original ?? doctorObj.original_fees ?? 0;
+      discount = discount ?? doctorObj.discount_amount ?? 0;
+      const calculatedFinal = Math.max(0, (original || 0) - (discount || 0));
+      final = (final > 0) ? final : ((doctorObj.consultationFee > 0) ? doctorObj.consultationFee : calculatedFinal);
+    } else {
+      original = original ?? 0;
+      discount = discount ?? 0;
+      final = final ?? Math.max(0, (original || 0) - (discount || 0));
+    }
+
+    doctorObj.fees[mode] = {
+      original,
+      discount,
+      final,
+      selectedDays: Array.isArray(existingMode.selectedDays) ? existingMode.selectedDays : [],
+      confirmSlotPercentage: existingMode.confirmSlotPercentage ?? 0,
+      confirmSlotAmount: existingMode.confirmSlotAmount ?? 0,
+      codEnabled: existingMode.codEnabled ?? false
+    };
+
+    // Sync top-level fields for inPerson backward compatibility
+    if (mode === 'inPerson') {
+      doctorObj.original_fees = original;
+      doctorObj.discount_amount = discount;
+      doctorObj.consultationFee = final;
+    }
+  });
+
+  // Ensure consultationModes is an array
+  if (!Array.isArray(doctorObj.consultationModes)) {
+    doctorObj.consultationModes = doctorObj.consultationModes
+      ? (typeof doctorObj.consultationModes === 'string' ? [doctorObj.consultationModes] : [])
+      : ['in_person'];
+  } else {
+    doctorObj.consultationModes = Array.from(new Set(doctorObj.consultationModes));
+  }
+
+  // Ensure experienceYears is a number
+  doctorObj.experienceYears = doctorObj.experienceYears ?? 0;
+
+  return doctorObj;
+};
+
+/**
  * Helper: Normalize consultation mode to standard format
  */
 const normalizeConsultationMode = (mode) => {
@@ -17,6 +84,7 @@ const normalizeConsultationMode = (mode) => {
   const normalized = mode.toUpperCase();
   if (normalized === 'VIDEO_CALL' || normalized === 'VIDEO') return 'VIDEO';
   if (normalized === 'VOICE_CALL' || normalized === 'CALL') return 'CALL';
+  if (normalized === 'HOME_VISIT' || normalized === 'HOME') return 'HOME_VISIT';
   if (normalized === 'IN_PERSON') return 'IN_PERSON';
   // Backward compatibility
   if (normalized === 'INPERSON') return 'IN_PERSON';
@@ -291,7 +359,7 @@ exports.getDoctors = asyncHandler(async (req, res) => {
   const response = {
     success: true,
     data: {
-      items: doctors,
+      items: doctors.map(transformDoctorFees),
       pagination: {
         page,
         limit,
@@ -440,56 +508,7 @@ exports.getFeaturedDoctors = asyncHandler(async (req, res) => {
       .lean(); // Use lean() for better performance and to get plain objects
 
     // Transform doctors to ensure fees structure is correct
-    return doctorsList.map(doctor => {
-      // doctor is already a plain object from lean()
-      const doctorObj = { ...doctor };
-
-      // Ensure fees structure exists and is properly formatted
-      if (!doctorObj.fees || typeof doctorObj.fees !== 'object') {
-        doctorObj.fees = {};
-      }
-
-      // Get values from multiple sources (new structure, old structure, top-level fields)
-      const originalFee = doctorObj.fees?.inPerson?.original ?? doctorObj.original_fees ?? 0;
-      const discountFee = doctorObj.fees?.inPerson?.discount ?? doctorObj.discount_amount ?? 0;
-      const calculatedFinal = Math.max(0, originalFee - discountFee);
-      const storedFinal = doctorObj.fees?.inPerson?.final ?? doctorObj.consultationFee ?? calculatedFinal;
-
-      // Use the calculated final if stored final is 0 or invalid, but original is set
-      const finalFee = (storedFinal > 0) ? storedFinal : ((originalFee > 0) ? calculatedFinal : storedFinal);
-
-      // Ensure inPerson fees exist with proper values
-      doctorObj.fees.inPerson = {
-        original: originalFee,
-        discount: discountFee,
-        final: finalFee,
-        selectedDays: Array.isArray(doctorObj.fees?.inPerson?.selectedDays)
-          ? doctorObj.fees.inPerson.selectedDays
-          : []
-      };
-
-      // Also ensure top-level fields are set for backward compatibility
-      doctorObj.original_fees = originalFee;
-      doctorObj.discount_amount = discountFee;
-      doctorObj.consultationFee = finalFee;
-
-      // Ensure consultationModes is an array and remove duplicates
-      if (!Array.isArray(doctorObj.consultationModes)) {
-        doctorObj.consultationModes = doctorObj.consultationModes
-          ? (typeof doctorObj.consultationModes === 'string' ? [doctorObj.consultationModes] : [])
-          : ['in_person'];
-      } else {
-        // Remove duplicates
-        doctorObj.consultationModes = Array.from(new Set(doctorObj.consultationModes));
-      }
-
-      // Ensure experienceYears is a number
-      if (doctorObj.experienceYears === undefined || doctorObj.experienceYears === null) {
-        doctorObj.experienceYears = 0;
-      }
-
-      return doctorObj;
-    });
+    return doctorsList.map(transformDoctorFees);
   })();
 
   return res.status(200).json({
@@ -513,77 +532,6 @@ exports.getDoctorById = asyncHandler(async (req, res) => {
     });
   }
 
-  // Ensure fees structure is properly formatted
-  if (!doctor.fees || typeof doctor.fees !== 'object') {
-    doctor.fees = {};
-  }
-
-  // Ensure all fee types exist with proper structure
-  if (!doctor.fees.inPerson || typeof doctor.fees.inPerson !== 'object') {
-    doctor.fees.inPerson = {
-      original: doctor.original_fees || 0,
-      discount: doctor.discount_amount || 0,
-      final: doctor.consultationFee || 0,
-      confirmSlotPercentage: 0,
-      codEnabled: false,
-      confirmSlotAmount: 0,
-      selectedDays: []
-    };
-  } else {
-    // Ensure final is calculated
-    if (doctor.fees.inPerson.final === undefined || doctor.fees.inPerson.final === null) {
-      doctor.fees.inPerson.final = Math.max(0,
-        (doctor.fees.inPerson.original || 0) - (doctor.fees.inPerson.discount || 0)
-      );
-    }
-    // Ensure confirmSlotPercentage and confirmSlotAmount exist
-    if (doctor.fees.inPerson.confirmSlotPercentage === undefined || doctor.fees.inPerson.confirmSlotPercentage === null) {
-      doctor.fees.inPerson.confirmSlotPercentage = 0;
-    }
-    if (doctor.fees.inPerson.confirmSlotAmount === undefined || doctor.fees.inPerson.confirmSlotAmount === null) {
-      doctor.fees.inPerson.confirmSlotAmount = Math.round((doctor.fees.inPerson.final * (doctor.fees.inPerson.confirmSlotPercentage || 0)) / 100);
-    }
-    if (!Array.isArray(doctor.fees.inPerson.selectedDays)) {
-      doctor.fees.inPerson.selectedDays = [];
-    }
-  }
-
-  if (!doctor.fees.videoCall || typeof doctor.fees.videoCall !== 'object') {
-    doctor.fees.videoCall = {
-      original: 0,
-      discount: 0,
-      final: 0,
-      selectedDays: []
-    };
-  } else {
-    if (doctor.fees.videoCall.final === undefined || doctor.fees.videoCall.final === null) {
-      doctor.fees.videoCall.final = Math.max(0,
-        (doctor.fees.videoCall.original || 0) - (doctor.fees.videoCall.discount || 0)
-      );
-    }
-    if (!Array.isArray(doctor.fees.videoCall.selectedDays)) {
-      doctor.fees.videoCall.selectedDays = [];
-    }
-  }
-
-  if (!doctor.fees.voiceCall || typeof doctor.fees.voiceCall !== 'object') {
-    doctor.fees.voiceCall = {
-      original: 0,
-      discount: 0,
-      final: 0,
-      selectedDays: []
-    };
-  } else {
-    if (doctor.fees.voiceCall.final === undefined || doctor.fees.voiceCall.final === null) {
-      doctor.fees.voiceCall.final = Math.max(0,
-        (doctor.fees.voiceCall.original || 0) - (doctor.fees.voiceCall.discount || 0)
-      );
-    }
-    if (!Array.isArray(doctor.fees.voiceCall.selectedDays)) {
-      doctor.fees.voiceCall.selectedDays = [];
-    }
-  }
-
   // Check if current user is following this doctor
   let isFollowing = false;
   if (req.auth?.id) {
@@ -595,7 +543,7 @@ exports.getDoctorById = asyncHandler(async (req, res) => {
     success: true,
     data: {
       doctor: {
-        ...doctor,
+        ...transformDoctorFees(doctor),
         isFollowing
       },
     },
@@ -663,7 +611,7 @@ exports.getSpecialtyDoctors = asyncHandler(async (req, res) => {
   return res.status(200).json({
     success: true,
     data: {
-      items: doctors,
+      items: doctors.map(transformDoctorFees),
       pagination: {
         page,
         limit,
@@ -975,14 +923,17 @@ exports.getFollowedDoctors = asyncHandler(async (req, res) => {
   const follows = await Follow.find({ patientId })
     .populate({
       path: 'doctorId',
-      select: 'firstName lastName specialization profileImage clinicDetails fees experienceYears',
+      select: 'firstName lastName specialization profileImage clinicDetails fees consultationFee original_fees discount_amount experienceYears',
     })
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
 
-  // Filter out any null doctorId (if doctor was deleted)
-  const doctors = follows.map(f => f.doctorId).filter(d => d !== null);
+  // Filter out any null doctorId (if doctor was deleted) and transform fees
+  const doctors = follows
+    .map(f => f.doctorId)
+    .filter(d => d !== null)
+    .map(transformDoctorFees);
 
   res.status(200).json({
     success: true,

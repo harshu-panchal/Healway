@@ -70,6 +70,7 @@ import { canBookDoctor, getDoctorBookingStatusText } from "../patient-utils/doct
 
 // Default doctor data (will be replaced by API)
 const defaultDoctor = null;
+const FOLLOW_STATUS_STORAGE_KEY = "patientDoctorFollowMap";
 
 const formatTimeTo12Hour = (time) => {
   if (!time) return "";
@@ -301,6 +302,29 @@ const normalizeConsultationMode = (mode) => {
   return "IN_PERSON";
 };
 
+const getNormalizedModeSet = (modes = []) => {
+  if (!Array.isArray(modes)) return new Set();
+  return new Set(
+    modes.map((mode) => {
+      const raw = String(mode || "").trim().toLowerCase();
+      if (raw === "voice_call" || raw === "call" || raw === "voice") return "CALL";
+      if (raw === "video_call" || raw === "video") return "VIDEO";
+      if (
+        raw === "home_visit" ||
+        raw === "homevisit" ||
+        raw === "home visit" ||
+        raw === "home"
+      ) {
+        return "HOME_VISIT";
+      }
+      if (raw === "in_person" || raw === "inperson" || raw === "clinic") {
+        return "IN_PERSON";
+      }
+      return normalizeConsultationMode(mode);
+    }),
+  );
+};
+
 // Get consultation fee based on mode
 const getConsultationFee = (mode, doctor) => {
   if (!doctor || !doctor.fees) return 0;
@@ -363,6 +387,45 @@ const PatientDoctorDetails = () => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [followLoading, setFollowLoading] = useState(false);
+
+  const resolveIsFollowing = (payload) => {
+    if (!payload || typeof payload !== "object") return false;
+    const candidate =
+      payload.isFollowing ??
+      payload.following ??
+      payload.is_following ??
+      payload.followedByCurrentUser ??
+      payload.followStatus?.isFollowing ??
+      payload.meta?.isFollowing ??
+      payload.data?.isFollowing ??
+      payload.data?.following;
+    return !!candidate;
+  };
+
+  const getStoredFollowStatus = useCallback((doctorId) => {
+    try {
+      const raw = localStorage.getItem(FOLLOW_STATUS_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return null;
+      if (!(doctorId in parsed)) return null;
+      return !!parsed[doctorId];
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const storeFollowStatus = useCallback((doctorId, isFollowed) => {
+    try {
+      const raw = localStorage.getItem(FOLLOW_STATUS_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      const next = parsed && typeof parsed === "object" ? parsed : {};
+      next[doctorId] = !!isFollowed;
+      localStorage.setItem(FOLLOW_STATUS_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // no-op
+    }
+  }, []);
 
   // Record profile view on mount
   useEffect(() => {
@@ -702,7 +765,13 @@ const PatientDoctorDetails = () => {
           }
 
           setDoctor(transformed);
-          setIsFollowing(!!doctorData.isFollowing);
+          const responseFollowStatus = resolveIsFollowing(apiResponse);
+          const doctorFollowStatus = resolveIsFollowing(doctorData);
+          const storedFollowStatus = getStoredFollowStatus(doctorData._id || doctorData.id);
+          const finalFollowStatus =
+            responseFollowStatus || doctorFollowStatus || storedFollowStatus || false;
+          setIsFollowing(finalFollowStatus);
+          storeFollowStatus(doctorData._id || doctorData.id, finalFollowStatus);
           setFollowerCount(doctorData.followerCount || 0);
           setLoading(false);
         }
@@ -736,9 +805,11 @@ const PatientDoctorDetails = () => {
       const response = await toggleFollowDoctor(id);
       
       if (response && response.success) {
-        setIsFollowing(response.isFollowing);
+        const nextFollowing = resolveIsFollowing(response);
+        setIsFollowing(nextFollowing);
+        storeFollowStatus(id, nextFollowing);
         setFollowerCount((prev) =>
-          response.isFollowing ? prev + 1 : Math.max(0, prev - 1)
+          nextFollowing ? prev + 1 : Math.max(0, prev - 1)
         );
         toast.success(response.message);
       } else {
@@ -883,6 +954,26 @@ const PatientDoctorDetails = () => {
   // State to store patient-related data for this doctor
   const [appointmentsData, setAppointmentsData] = useState([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const enabledModeSet = useMemo(
+    () => getNormalizedModeSet(doctor?.consultationModes || []),
+    [doctor?.consultationModes],
+  );
+  const hasHomeVisitConfigured = useMemo(() => {
+    if (!doctor) return false;
+
+    const homeVisitFeeConfigured =
+      (doctor.fees?.homeVisit?.final || 0) > 0 ||
+      (doctor.fees?.homeVisit?.original || 0) > 0;
+
+    const slots = doctor.availabilitySlots || {};
+    const homeVisitDaySlots =
+      Array.isArray(slots.homeVisit) && slots.homeVisit.length > 0;
+    const homeVisitSelectedDays =
+      Array.isArray(slots.homeVisitSelectedDays) &&
+      slots.homeVisitSelectedDays.length > 0;
+
+    return homeVisitFeeConfigured || homeVisitDaySlots || homeVisitSelectedDays;
+  }, [doctor]);
 
   // Fetch appointments once when doctor changes
   useEffect(() => {
@@ -3420,9 +3511,7 @@ const PatientDoctorDetails = () => {
                 ) : (
                   <div className="grid grid-cols-1 gap-3">
                     {/* In-Person Card */}
-                    {doctor.consultationModes?.some(
-                      (m) => normalizeConsultationMode(m) === "IN_PERSON",
-                    ) && (
+                    {enabledModeSet.has("IN_PERSON") && (
                         <Card
                           hoverable
                           className={`cursor-pointer transition-all border-2 rounded-2xl ${appointmentType === "in_person" ? "border-primary bg-primary/5 shadow-md shadow-primary/10" : "border-slate-100"}`}
@@ -3447,8 +3536,8 @@ const PatientDoctorDetails = () => {
                                   In-person consultation
                                 </p>
                                 <span className="text-sm font-bold text-primary">
-                                  {getFeeForDay(dayjs().format('YYYY-MM-DD'), 'in_person') > 0
-                                    ? `₹${getFeeForDay(dayjs().format('YYYY-MM-DD'), 'in_person')}`
+                                  {getConsultationFee("in_person", doctor) > 0
+                                    ? `₹${getConsultationFee("in_person", doctor)}`
                                     : "FREE"}
                                 </span>
                               </div>
@@ -3458,9 +3547,7 @@ const PatientDoctorDetails = () => {
                       )}
 
                     {/* Video Call Card */}
-                    {doctor.consultationModes?.some(
-                      (m) => normalizeConsultationMode(m) === "VIDEO",
-                    ) && (
+                    {enabledModeSet.has("VIDEO") && (
                         <Card
                           hoverable
                           className={`cursor-pointer transition-all border-2 rounded-2xl ${appointmentType === "video_call" ? "border-rose-500 bg-rose-50 shadow-md shadow-rose-500/10" : "border-slate-100"}`}
@@ -3485,8 +3572,8 @@ const PatientDoctorDetails = () => {
                                   Face-to-face consultation
                                 </p>
                                 <span className="text-sm font-bold text-rose-600">
-                                  {getFeeForDay(dayjs().format('YYYY-MM-DD'), 'video_call') > 0
-                                    ? `₹${getFeeForDay(dayjs().format('YYYY-MM-DD'), 'video_call')}`
+                                  {getConsultationFee("video_call", doctor) > 0
+                                    ? `₹${getConsultationFee("video_call", doctor)}`
                                     : "FREE"}
                                 </span>
                               </div>
@@ -3496,9 +3583,7 @@ const PatientDoctorDetails = () => {
                       )}
 
                     {/* Voice Call Card */}
-                    {doctor.consultationModes?.some(
-                      (m) => normalizeConsultationMode(m) === "CALL",
-                    ) && (
+                    {enabledModeSet.has("CALL") && (
                         <Card
                           hoverable
                           className={`cursor-pointer transition-all border-2 rounded-2xl ${appointmentType === "call" ? "border-indigo-500 bg-indigo-50 shadow-md shadow-indigo-500/10" : "border-slate-100"}`}
@@ -3523,8 +3608,8 @@ const PatientDoctorDetails = () => {
                                   Audio meeting via app
                                 </p>
                                 <span className="text-sm font-bold text-indigo-600">
-                                  {getFeeForDay(dayjs().format('YYYY-MM-DD'), 'call') > 0
-                                    ? `₹${getFeeForDay(dayjs().format('YYYY-MM-DD'), 'call')}`
+                                  {getConsultationFee("call", doctor) > 0
+                                    ? `₹${getConsultationFee("call", doctor)}`
                                     : "FREE"}
                                 </span>
                               </div>
@@ -3534,9 +3619,7 @@ const PatientDoctorDetails = () => {
                       )}
 
                     {/* Home Visit Card */}
-                    {doctor.consultationModes?.some(
-                      (m) => normalizeConsultationMode(m) === "HOME_VISIT",
-                    ) && (
+                    {(enabledModeSet.has("HOME_VISIT") || hasHomeVisitConfigured) && (
                         <Card
                           hoverable
                           className={`cursor-pointer transition-all border-2 rounded-2xl ${appointmentType === "home_visit" ? "border-orange-500 bg-orange-50 shadow-md shadow-orange-500/10" : "border-slate-100"}`}
@@ -3561,8 +3644,8 @@ const PatientDoctorDetails = () => {
                                   Doctor visits your home
                                 </p>
                                 <span className="text-sm font-bold text-orange-600">
-                                  {getFeeForDay(dayjs().format('YYYY-MM-DD'), 'home_visit') > 0
-                                    ? `₹${getFeeForDay(dayjs().format('YYYY-MM-DD'), 'home_visit')}`
+                                  {getConsultationFee("home_visit", doctor) > 0
+                                    ? `₹${getConsultationFee("home_visit", doctor)}`
                                     : "FREE"}
                                 </span>
                               </div>
@@ -4255,3 +4338,4 @@ const PatientDoctorDetails = () => {
   );
 };
 export default PatientDoctorDetails;
+

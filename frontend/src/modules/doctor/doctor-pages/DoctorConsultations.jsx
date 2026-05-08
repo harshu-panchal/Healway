@@ -3074,14 +3074,23 @@ const DoctorConsultations = () => {
                                 const socket = getSocket();
                                 const callId = selectedConsultation.id || selectedConsultation._id;
                                 const callType = mode === "video_call" ? "video" : "audio";
+                                const normalizedPatientId =
+                                  typeof selectedConsultation.patientId === "object"
+                                    ? (selectedConsultation.patientId?._id || selectedConsultation.patientId?.id || null)
+                                    : selectedConsultation.patientId;
+                                const patientId = normalizedPatientId ? String(normalizedPatientId) : null;
 
                                 console.log(`📞 Initiating ${callType} call:`, callId);
 
                                 // 1. Emit initiate event to server
                                 if (socket) {
+                                  if (!patientId || patientId === "pat-unknown") {
+                                    toast.error("Patient ID missing. Cannot initiate call.");
+                                    return;
+                                  }
                                   socket.emit('call:initiate', {
                                     callId,
-                                    patientId: selectedConsultation.patientId?._id || selectedConsultation.patientId?.id || selectedConsultation.patientId,
+                                    patientId,
                                     doctorName: doctorInfo.name,
                                     appointmentId: selectedConsultation.appointmentId?._id || selectedConsultation.appointmentId?.id || selectedConsultation.appointmentId,
                                     callType

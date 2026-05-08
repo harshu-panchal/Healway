@@ -16,6 +16,60 @@ const IncomingCallNotification = () => {
   // Audio ref for ringtone
   const ringtoneRef = useRef(null)
 
+  // Always-on window event listeners.
+  // This ensures call modal works even if local socket listeners were not attached in time.
+  useEffect(() => {
+    const onInvite = (event) => {
+      const data = event?.detail || {}
+      const callId = data.callId
+      if (callId && endedCallIdsRef.current.has(callId)) return
+
+      setIncomingCall((current) => {
+        if (current?.callId && callId && current.callId === callId) return current
+        return {
+          callId,
+          appointmentId: data.appointmentId,
+          doctorName: data.doctorName || 'Doctor',
+          callType: data.callType || 'audio',
+        }
+      })
+    }
+
+    const onError = (event) => {
+      const data = event?.detail || {}
+      toast.error(data.message || 'Call error occurred')
+      setIncomingCall(null)
+      setIsProcessing(false)
+    }
+
+    const onEnded = (event) => {
+      const data = event?.detail || {}
+      if (data.callId) {
+        endedCallIdsRef.current.add(data.callId)
+      }
+      setIncomingCall((current) => {
+        if (!current) return current
+        const callIdMatches = data.callId && current.callId === data.callId
+        const shouldClose = callIdMatches || !data.callId || !current.callId
+        if (shouldClose) {
+          setIsProcessing(false)
+          return null
+        }
+        return current
+      })
+    }
+
+    window.addEventListener('call:invite', onInvite)
+    window.addEventListener('call:error', onError)
+    window.addEventListener('call:ended', onEnded)
+
+    return () => {
+      window.removeEventListener('call:invite', onInvite)
+      window.removeEventListener('call:error', onError)
+      window.removeEventListener('call:ended', onEnded)
+    }
+  }, [toast])
+
   useEffect(() => {
     console.log('📞 [IncomingCallNotification] Component mounted, setting up listeners...')
     console.log('📞 [IncomingCallNotification] Current window location:', window.location.href)
@@ -45,6 +99,12 @@ const IncomingCallNotification = () => {
         // Check if this call was already ended before showing notification
         if (data.callId && endedCallIdsRef.current.has(data.callId)) {
           console.log('📞 [IncomingCallNotification] Call was already ended, ignoring invite:', data.callId)
+          return
+        }
+
+        // Ignore duplicate invites for the same call ID so callType does not get overwritten.
+        if (incomingCall?.callId && data.callId && incomingCall.callId === data.callId) {
+          console.log('📞 [IncomingCallNotification] Duplicate invite for same callId ignored:', data.callId)
           return
         }
 
@@ -78,6 +138,12 @@ const IncomingCallNotification = () => {
         // Check if this call was already ended before showing notification
         if (data.callId && endedCallIdsRef.current.has(data.callId)) {
           console.log('📞 [IncomingCallNotification] Call was already ended, ignoring invite:', data.callId)
+          return
+        }
+
+        // Ignore duplicate invites for the same call ID so callType does not get overwritten.
+        if (incomingCall?.callId && data.callId && incomingCall.callId === data.callId) {
+          console.log('📞 [IncomingCallNotification] Duplicate socket invite for same callId ignored:', data.callId)
           return
         }
 

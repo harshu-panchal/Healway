@@ -178,14 +178,17 @@ const initializeSocket = (server) => {
       // data: { callId, patientId, doctorName, ... }
       console.log('📞 Call Initiated:', data);
 
+      const normalizedPatientId = data?.patientId ? String(data.patientId) : null;
+      const normalizedCallType = data?.callType === 'video' ? 'video' : 'audio';
+
       // Notify the patient
-      if (data.patientId) {
-        io.to(`patient-${data.patientId}`).emit('call:invite', {
+      if (normalizedPatientId) {
+        io.to(`patient-${normalizedPatientId}`).emit('call:invite', {
           callId: data.callId,
           appointmentId: data.appointmentId,
           doctorName: data.doctorName,
           doctorId: id,
-          callType: data.callType || 'audio'
+          callType: normalizedCallType
         });
       }
 
@@ -430,4 +433,5 @@ module.exports = {
   emitToRoom,
   emitToAll,
 };
+
 

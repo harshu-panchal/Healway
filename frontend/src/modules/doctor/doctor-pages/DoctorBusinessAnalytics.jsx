@@ -37,6 +37,12 @@ const DoctorBusinessAnalytics = () => {
   const [timeframe, setTimeframe] = useState(30);
   const toast = useToast();
 
+  const formatMetric = (value, digits = 2) => {
+    const n = Number(value || 0);
+    if (!Number.isFinite(n)) return 0;
+    return Number(n.toFixed(digits));
+  };
+
   useEffect(() => {
     fetchData();
   }, [timeframe]);
@@ -163,87 +169,96 @@ const DoctorBusinessAnalytics = () => {
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <Card className="rounded-3xl shadow-sm border-none overflow-hidden relative group">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                <TeamOutlined style={{ fontSize: 64, color: '#0ea5e9' }} />
+            <Card 
+              className="rounded-3xl shadow-lg border-none overflow-hidden relative group"
+              style={{ background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' }}
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-110 transition-transform">
+                <TeamOutlined style={{ fontSize: 64, color: '#fff' }} />
               </div>
               <Statistic 
-                title={<Text className="text-slate-400 uppercase tracking-widest text-[10px] font-black">Total Followers</Text>}
+                title={<Text style={{ color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '10px', fontWeight: '900' }}>Total Followers</Text>}
                 value={summary?.totalFollowers || 0} 
-                valueStyle={{ color: '#0f172a', fontWeight: '900', fontSize: '2rem' }}
+                valueStyle={{ color: '#fff', fontWeight: '900', fontSize: '2rem' }}
               />
               <div className="mt-4 flex items-center gap-2">
-                <div className={`flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                  (summary?.followersGrowth || 0) >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                }`}>
+                <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', padding: '2px 8px', borderRadius: '999px', fontSize: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
                   {(summary?.followersGrowth || 0) >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
                   <span className="ml-1">{Math.abs(summary?.followersGrowth || 0)} new</span>
                 </div>
-                <Text className="text-slate-400 text-[10px] font-bold uppercase tracking-tight">This Period</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>This Period</Text>
               </div>
             </Card>
           </motion.div>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-            <Card className="rounded-3xl shadow-sm border-none overflow-hidden relative group">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                <EyeOutlined style={{ fontSize: 64, color: '#6366f1' }} />
+            <Card 
+              className="rounded-3xl shadow-lg border-none overflow-hidden relative group"
+              style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-110 transition-transform">
+                <EyeOutlined style={{ fontSize: 64, color: '#fff' }} />
               </div>
               <Statistic 
-                title={<Text className="text-slate-400 uppercase tracking-widest text-[10px] font-black">Profile Views</Text>}
+                title={<Text style={{ color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '10px', fontWeight: '900' }}>Profile Views</Text>}
                 value={summary?.totalViews || 0} 
-                valueStyle={{ color: '#0f172a', fontWeight: '900', fontSize: '2rem' }}
+                valueStyle={{ color: '#fff', fontWeight: '900', fontSize: '2rem' }}
               />
               <div className="mt-4 flex items-center gap-2">
-                <div className={`flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                  (summary?.viewsGrowth || 0) >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                }`}>
+                <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', padding: '2px 8px', borderRadius: '999px', fontSize: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
                   {(summary?.viewsGrowth || 0) >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
                   <span className="ml-1">{Math.abs(summary?.viewsGrowth || 0)} views</span>
                 </div>
-                <Text className="text-slate-400 text-[10px] font-bold uppercase tracking-tight">This Period</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>This Period</Text>
               </div>
             </Card>
           </motion.div>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-            <Card className="rounded-3xl shadow-sm border-none overflow-hidden relative group">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                <LineChartOutlined style={{ fontSize: 64, color: '#10b981' }} />
+            <Card 
+              className="rounded-3xl shadow-lg border-none overflow-hidden relative group"
+              style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' }}
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-110 transition-transform">
+                <LineChartOutlined style={{ fontSize: 64, color: '#fff' }} />
               </div>
               <Statistic 
-                title={<Text className="text-slate-400 uppercase tracking-widest text-[10px] font-black">Follow Rate</Text>}
+                title={<Text style={{ color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '10px', fontWeight: '900' }}>Follow Rate</Text>}
                 value={summary?.followRate || 0} 
                 precision={2}
                 suffix="%"
-                valueStyle={{ color: '#0f172a', fontWeight: '900', fontSize: '2rem' }}
+                valueStyle={{ color: '#fff', fontWeight: '900', fontSize: '2rem' }}
               />
               <div className="mt-4 flex items-center gap-2">
-                <div className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', padding: '2px 8px', borderRadius: '999px', fontSize: '10px', fontWeight: 'bold' }}>
                   Conversion
                 </div>
-                <Text className="text-slate-400 text-[10px] font-bold uppercase tracking-tight">Views to Follows</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>Views to Follows</Text>
               </div>
             </Card>
           </motion.div>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-            <Card className="rounded-3xl shadow-sm border-none overflow-hidden relative group">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                <CalendarOutlined style={{ fontSize: 64, color: '#a855f7' }} />
+            <Card 
+              className="rounded-3xl shadow-lg border-none overflow-hidden relative group"
+              style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)' }}
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-110 transition-transform">
+                <CalendarOutlined style={{ fontSize: 64, color: '#fff' }} />
               </div>
               <Statistic 
-                title={<Text className="text-slate-400 uppercase tracking-widest text-[10px] font-black">Active Growth</Text>}
-                value={summary?.activeGrowth || 0} 
+                title={<Text style={{ color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '10px', fontWeight: '900' }}>Active Growth</Text>}
+                value={formatMetric(summary?.activeGrowth || 0, 2)} 
+                precision={2}
                 suffix="%"
-                valueStyle={{ color: '#0f172a', fontWeight: '900', fontSize: '2rem' }}
+                valueStyle={{ color: '#fff', fontWeight: '900', fontSize: '2rem' }}
               />
               <div className="mt-4 flex items-center gap-2">
-                <Tag color="purple" className="border-none rounded-full text-[10px] font-bold m-0">Live</Tag>
-                <Text className="text-slate-400 text-[10px] font-bold uppercase tracking-tight">Real-time status</Text>
+                <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', padding: '2px 8px', borderRadius: '999px', fontSize: '10px', fontWeight: 'bold' }}>Live</div>
+                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>Real-time status</Text>
               </div>
             </Card>
           </motion.div>

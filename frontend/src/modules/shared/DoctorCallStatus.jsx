@@ -9,6 +9,7 @@ import callingRingtone from '../../assets/sounds/phone-ringing-382734.mp3'
 const DoctorCallStatus = () => {
   const location = useLocation()
   const {
+    activeCall,
     callStatus,
     callInfo,
     isMinimized,
@@ -505,6 +506,12 @@ const DoctorCallStatus = () => {
   }, [callStatus, callInfo])
 
   // Don't render if no active call or status is idle/ended
+  // If full CallPopup is active, avoid rendering this secondary status card.
+  // This prevents duplicate call UIs on doctor screen.
+  if (activeCall) {
+    return null
+  }
+
   if (!callInfo || (callStatus !== 'calling' && callStatus !== 'started')) {
     return null
   }

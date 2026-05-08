@@ -5,10 +5,18 @@ import {
     createOrUpdateSlots,
     freeSlots,
     deleteSlotsByDate,
+    getDoctorProfile,
 } from '../doctor-services/doctorService';
 import './SlotManagementSection.css';
 
 const SlotManagementSection = ({ isExpanded, onToggle }) => {
+    const modeOptions = [
+        { value: 'in_person', label: 'In-Person' },
+        { value: 'video_call', label: 'Video Call' },
+        { value: 'voice_call', label: 'Voice Call' },
+        { value: 'home_visit', label: 'Home Visit' },
+    ];
+    const [allowedModes, setAllowedModes] = useState(['in_person', 'video_call', 'voice_call']);
     const [selectedDate, setSelectedDate] = useState('');
     const [slots, setSlots] = useState([]);
     const [newSlot, setNewSlot] = useState({
@@ -23,6 +31,36 @@ const SlotManagementSection = ({ isExpanded, onToggle }) => {
     useEffect(() => {
         const today = new Date().toISOString().split('T')[0];
         setSelectedDate(today);
+    }, []);
+
+    useEffect(() => {
+        const loadAllowedModes = async () => {
+            try {
+                const doctor = await getDoctorProfile();
+                const normalizedModes = Array.isArray(doctor?.consultationModes)
+                    ? doctor.consultationModes.map((mode) => {
+                        if (mode === 'call') return 'voice_call';
+                        if (mode === 'video') return 'video_call';
+                        return mode;
+                    })
+                    : [];
+                const uniqueModes = Array.from(new Set(normalizedModes)).filter((mode) =>
+                    modeOptions.some((option) => option.value === mode)
+                );
+                if (uniqueModes.length > 0) {
+                    setAllowedModes(uniqueModes);
+                    setNewSlot((prev) => ({
+                        ...prev,
+                        consultationType: uniqueModes.includes(prev.consultationType)
+                            ? prev.consultationType
+                            : uniqueModes[0],
+                    }));
+                }
+            } catch (error) {
+                console.error('Error fetching doctor consultation modes:', error);
+            }
+        };
+        loadAllowedModes();
     }, []);
 
     // Fetch slots when date changes
@@ -171,10 +209,13 @@ const SlotManagementSection = ({ isExpanded, onToggle }) => {
                                 }
                                 className="slot-select"
                             >
-                                <option value="in_person">In-Person</option>
-                                <option value="video_call">Video Call</option>
-                                <option value="voice_call">Voice Call</option>
-                                <option value="home_visit">Home Visit</option>
+                                {modeOptions
+                                    .filter((option) => allowedModes.includes(option.value))
+                                    .map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
                             </select>
 
                             <input

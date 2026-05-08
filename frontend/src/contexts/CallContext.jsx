@@ -4,6 +4,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useRef,
 } from "react";
 
 const CallContext = createContext(null);
@@ -14,6 +15,7 @@ export const CallProvider = ({ children }) => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [callInfo, setCallInfo] = useState(null); // { callId, patientName, appointmentId, startTime }
   const [callType, setCallType] = useState('audio'); // 'audio' | 'video'
+  const activeCallRef = useRef(null);
 
   // Load minimized state from localStorage
   useEffect(() => {
@@ -23,19 +25,29 @@ export const CallProvider = ({ children }) => {
     }
   }, []);
 
+  useEffect(() => {
+    activeCallRef.current = activeCall;
+  }, [activeCall]);
+
   const startCall = useCallback((callId, remoteParticipant = "Participant", type = 'audio') => {
     console.log("📞 [CallContext] Starting call:", {
       callId,
       remoteParticipant,
       type
     });
-    setActiveCall({ callId, remoteParticipant });
-    setCallType(type);
+    setActiveCall((prev) => {
+      if (prev?.callId && prev.callId === callId) {
+        return prev;
+      }
+      return { callId, remoteParticipant };
+    });
+    if (!(activeCallRef.current?.callId && activeCallRef.current.callId === callId)) {
+      setCallType(type);
+    }
   }, []);
 
   const endCall = useCallback(() => {
     console.log("📞 [CallContext] Ending call");
-    setActiveCall(null);
     setActiveCall(null);
     setCallStatus("idle");
     setCallInfo(null);
@@ -136,3 +148,4 @@ export const useCall = () => {
   }
   return context;
 };
+

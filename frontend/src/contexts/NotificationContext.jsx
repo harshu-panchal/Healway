@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { initSocket, disconnectSocket } from '../utils/socketClient'
+import { initSocket } from '../utils/socketClient'
 import { useToast } from './ToastContext'
 import { ApiClient } from '../utils/apiClient'
 
@@ -415,7 +415,6 @@ export const NotificationProvider = ({ children, module = 'patient' }) => {
           if (handleCallEnded) {
             socket.off('call:ended', handleCallEnded)
           }
-          disconnectSocket()
         } catch (error) {
           console.error('Error cleaning up socket:', error)
         }

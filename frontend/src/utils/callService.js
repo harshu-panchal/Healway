@@ -18,7 +18,7 @@ export const getCallIdFromUrl = () => {
  * @param {string} callId - The call ID
  * @param {string} remoteParticipant - Name of the remote participant (optional)
  */
-export const openCallPopup = (startCall, callId, remoteParticipant = 'Participant') => {
+export const openCallPopup = (startCall, callId, remoteParticipant = 'Participant', type = 'audio') => {
   if (!startCall || typeof startCall !== 'function') {
     throw new Error('startCall function is required. Use useCall() hook to get it.');
   }
@@ -27,7 +27,7 @@ export const openCallPopup = (startCall, callId, remoteParticipant = 'Participan
   }
   
   console.log('📞 [callService] Starting call:', { callId, remoteParticipant });
-  startCall(callId, remoteParticipant);
+  startCall(callId, remoteParticipant, type);
 };
 
 /**

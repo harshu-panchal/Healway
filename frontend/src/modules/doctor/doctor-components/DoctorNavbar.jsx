@@ -63,10 +63,10 @@ const DoctorNavbar = () => {
     : allNavItems
 
   // Header nav keeps existing session-aware behavior.
-  const navbarItems = filteredNavItems.filter((item) => item.id !== 'support' && item.id !== 'announcements' && item.id !== 'queue')
+  const navbarItems = filteredNavItems.filter((item) => item.id !== 'support' && item.id !== 'announcements' && item.id !== 'queue' && item.id !== 'analytics')
 
-  // Bottom nav should remain stable with 5 items for consistent mobile UX.
-  const bottomNavbarItems = allNavItems.filter((item) => item.id !== 'support' && item.id !== 'announcements' && item.id !== 'queue')
+  // Bottom nav should remain stable with items for consistent mobile UX.
+  const bottomNavbarItems = allNavItems.filter((item) => item.id !== 'support' && item.id !== 'announcements' && item.id !== 'queue' && item.id !== 'analytics')
 
   // Hide header on dashboard and login pages
   const isDashboardPage = location.pathname === '/doctor/dashboard' || location.pathname === '/doctor/'

@@ -182,6 +182,14 @@ const DoctorProfile = () => {
     isActive: true,
   });
 
+  const consultationModeMeta = {
+    in_person: { label: "In Person", icon: IoPersonOutline },
+    video_call: { label: "Video Call", icon: IoVideocamOutline },
+    voice_call: { label: "Voice Call", icon: IoCallOutline },
+    home_visit: { label: "Home Visit", icon: IoLocationOutline },
+    call: { label: "Voice Call", icon: IoCallOutline },
+  };
+
   // Function to normalize doctor data from backend to frontend format
   const normalizeDoctorData = (doctor) => {
     if (!doctor) return null;
@@ -1666,7 +1674,7 @@ const DoctorProfile = () => {
                 for (const existing of allSlotsByDay[dayConfig.day]) {
                     // Overlap condition: S1 < E2 and S2 < E1
                     if (start < existing.end && existing.start < end) {
-                        const typeLabels = { inPerson: 'In-Person', videoCall: 'Video Call', voiceCall: 'Voice Call' };
+                        const typeLabels = { inPerson: 'In-Person', videoCall: 'Video Call', voiceCall: 'Voice Call', homeVisit: 'Home Visit' };
                         toast.error(`Overlap detected on ${dayConfig.day}: ${slot.startTime}-${slot.endTime} (${typeLabels[mode]}) conflicts with ${existing.startTime}-${existing.endTime} (${typeLabels[existing.type]}).`);
                         throw new Error('validation_failed');
                     }
@@ -1724,6 +1732,18 @@ const DoctorProfile = () => {
                 : []
             }))
             : [],
+          homeVisit: Array.isArray(formData.availabilitySlots.homeVisit)
+            ? formData.availabilitySlots.homeVisit.map(dayConfig => ({
+              day: dayConfig.day,
+              slots: Array.isArray(dayConfig.slots)
+                ? dayConfig.slots.map(slot => ({
+                    startTime: convertTo12HourForStorage(slot.startTime),
+                    endTime: convertTo12HourForStorage(slot.endTime),
+                    isFree: !!slot.isFree,
+                  }))
+                : []
+            }))
+            : [],
           // Mode-specific selected days
           inPersonSelectedDays: Array.isArray(formData.availabilitySlots.inPersonSelectedDays)
             ? formData.availabilitySlots.inPersonSelectedDays
@@ -1733,6 +1753,9 @@ const DoctorProfile = () => {
             : [],
           voiceCallSelectedDays: Array.isArray(formData.availabilitySlots.voiceCallSelectedDays)
             ? formData.availabilitySlots.voiceCallSelectedDays
+            : [],
+          homeVisitSelectedDays: Array.isArray(formData.availabilitySlots.homeVisitSelectedDays)
+            ? formData.availabilitySlots.homeVisitSelectedDays
             : [],
           // Global selectedDays for backward compatibility
           selectedDays: Array.isArray(formData.availabilitySlots.selectedDays)
@@ -1779,6 +1802,17 @@ const DoctorProfile = () => {
         if (voiceDay && Array.isArray(voiceDay.slots)) {
           voiceDay.slots.forEach(s => slotsForDay.push({
             consultationType: "voice_call",
+            startTime: s.startTime,
+            endTime: s.endTime,
+            isFree: !!s.isFree
+          }));
+        }
+
+        // Find Home Visit slots for this day
+        const homeVisitDay = availabilitySlotsForBackend?.homeVisit?.find(d => d.day === day);
+        if (homeVisitDay && Array.isArray(homeVisitDay.slots)) {
+          homeVisitDay.slots.forEach(s => slotsForDay.push({
+            consultationType: "home_visit",
             startTime: s.startTime,
             endTime: s.endTime,
             isFree: !!s.isFree
@@ -3248,6 +3282,7 @@ const DoctorProfile = () => {
                                   </p>
                                 </div>
                               )}
+                          </div>
                         </div>
 
                         {/* Home Visit Fee */}
@@ -3379,7 +3414,6 @@ const DoctorProfile = () => {
                           </div>
                         </div>
                       </div>
-                    </div>
                     </div>
                   </div>
 
@@ -3703,171 +3737,38 @@ const DoctorProfile = () => {
                         <h3 className="mb-2 text-xs font-semibold text-slate-900">
                           Consultation Modes
                         </h3>
-                        {isEditing ? (
-                          <div className="grid grid-cols-1 gap-2">
-                            <label className="flex items-center gap-2 cursor-pointer group">
-                              <input
-                                type="checkbox"
-                                checked={
-                                  formData.consultationModes?.includes(
-                                    "in_person",
-                                  ) || false
-                                }
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    handleArrayAdd(
-                                      "consultationModes",
-                                      "in_person",
-                                    );
-                                  } else {
-                                    const index =
-                                      formData.consultationModes?.indexOf(
-                                        "in_person",
-                                      );
-                                    if (index !== undefined && index !== -1) {
-                                      handleArrayRemove(
-                                        "consultationModes",
-                                        index,
-                                      );
-                                    }
-                                  }
-                                }}
-                                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary shrink-0 transition"
-                              />
-                              <div className="flex items-center gap-1.5 py-1 px-2 rounded-lg bg-slate-50 border border-slate-100 group-hover:bg-slate-100 transition-colors w-full">
-                                <IoPersonOutline className="h-3.5 w-3.5 text-slate-600 shrink-0" />
-                                <span className="text-[11px] font-semibold text-slate-700">
-                                  In Person
-                                </span>
-                              </div>
-                            </label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {formData.consultationModes &&
+                          formData.consultationModes.length > 0 ? (
+                            formData.consultationModes.map((mode, index) => {
+                              const modeMeta = consultationModeMeta[mode] || {
+                                label: mode.replace("_", " "),
+                                icon: null,
+                              };
+                              const Icon = modeMeta.icon;
 
-                            <label className="flex items-center gap-2 cursor-pointer group">
-                              <input
-                                type="checkbox"
-                                checked={
-                                  formData.consultationModes?.includes(
-                                    "video_call",
-                                  ) || false
-                                }
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    handleArrayAdd(
-                                      "consultationModes",
-                                      "video_call",
-                                    );
-                                  } else {
-                                    const index =
-                                      formData.consultationModes?.indexOf(
-                                        "video_call",
-                                      );
-                                    if (index !== undefined && index !== -1) {
-                                      handleArrayRemove(
-                                        "consultationModes",
-                                        index,
-                                      );
-                                    }
-                                  }
-                                }}
-                                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary shrink-0 transition"
-                              />
-                              <div className="flex items-center gap-1.5 py-1 px-2 rounded-lg bg-slate-50 border border-slate-100 group-hover:bg-slate-100 transition-colors w-full">
-                                <IoVideocamOutline className="h-3.5 w-3.5 text-slate-600 shrink-0" />
-                                <span className="text-[11px] font-semibold text-slate-700">
-                                  Video Call
-                                </span>
-                              </div>
-                            </label>
-
-                            <label className="flex items-center gap-2 cursor-pointer group">
-                              <input
-                                type="checkbox"
-                                checked={
-                                  formData.consultationModes?.includes(
-                                    "voice_call",
-                                  ) ||
-                                  formData.consultationModes?.includes(
-                                    "call",
-                                  ) ||
-                                  false
-                                }
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    handleArrayAdd(
-                                      "consultationModes",
-                                      "voice_call",
-                                    );
-                                  } else {
-                                    // Remove both 'voice_call' and legacy 'call'
-                                    const index =
-                                      formData.consultationModes?.indexOf(
-                                        "voice_call",
-                                      );
-                                    if (index !== undefined && index !== -1) {
-                                      handleArrayRemove(
-                                        "consultationModes",
-                                        index,
-                                      );
-                                    }
-                                    const legacyIndex =
-                                      formData.consultationModes?.indexOf(
-                                        "call",
-                                      );
-                                    if (
-                                      legacyIndex !== undefined &&
-                                      legacyIndex !== -1
-                                    ) {
-                                      handleArrayRemove(
-                                        "consultationModes",
-                                        legacyIndex,
-                                      );
-                                    }
-                                  }
-                                }}
-                                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary shrink-0 transition"
-                              />
-                              <div className="flex items-center gap-1.5 py-1 px-2 rounded-lg bg-slate-50 border border-slate-100 group-hover:bg-slate-100 transition-colors w-full">
-                                <IoCallOutline className="h-3.5 w-3.5 text-slate-600 shrink-0" />
-                                <span className="text-[11px] font-semibold text-slate-700">
-                                  Voice Call
-                                </span>
-                              </div>
-                            </label>
-                          </div>
-                        ) : (
-                          <div className="flex flex-wrap gap-1.5">
-                            {formData.consultationModes &&
-                              formData.consultationModes.length > 0 ? (
-                              formData.consultationModes.map((mode, index) => (
+                              return (
                                 <span
                                   key={index}
                                   className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 border border-emerald-100 shadow-sm"
                                 >
-                                  {mode === "in_person" && (
-                                    <IoPersonOutline className="h-3 w-3 shrink-0" />
+                                  {Icon && (
+                                    <Icon className="h-3 w-3 shrink-0" />
                                   )}
-                                  {mode === "video_call" && (
-                                    <IoVideocamOutline className="h-3 w-3 shrink-0" />
-                                  )}
-                                  {(mode === "voice_call" ||
-                                    mode === "call") && (
-                                      <IoCallOutline className="h-3 w-3 shrink-0" />
-                                    )}
-                                  {mode === "in_person"
-                                    ? "In Person"
-                                    : mode === "video_call"
-                                      ? "Video Call"
-                                      : mode === "voice_call" || mode === "call"
-                                        ? "Voice Call"
-                                        : mode.replace("_", " ")}
+                                  {modeMeta.label}
                                 </span>
-                              ))
-                            ) : (
-                              <p className="text-xs text-slate-500 italic">
-                                No consultation modes set
-                              </p>
-                            )}
-                          </div>
+                              );
+                            })
+                          ) : (
+                            <p className="text-xs text-slate-500 italic">
+                              No consultation modes set
+                            </p>
+                          )}
+                        </div>
+                        {isEditing && (
+                          <p className="mt-2 text-[10px] text-slate-500">
+                            Consultation modes are managed by admin.
+                          </p>
                         )}
                       </div>
                     </div>

@@ -43,6 +43,26 @@ exports.createOrUpdateSlots = asyncHandler(async (req, res) => {
         });
     }
 
+    const doctor = await Doctor.findById(id).select('consultationModes dailySlots');
+
+    if (!doctor) {
+        return res.status(404).json({
+            success: false,
+            message: 'Doctor not found',
+        });
+    }
+
+    const normalizeMode = (mode) => {
+        if (mode === 'call') return 'voice_call';
+        if (mode === 'video') return 'video_call';
+        return mode;
+    };
+
+    const allowedModes = new Set(
+        (doctor.consultationModes || []).map(normalizeMode)
+    );
+    const globallyAllowedModes = ['in_person', 'video_call', 'voice_call', 'home_visit'];
+
     // Validate slot structure
     for (const slot of slots) {
         if (!slot.consultationType || !slot.startTime || !slot.endTime) {
@@ -52,10 +72,17 @@ exports.createOrUpdateSlots = asyncHandler(async (req, res) => {
             });
         }
 
-        if (!['in_person', 'video_call', 'voice_call'].includes(slot.consultationType)) {
+        if (!globallyAllowedModes.includes(slot.consultationType)) {
             return res.status(400).json({
                 success: false,
-                message: 'Invalid consultation type. Must be in_person, video_call, or voice_call',
+                message: 'Invalid consultation type. Must be in_person, video_call, voice_call, or home_visit',
+            });
+        }
+
+        if (!allowedModes.has(slot.consultationType)) {
+            return res.status(400).json({
+                success: false,
+                message: `Consultation type '${slot.consultationType}' is not enabled for this doctor`,
             });
         }
     }
@@ -104,15 +131,6 @@ exports.createOrUpdateSlots = asyncHandler(async (req, res) => {
                 });
             }
         }
-    }
-
-    const doctor = await Doctor.findById(id);
-
-    if (!doctor) {
-        return res.status(404).json({
-            success: false,
-            message: 'Doctor not found',
-        });
     }
 
     // Initialize dailySlots if not exists
