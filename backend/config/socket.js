@@ -217,7 +217,11 @@ const initializeSocket = (server) => {
     // 5. End Call
     socket.on('call:end', ({ callId }, callback) => {
       console.log('📞 Call Ended:', callId);
-      io.to(`call-${callId}`).emit('call:ended', { callId });
+      io.to(`call-${callId}`).emit('call:ended', {
+        callId,
+        endedById: id,
+        endedByRole: role,
+      });
 
       // Leave room
       socket.leave(`call-${callId}`);
@@ -328,9 +332,9 @@ const initializeSocket = (server) => {
     // Get ICE servers for P2P WebRTC connections
     socket.on('p2p:getIceServers', (data, callback) => {
       try {
-        console.log('📡 P2P ICE Servers requested');
+        console.log('P2P ICE Servers requested');
 
-        // Default STUN servers (free Google STUN servers)
+        // Default STUN servers
         const iceServers = [
           { urls: ['stun:stun.l.google.com:19302'] },
           { urls: ['stun:stun1.l.google.com:19302'] },
@@ -339,23 +343,37 @@ const initializeSocket = (server) => {
           { urls: ['stun:stun4.l.google.com:19302'] },
         ];
 
-        // Add TURN server if configured in environment
-        if (process.env.TURN_SERVER_URL && process.env.TURN_SERVER_USERNAME && process.env.TURN_SERVER_CREDENTIAL) {
-          iceServers.push({
-            urls: process.env.TURN_SERVER_URL,
-            username: process.env.TURN_SERVER_USERNAME,
-            credential: process.env.TURN_SERVER_CREDENTIAL
+        // Add TURN server if configured in environment.
+        // Supports both TURN_SERVER_* and TURN_URIS/TURN_USER/TURN_PASS keys.
+        const turnUrisRaw = process.env.TURN_URIS || process.env.TURN_SERVER_URL;
+        const turnUsername = process.env.TURN_USER || process.env.TURN_SERVER_USERNAME;
+        const turnCredential = process.env.TURN_PASS || process.env.TURN_SERVER_CREDENTIAL;
+
+        if (turnUrisRaw && turnUsername && turnCredential) {
+          const turnUris = turnUrisRaw
+            .split(',')
+            .map((uri) => uri.trim())
+            .filter(Boolean);
+
+          turnUris.forEach((uri) => {
+            iceServers.push({
+              urls: uri,
+              username: turnUsername,
+              credential: turnCredential
+            });
           });
-          console.log('📡 TURN server added to ICE servers');
+          console.log('TURN server added to ICE servers:', turnUris.length, 'URI(s)');
+        } else {
+          console.warn('TURN not configured. Using STUN-only ICE servers.');
         }
 
-        console.log('📡 Returning', iceServers.length, 'ICE servers');
+        console.log('Returning', iceServers.length, 'ICE servers');
 
         if (callback) {
           callback({ iceServers });
         }
       } catch (error) {
-        console.error('📡 Error getting ICE servers:', error);
+        console.error('Error getting ICE servers:', error);
         if (callback) {
           callback({ error: error.message });
         }
@@ -433,5 +451,3 @@ module.exports = {
   emitToRoom,
   emitToAll,
 };
-
-

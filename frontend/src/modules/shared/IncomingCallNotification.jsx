@@ -15,6 +15,11 @@ const IncomingCallNotification = () => {
   const endedCallIdsRef = useRef(new Set())
   // Audio ref for ringtone
   const ringtoneRef = useRef(null)
+  const getEndedMessage = (data) => {
+    if (data?.endedByRole === 'doctor') return 'Call was ended by the doctor'
+    if (data?.endedByRole === 'patient') return 'Call was ended by the patient'
+    return 'Call was ended'
+  }
 
   // Always-on window event listeners.
   // This ensures call modal works even if local socket listeners were not attached in time.
@@ -204,7 +209,7 @@ const IncomingCallNotification = () => {
                 ringtoneRef.current.currentTime = 0
                 console.log('📞 [IncomingCallNotification] Ringtone stopped (call ended)')
               }
-              toast.info('Call was ended by the doctor')
+              toast.info(getEndedMessage(data))
               setIsProcessing(false)
               return null
             }
@@ -440,7 +445,7 @@ const IncomingCallNotification = () => {
           socket.off('call:accepted', acceptedHandler)
           socket.off('call:error', errorHandler)
           socket.off('call:ended', endedHandler)
-          toast.info('Call was ended by the doctor')
+          toast.info(getEndedMessage(data))
           setIncomingCall(null)
           setIsProcessing(false)
         }

@@ -72,14 +72,17 @@ function getIceServers() {
     },
   ];
 
-  // Add TURN servers if configured
-  if (process.env.TURN_URIS && process.env.TURN_USER && process.env.TURN_PASS) {
-    const turnUris = process.env.TURN_URIS.split(',').map(uri => uri.trim());
+  // Add TURN servers if configured (supports both TURN_URIS and TURN_SERVER_URL env styles)
+  const turnUrisRaw = process.env.TURN_URIS || process.env.TURN_SERVER_URL;
+  const turnUsername = process.env.TURN_USER || process.env.TURN_SERVER_USERNAME;
+  const turnCredential = process.env.TURN_PASS || process.env.TURN_SERVER_CREDENTIAL;
+  if (turnUrisRaw && turnUsername && turnCredential) {
+    const turnUris = turnUrisRaw.split(',').map(uri => uri.trim()).filter(Boolean);
     turnUris.forEach(uri => {
       iceServers.push({
         urls: [uri],
-        username: process.env.TURN_USER,
-        credential: process.env.TURN_PASS,
+        username: turnUsername,
+        credential: turnCredential,
       });
     });
   }
@@ -104,6 +107,12 @@ async function createRouter(callId) {
         mimeType: 'audio/opus',
         clockRate: 48000,
         channels: 2,
+      },
+      {
+        kind: 'video',
+        mimeType: 'video/VP8',
+        clockRate: 90000,
+        parameters: {},
       },
     ],
   });
