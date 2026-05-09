@@ -3184,8 +3184,8 @@ const CallPopup = () => {
     );
   }
 
-  // Minimized view - floating button (for doctors)
-  if (isMinimized && getModule() === "doctor") {
+  // Minimized view - floating button (for all users)
+  if (isMinimized) {
     return (
       <>
         {audioElement}
@@ -3289,18 +3289,16 @@ const CallPopup = () => {
             : 'p-6 max-w-md w-full'
             }`}
         >
-          {/* Minimize button (for doctors) - Adjusted color for video mode */}
-          {getModule() === "doctor" && (
-            <button
-              onClick={minimize}
-              className={`absolute top-4 right-4 z-50 rounded p-1 transition ${isVideoCall
-                ? 'text-white/80 hover:text-white hover:bg-white/10'
-                : 'text-slate-500 hover:text-slate-700'
-                }`}
-              title="Minimize">
-              <IoRemoveOutline className="text-xl" />
-            </button>
-          )}
+          {/* Minimize button - Adjusted color for video mode */}
+          <button
+            onClick={minimize}
+            className={`absolute top-4 right-4 z-50 rounded p-1 transition ${isVideoCall
+              ? 'text-white/80 hover:text-white hover:bg-white/10'
+              : 'text-slate-500 hover:text-slate-700'
+              }`}
+            title="Minimize">
+            <IoRemoveOutline className="text-xl" />
+          </button>
 
           {/* Diagnostic Toggle Button - Adjusted for video mode */}
           <button

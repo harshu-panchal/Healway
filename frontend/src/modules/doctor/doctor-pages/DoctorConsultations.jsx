@@ -3072,7 +3072,8 @@ const DoctorConsultations = () => {
                             <button
                               onClick={() => {
                                 const socket = getSocket();
-                                const callId = selectedConsultation.id || selectedConsultation._id;
+                                const baseCallId = selectedConsultation.id || selectedConsultation._id;
+                                const callId = `${baseCallId}-${Date.now()}`;
                                 const callType = mode === "video_call" ? "video" : "audio";
                                 const normalizedPatientId =
                                   typeof selectedConsultation.patientId === "object"

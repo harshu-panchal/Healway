@@ -1101,6 +1101,8 @@ const DoctorAppointments = () => {
                                       ? (appointment.patientId?._id || appointment.patientId?.id || null)
                                       : appointment.patientId;
                                   const patientId = normalizedPatientId ? String(normalizedPatientId) : null;
+                                  const baseCallId = appointment.id || appointment._id;
+                                  const callId = `${baseCallId}-${Date.now()}`;
                                   if (socket && socket.connected) {
                                     if (!patientId || patientId === "pat-unknown") {
                                       toast.error("Patient ID missing. Cannot initiate call.");
@@ -1108,7 +1110,7 @@ const DoctorAppointments = () => {
                                     }
                                     console.log('📞 Emitting call:initiate for patient:', appointment.patientId);
                                     socket.emit('call:initiate', {
-                                      callId: appointment.id || appointment._id,
+                                      callId,
                                       appointmentId: appointment.id || appointment._id,
                                       patientId,
                                       doctorName: doctorName,
@@ -1119,7 +1121,7 @@ const DoctorAppointments = () => {
                                   }
                                   
                                   startCall(
-                                    appointment.id || appointment._id,
+                                    callId,
                                     appointment.patientName || "Patient",
                                     mode === "video_call" ? "video" : "audio"
                                   );

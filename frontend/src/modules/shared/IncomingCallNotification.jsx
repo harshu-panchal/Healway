@@ -11,8 +11,11 @@ const IncomingCallNotification = () => {
   const [isProcessing, setIsProcessing] = useState(false)
   const toast = useToast()
   const { startCall } = useCall()
-  // Track ended callIds to prevent showing notifications for already-ended calls
-  const endedCallIdsRef = useRef(new Set())
+  // Track recently ended callIds for a short time to prevent invite/end race glitches.
+  // Do not block forever because callId may be reused for a new attempt.
+  const endedCallIdsRef = useRef(new Map()) // callId -> endedAt timestamp
+  const incomingCallRef = useRef(null)
+  const ENDED_CALL_SUPPRESS_MS = 15000
   // Audio ref for ringtone
   const ringtoneRef = useRef(null)
   const getEndedMessage = (data) => {
@@ -21,13 +24,29 @@ const IncomingCallNotification = () => {
     return 'Call was ended'
   }
 
+  useEffect(() => {
+    incomingCallRef.current = incomingCall
+  }, [incomingCall])
+
+  const shouldSuppressInvite = (callId) => {
+    if (!callId) return false
+    const endedAt = endedCallIdsRef.current.get(callId)
+    if (!endedAt) return false
+    const isRecent = Date.now() - endedAt < ENDED_CALL_SUPPRESS_MS
+    if (!isRecent) {
+      endedCallIdsRef.current.delete(callId)
+      return false
+    }
+    return true
+  }
+
   // Always-on window event listeners.
   // This ensures call modal works even if local socket listeners were not attached in time.
   useEffect(() => {
     const onInvite = (event) => {
       const data = event?.detail || {}
       const callId = data.callId
-      if (callId && endedCallIdsRef.current.has(callId)) return
+      if (shouldSuppressInvite(callId)) return
 
       setIncomingCall((current) => {
         if (current?.callId && callId && current.callId === callId) return current
@@ -50,7 +69,7 @@ const IncomingCallNotification = () => {
     const onEnded = (event) => {
       const data = event?.detail || {}
       if (data.callId) {
-        endedCallIdsRef.current.add(data.callId)
+        endedCallIdsRef.current.set(data.callId, Date.now())
       }
       setIncomingCall((current) => {
         if (!current) return current
@@ -102,13 +121,13 @@ const IncomingCallNotification = () => {
         console.log('📞 [IncomingCallNotification] Current incomingCall state:', incomingCall)
 
         // Check if this call was already ended before showing notification
-        if (data.callId && endedCallIdsRef.current.has(data.callId)) {
+        if (shouldSuppressInvite(data.callId)) {
           console.log('📞 [IncomingCallNotification] Call was already ended, ignoring invite:', data.callId)
           return
         }
 
         // Ignore duplicate invites for the same call ID so callType does not get overwritten.
-        if (incomingCall?.callId && data.callId && incomingCall.callId === data.callId) {
+        if (incomingCallRef.current?.callId && data.callId && incomingCallRef.current.callId === data.callId) {
           console.log('📞 [IncomingCallNotification] Duplicate invite for same callId ignored:', data.callId)
           return
         }
@@ -141,13 +160,13 @@ const IncomingCallNotification = () => {
         console.log('📞 [IncomingCallNotification] Socket ID:', socketInstance?.id)
 
         // Check if this call was already ended before showing notification
-        if (data.callId && endedCallIdsRef.current.has(data.callId)) {
+        if (shouldSuppressInvite(data.callId)) {
           console.log('📞 [IncomingCallNotification] Call was already ended, ignoring invite:', data.callId)
           return
         }
 
         // Ignore duplicate invites for the same call ID so callType does not get overwritten.
-        if (incomingCall?.callId && data.callId && incomingCall.callId === data.callId) {
+        if (incomingCallRef.current?.callId && data.callId && incomingCallRef.current.callId === data.callId) {
           console.log('📞 [IncomingCallNotification] Duplicate socket invite for same callId ignored:', data.callId)
           return
         }
@@ -178,17 +197,16 @@ const IncomingCallNotification = () => {
         // Track ended callId even if we don't have an active incoming call yet
         // This prevents showing notification if invite arrives after ended event
         if (data && data.callId) {
-          endedCallIdsRef.current.add(data.callId)
+          endedCallIdsRef.current.set(data.callId, Date.now())
           console.log('📞 [IncomingCallNotification] Tracked ended callId:', data.callId)
 
-          // Clean up old ended callIds periodically (keep last 100)
-          if (endedCallIdsRef.current.size > 100) {
-            const callIdsArray = Array.from(endedCallIdsRef.current)
-            // Remove oldest entries (keep last 50)
-            callIdsArray.slice(0, callIdsArray.length - 50).forEach(callId => {
-              endedCallIdsRef.current.delete(callId)
+          // Keep map bounded
+          if (endedCallIdsRef.current.size > 200) {
+            const entries = Array.from(endedCallIdsRef.current.entries()).sort((a, b) => a[1] - b[1])
+            entries.slice(0, entries.length - 100).forEach(([oldCallId]) => {
+              endedCallIdsRef.current.delete(oldCallId)
             })
-            console.log('📞 [IncomingCallNotification] Cleaned up old ended callIds, kept last 50')
+            console.log('📞 [IncomingCallNotification] Cleaned up old ended callIds')
           }
         }
 
@@ -288,18 +306,16 @@ const IncomingCallNotification = () => {
     }
   }, [toast]) // Only depend on toast, not incomingCall to avoid re-setting listeners
 
-  // Periodic cleanup of old ended callIds (every 5 minutes)
+  // Periodic cleanup of old ended callIds (every 1 minute)
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
-      if (endedCallIdsRef.current.size > 50) {
-        const callIdsArray = Array.from(endedCallIdsRef.current)
-        // Remove oldest entries (keep last 25)
-        callIdsArray.slice(0, callIdsArray.length - 25).forEach(callId => {
+      const now = Date.now()
+      for (const [callId, endedAt] of endedCallIdsRef.current.entries()) {
+        if (now - endedAt >= ENDED_CALL_SUPPRESS_MS) {
           endedCallIdsRef.current.delete(callId)
-        })
-        console.log('📞 [IncomingCallNotification] Periodic cleanup: removed old ended callIds, kept last 25')
+        }
       }
-    }, 5 * 60 * 1000) // Every 5 minutes
+    }, 60 * 1000) // Every 1 minute
 
     return () => {
       clearInterval(cleanupInterval)
@@ -602,4 +618,3 @@ const IncomingCallNotification = () => {
 }
 
 export default IncomingCallNotification
-
