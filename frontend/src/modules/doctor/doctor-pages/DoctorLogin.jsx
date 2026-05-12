@@ -363,8 +363,27 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
       }
     }
 
+    if (signupStep === 3) {
+      if (currentData.clinicDetails.address.postalCode && currentData.clinicDetails.address.postalCode.length !== 6) {
+        toast.error('Postal code must be a 6-digit number')
+        return
+      }
+    }
+
+    if (signupStep === 2) {
+      if (!currentData.specialization || !currentData.gender || !currentData.licenseNumber) {
+        toast.error('Please fill in all required fields in Step 2')
+        return
+      }
+      if (currentData.experienceYears !== '' && Number(currentData.experienceYears) < 0) {
+        toast.error('Experience years cannot be a negative value')
+        return
+      }
+    }
+
     if (signupStep < totalSignupSteps) {
       setSignupStep(signupStep + 1)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
@@ -372,6 +391,7 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
   const handlePreviousStep = () => {
     if (signupStep > 1) {
       setSignupStep(signupStep - 1)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
@@ -692,13 +712,17 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
 
     if (name.startsWith('clinicDetails.address.')) {
       const key = name.split('.')[2]
+      let finalValue = value
+      if (key === 'postalCode') {
+        finalValue = value.replace(/\D/g, '').slice(0, 6)
+      }
       setDoctorSignupData((prev) => ({
         ...prev,
         clinicDetails: {
           ...prev.clinicDetails,
           address: {
             ...prev.clinicDetails.address,
-            [key]: value,
+            [key]: finalValue,
           },
         },
       }))
@@ -834,6 +858,15 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
       setDoctorSignupData((prev) => ({
         ...prev,
         [name]: finalValue,
+      }))
+      return
+    }
+
+    if (name === 'experienceYears') {
+      const numericValue = value < 0 ? 0 : value
+      setDoctorSignupData((prev) => ({
+        ...prev,
+        [name]: numericValue,
       }))
       return
     }
@@ -2122,6 +2155,7 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
                               min="0"
                               step="1"
                               value={doctorSignupData.consultationFee}
+                              onFocus={(e) => (e.target.value === '0' || e.target.value === '0.00') && handleDoctorSignupChange({ target: { name: 'consultationFee', value: '' } })}
                               onChange={handleDoctorSignupChange}
                               placeholder="500"
                               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"

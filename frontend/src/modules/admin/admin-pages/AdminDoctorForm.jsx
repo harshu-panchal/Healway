@@ -208,6 +208,10 @@ const AdminDoctorForm = () => {
   }
 
   const handleInputChange = (field, value) => {
+    if (field === 'experienceYears' && value < 0) {
+      value = 0
+    }
+
     if (field.startsWith('clinicAddress.')) {
       const key = field.replace('clinicAddress.', '')
       setFormData(prev => ({
@@ -222,6 +226,10 @@ const AdminDoctorForm = () => {
 
     if (field.startsWith('fees.')) {
       const [_, mode, key] = field.split('.')
+      // If value is '0' followed by another digit, remove the leading '0'
+      if (key === 'original' && value.length > 1 && value.startsWith('0') && !value.startsWith('0.')) {
+        value = value.substring(1)
+      }
       setFormData(prev => ({
         ...prev,
         fees: {
@@ -231,6 +239,18 @@ const AdminDoctorForm = () => {
             [key]: value,
           }
         }
+      }))
+      return
+    }
+
+    if (field === 'clinicAddress.postalCode') {
+      const numericValue = value.replace(/\D/g, '').slice(0, 6)
+      setFormData(prev => ({
+        ...prev,
+        clinicAddress: {
+          ...prev.clinicAddress,
+          postalCode: numericValue,
+        },
       }))
       return
     }
@@ -358,6 +378,18 @@ const AdminDoctorForm = () => {
         toast.warning('Please fill in all required fields in Step 2')
         return false
       }
+      if (formData.experienceYears !== '' && Number(formData.experienceYears) < 0) {
+        toast.warning('Experience years cannot be a negative value')
+        return false
+      }
+    } else if (step === 3) {
+      if (!formData.clinicAddress.postalCode.trim()) {
+        // Postal code is optional but if missing it might be caught by missing fields check later
+        // But the user specifically asked for 6-digit format.
+      } else if (formData.clinicAddress.postalCode.length !== 6) {
+        toast.warning('Postal code must be a 6-digit number')
+        return false
+      }
     }
     return true
   }
@@ -365,11 +397,13 @@ const AdminDoctorForm = () => {
   const handleNext = () => {
     if (validateStep(currentStep)) {
       setCurrentStep(prev => Math.min(3, prev + 1))
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
   const handleBack = () => {
     setCurrentStep(prev => Math.max(1, prev - 1))
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleHeaderBack = () => {
@@ -435,7 +469,7 @@ const AdminDoctorForm = () => {
       setLanguageInput('')
     }
 
-    if (!validateStep(1) || !validateStep(2)) return
+    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) return
 
     if (shouldApproveAfterSave) {
       const missingFields = getMissingApprovalFields()
@@ -981,6 +1015,7 @@ const AdminDoctorForm = () => {
                             type="number"
                             min="0"
                             value={formData.fees.inPerson.original}
+                            onFocus={(e) => (e.target.value === '0' || e.target.value === '0.00') && handleInputChange('fees.inPerson.original', '')}
                             onChange={(e) => handleInputChange('fees.inPerson.original', e.target.value)}
                             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
                             placeholder="e.g. 500"
@@ -996,6 +1031,7 @@ const AdminDoctorForm = () => {
                             type="number"
                             min="0"
                             value={formData.fees.voiceCall.original}
+                            onFocus={(e) => (e.target.value === '0' || e.target.value === '0.00') && handleInputChange('fees.voiceCall.original', '')}
                             onChange={(e) => handleInputChange('fees.voiceCall.original', e.target.value)}
                             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
                             placeholder="e.g. 300"
@@ -1011,6 +1047,7 @@ const AdminDoctorForm = () => {
                             type="number"
                             min="0"
                             value={formData.fees.videoCall.original}
+                            onFocus={(e) => (e.target.value === '0' || e.target.value === '0.00') && handleInputChange('fees.videoCall.original', '')}
                             onChange={(e) => handleInputChange('fees.videoCall.original', e.target.value)}
                             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
                             placeholder="e.g. 400"
@@ -1026,6 +1063,7 @@ const AdminDoctorForm = () => {
                             type="number"
                             min="0"
                             value={formData.fees.homeVisit.original}
+                            onFocus={(e) => (e.target.value === '0' || e.target.value === '0.00') && handleInputChange('fees.homeVisit.original', '')}
                             onChange={(e) => handleInputChange('fees.homeVisit.original', e.target.value)}
                             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
                             placeholder="e.g. 1000"
@@ -1125,6 +1163,7 @@ const AdminDoctorForm = () => {
                         type="text"
                         value={formData.clinicAddress.postalCode}
                         onChange={(e) => handleInputChange('clinicAddress.postalCode', e.target.value)}
+                        maxLength={6}
                         className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-primary focus:outline-none transition-all"
                         placeholder="6-digit code"
                       />

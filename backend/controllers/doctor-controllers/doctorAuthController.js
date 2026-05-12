@@ -104,6 +104,14 @@ exports.registerDoctor = asyncHandler(async (req, res) => {
     });
   }
 
+  const expValue = experienceYears !== undefined ? experienceYears : experience;
+  if (expValue !== undefined && expValue !== null && Number(expValue) < 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Experience years cannot be a negative value.',
+    });
+  }
+
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   if (!emailRegex.test(String(email).trim().toLowerCase())) {
     return res.status(400).json({
@@ -699,6 +707,14 @@ exports.updateDoctorProfile = asyncHandler(async (req, res) => {
 
   if (updates.experience !== undefined && updates.experienceYears === undefined) {
     updates.experienceYears = updates.experience;
+  }
+
+  const expValueUpdate = updates.experienceYears !== undefined ? updates.experienceYears : updates.experience;
+  if (expValueUpdate !== undefined && expValueUpdate !== null && Number(expValueUpdate) < 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Experience years cannot be a negative value.',
+    });
   }
 
   if (updates.consultationFee !== undefined && updates.consultationFee !== null && updates.consultationFee !== '') {

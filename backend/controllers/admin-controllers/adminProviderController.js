@@ -269,6 +269,13 @@ exports.createDoctor = asyncHandler(async (req, res) => {
     });
   }
 
+  if (experienceYears !== undefined && experienceYears !== null && Number(experienceYears) < 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Experience years cannot be a negative value.',
+    });
+  }
+
   const [existingEmail, existingPhone, existingLicense] = await Promise.all([
     Doctor.findOne({ email: normalizedEmail }),
     Doctor.findOne({ phone: normalizedPhone }),
@@ -699,6 +706,13 @@ exports.updateDoctor = asyncHandler(async (req, res) => {
     return res.status(404).json({
       success: false,
       message: 'Doctor not found.',
+    });
+  }
+
+  if (experienceYears !== undefined && experienceYears !== null && Number(experienceYears) < 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Experience years cannot be a negative value.',
     });
   }
 

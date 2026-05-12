@@ -18,6 +18,14 @@ exports.updateDoctorProfile = asyncHandler(async (req, res) => {
   const { id } = req.auth;
   const updateData = req.body;
 
+  const expValue = updateData.experienceYears !== undefined ? updateData.experienceYears : updateData.experience;
+  if (expValue !== undefined && expValue !== null && Number(expValue) < 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Experience years cannot be a negative value.',
+    });
+  }
+
   const updatedProfile = await updateProfileByRoleAndId(ROLES.DOCTOR, id, updateData);
 
   // Cache invalidation removed (Redis removed)

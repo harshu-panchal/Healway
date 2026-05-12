@@ -1100,6 +1100,9 @@ const DoctorProfile = () => {
   };
 
   const handleInputChange = (field, value) => {
+    if (field === "experienceYears" && value < 0) {
+      value = 0;
+    }
     if (field.includes(".")) {
       const parts = field.split(".");
 
