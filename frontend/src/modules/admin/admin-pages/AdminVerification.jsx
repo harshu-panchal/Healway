@@ -180,6 +180,23 @@ const AdminVerification = () => {
     setCurrentPage(1)
   }, [statusFilter, searchTerm])
 
+  // Prevent background scrolling when modals are open
+  useEffect(() => {
+    const isAnyModalOpen = !!(viewingVerification || showRejectModal)
+    if (isAnyModalOpen) {
+      document.body.style.overflow = 'hidden'
+      document.documentElement.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+      document.documentElement.style.overflow = ''
+    }
+    
+    return () => {
+      document.body.style.overflow = ''
+      document.documentElement.style.overflow = ''
+    }
+  }, [viewingVerification, showRejectModal])
+
   const handleDownload = async (fileUrl, fileName) => {
     try {
       const normalizedUrl = normalizeDocumentUrl(fileUrl)

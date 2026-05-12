@@ -28,6 +28,22 @@ const AdminLocationManagement = () => {
         fetchData()
     }, [])
 
+    // Prevent background scrolling when modals are open
+    useEffect(() => {
+        if (showModal) {
+            document.body.style.overflow = 'hidden'
+            document.documentElement.style.overflow = 'hidden'
+        } else {
+            document.body.style.overflow = ''
+            document.documentElement.style.overflow = ''
+        }
+
+        return () => {
+            document.body.style.overflow = ''
+            document.documentElement.style.overflow = ''
+        }
+    }, [showModal])
+
     const fetchData = async () => {
         try {
             setLoading(true)

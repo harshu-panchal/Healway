@@ -409,6 +409,23 @@ const AdminDoctors = () => {
     return () => clearTimeout(timeoutId)
   }, [searchTerm])
 
+    useEffect(() => {
+        const isAnyModalOpen = !!(viewingDoctor || selectedDoctor || showRejectModal || showCountsModal || statusModalDoctor)
+        
+        if (isAnyModalOpen) {
+            document.body.style.overflow = 'hidden'
+            document.documentElement.style.overflow = 'hidden'
+        } else {
+            document.body.style.overflow = ''
+            document.documentElement.style.overflow = ''
+        }
+        
+        return () => {
+            document.body.style.overflow = ''
+            document.documentElement.style.overflow = ''
+        }
+    }, [viewingDoctor, selectedDoctor, showRejectModal, showCountsModal, statusModalDoctor])
+
   const formatDate = (dateString) => {
     const date = new Date(dateString)
     return date.toLocaleDateString('en-US', {

@@ -19,6 +19,7 @@ import WebNavbar from './modules/website/web-components/WebNavbar'
 import CallPopup from './modules/shared/CallPopup'
 import IncomingCallNotification from './modules/shared/IncomingCallNotification'
 import DoctorCallStatus from './modules/shared/DoctorCallStatus'
+import DoctorApprovalPopup from './modules/doctor/doctor-components/DoctorApprovalPopup'
 
 // --- Lazy loaded modules ---
 
@@ -342,6 +343,9 @@ function DoctorRoutes() {
 
       {/* Call Popup - For doctors to join WebRTC */}
       {!isPublicDoctorPage && <CallPopup />}
+
+      {/* Approval Popup */}
+      {!isPublicDoctorPage && <DoctorApprovalPopup />}
 
       <main className={isPublicDoctorPage ? '' : 'px-4 pb-[calc(6rem+var(--app-safe-bottom))] pt-[calc(5rem+var(--app-safe-top))] sm:px-6 lg:px-8 lg:pb-8 lg:pt-24 lg:min-h-screen lg:flex lg:flex-col'}>
         <div className="max-w-7xl mx-auto w-full lg:flex-1">

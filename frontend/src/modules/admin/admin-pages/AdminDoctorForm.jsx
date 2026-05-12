@@ -212,6 +212,18 @@ const AdminDoctorForm = () => {
       value = 0
     }
 
+    if (field === 'clinicAddress.postalCode') {
+      const numericValue = value.replace(/\D/g, '').slice(0, 6)
+      setFormData(prev => ({
+        ...prev,
+        clinicAddress: {
+          ...prev.clinicAddress,
+          postalCode: numericValue,
+        },
+      }))
+      return
+    }
+
     if (field.startsWith('clinicAddress.')) {
       const key = field.replace('clinicAddress.', '')
       setFormData(prev => ({
@@ -243,17 +255,6 @@ const AdminDoctorForm = () => {
       return
     }
 
-    if (field === 'clinicAddress.postalCode') {
-      const numericValue = value.replace(/\D/g, '').slice(0, 6)
-      setFormData(prev => ({
-        ...prev,
-        clinicAddress: {
-          ...prev.clinicAddress,
-          postalCode: numericValue,
-        },
-      }))
-      return
-    }
 
     setFormData(prev => ({
       ...prev,
@@ -826,14 +827,15 @@ const AdminDoctorForm = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700">Experience (Years)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.experienceYears}
-                    onChange={(e) => handleInputChange('experienceYears', e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
-                    placeholder="5"
-                  />
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.experienceYears}
+                      onFocus={(e) => (e.target.value === '0') && handleInputChange('experienceYears', '')}
+                      onChange={(e) => handleInputChange('experienceYears', e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+                      placeholder="5"
+                    />
                 </div>
               </div>
 

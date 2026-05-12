@@ -659,12 +659,10 @@ exports.loginDoctor = asyncHandler(async (req, res) => {
   const { user } = result;
 
   // Check approval status
-  if (user.status && user.status !== APPROVAL_STATUS.APPROVED) {
+  if (user.status === APPROVAL_STATUS.REJECTED) {
     return res.status(403).json({
       success: false,
-      message: user.status === APPROVAL_STATUS.PENDING
-        ? 'Your account is pending admin approval. Please wait for approval before logging in.'
-        : 'Your account has been rejected. Please contact support for assistance.',
+      message: 'Your account has been rejected. Please contact support for assistance.',
       data: {
         status: user.status,
       },

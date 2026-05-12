@@ -191,6 +191,23 @@ const AdminWallet = () => {
     fetchSettings()
   }, [])
 
+  // Prevent background scrolling when modals are open
+  useEffect(() => {
+    const isAnyModalOpen = !!(viewingWithdrawal || showRejectModal)
+    if (isAnyModalOpen) {
+      document.body.style.overflow = 'hidden'
+      document.documentElement.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+      document.documentElement.style.overflow = ''
+    }
+    
+    return () => {
+      document.body.style.overflow = ''
+      document.documentElement.style.overflow = ''
+    }
+  }, [viewingWithdrawal, showRejectModal])
+
   // Fetch wallet data from API (periodically)
   useEffect(() => {
     const fetchWalletData = async () => {

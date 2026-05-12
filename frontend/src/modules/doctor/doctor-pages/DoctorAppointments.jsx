@@ -179,6 +179,18 @@ const DoctorAppointments = () => {
     fetchProfile();
   }, []);
 
+  // Prevent scrolling when modal is open
+  useEffect(() => {
+    if (showCancelModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [showCancelModal]);
+
   // Fetch appointments from API
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -188,49 +200,39 @@ const DoctorAppointments = () => {
         const params = {
           page,
           limit,
-          ...(searchTerm && { search: searchTerm }), // Note: Backend may not support search, kept for future compatibility
-          ...(selectedDate && { date: selectedDate }), // Let backend also filter by selected date
+          ...(searchTerm && { search: searchTerm }),
+          ...(selectedDate && { date: selectedDate }),
         };
         const data = await getDoctorAppointments(params);
 
         if (data) {
-          // Handle both array and object with items/appointments property
           const appointmentsData = Array.isArray(data)
             ? data
             : data.items || data.appointments || [];
 
-          // Set pagination data
           if (data.pagination) {
             setPagination(data.pagination);
           }
 
-          // Store statistics from backend if available
           if (data.statistics) {
-            console.log("📊 Backend statistics received:", data.statistics);
             setStatistics(data.statistics);
           } else {
-            console.log(
-              "⚠️ No statistics in backend response, will calculate client-side",
-            );
             setStatistics(null);
           }
 
-      // Transform API data to match component structure
           const transformed = appointmentsData.map((apt) => {
-            // Normalize date - use appointmentDate from backend
             const appointmentDate = apt.appointmentDate || apt.date;
-        const normalizedDate = appointmentDate
-          ? new Date(appointmentDate)
-          : new Date();
+            const normalizedDate = appointmentDate
+              ? new Date(appointmentDate)
+              : new Date();
 
-        // Local date string (YYYY-MM-DD) for reliable date filtering/display
-        let localDate = null;
-        if (!Number.isNaN(normalizedDate.getTime())) {
-          const y = normalizedDate.getFullYear();
-          const m = String(normalizedDate.getMonth() + 1).padStart(2, "0");
-          const d = String(normalizedDate.getDate()).padStart(2, "0");
-          localDate = `${y}-${m}-${d}`;
-        }
+            let localDate = null;
+            if (!Number.isNaN(normalizedDate.getTime())) {
+              const y = normalizedDate.getFullYear();
+              const m = String(normalizedDate.getMonth() + 1).padStart(2, "0");
+              const d = String(normalizedDate.getDate()).padStart(2, "0");
+              localDate = `${y}-${m}-${d}`;
+            }
 
             return {
               id: apt._id || apt.id,
@@ -249,19 +251,16 @@ const DoctorAppointments = () => {
                 apt.patientId?.image ||
                 apt.patientImage ||
                 `https://ui-avatars.com/api/?name=${encodeURIComponent(apt.patientId?.firstName || "Patient")}&background=0077C2&color=fff&size=160`,
-          date: appointmentDate, // Raw backend date
-          appointmentDate: appointmentDate, // Keep both for compatibility
-          localDate, // Local YYYY-MM-DD (used for filtering/display)
+              date: appointmentDate,
+              appointmentDate: appointmentDate,
+              localDate,
               time: apt.time || "",
-              // Format type for display
-              // Normalized consultation mode for internal logic
               consultationMode: (() => {
                 const rawMode = (apt.consultationMode || apt.appointmentType || apt.type || "").toLowerCase();
                 if (rawMode.includes("video")) return "video_call";
                 if (rawMode.includes("voice") || rawMode.includes("call") || rawMode.includes("online") || rawMode.includes("audio")) return "voice_call";
                 return "in-person";
               })(),
-              // Format type for display
               type: (() => {
                 const rawMode = (apt.consultationMode || apt.appointmentType || apt.type || "In-person").toLowerCase();
                 if (rawMode.includes("video")) return "Video Call";
@@ -272,7 +271,6 @@ const DoctorAppointments = () => {
               duration: apt.duration || "30 min",
               reason: apt.reason || apt.chiefComplaint || "Consultation",
               appointmentType: apt.appointmentType || "New",
-              // Preserve additional patient data
               patientPhone: apt.patientId?.phone || apt.patientPhone || "",
               patientEmail: apt.patientId?.email || apt.patientEmail || "",
               patientAddress: apt.patientId?.address
@@ -290,39 +288,23 @@ const DoctorAppointments = () => {
                 : apt.patientAddress || "Not provided",
               age: apt.patientId?.age || apt.age || 30,
               gender: apt.patientId?.gender || apt.gender || "male",
-              // Rescheduled appointment data
               rescheduledAt: apt.rescheduledAt,
               rescheduledBy: apt.rescheduledBy,
               rescheduleReason: apt.rescheduleReason,
               isRescheduled: !!apt.rescheduledAt,
-              // Payment data
               fee: apt.fee || 0,
               paidAmount: apt.paidAmount || 0,
               remainingAmount: apt.remainingAmount || 0,
               paymentStatus: apt.paymentStatus || "pending",
-              paymentMethod: apt.paymentMethod, // Original payment method
-              // Preserve original appointment data for reference
+              paymentMethod: apt.paymentMethod,
               originalData: apt,
             };
-          });
-
-          console.log("📋 Transformed appointments:", {
-            count: transformed.length,
-            sample: transformed[0] || null,
-            dateFields: transformed
-              .slice(0, 3)
-              .map((apt) => ({
-                id: apt.id,
-                date: apt.date,
-                appointmentDate: apt.appointmentDate,
-              })),
           });
 
           setAppointments(transformed);
         }
       } catch (err) {
         console.error("Error fetching appointments:", err);
-        // Check if it's a connection error
         const isConnectionError =
           err.message?.includes("Failed to fetch") ||
           err.message?.includes("ERR_CONNECTION_REFUSED") ||
@@ -333,7 +315,6 @@ const DoctorAppointments = () => {
           setError(
             "Unable to connect to server. Please check if the backend server is running.",
           );
-          // Don't show toast for connection errors to avoid spam
         } else {
           setError(err.message || "Failed to load appointments");
           toast.error("Failed to load appointments");
@@ -344,7 +325,6 @@ const DoctorAppointments = () => {
     };
 
     fetchAppointments();
-    // Refresh every 30 seconds to get new appointments
     const interval = setInterval(fetchAppointments, 30000);
     return () => clearInterval(interval);
   }, [toast, page, limit, searchTerm, selectedDate]);
@@ -355,16 +335,10 @@ const DoctorAppointments = () => {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  // Get current month start and end
   const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-  const currentMonthEnd = new Date(
-    today.getFullYear(),
-    today.getMonth() + 1,
-    0,
-  );
+  const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
   currentMonthEnd.setHours(23, 59, 59, 999);
 
-  // Get current year start and end
   const currentYearStart = new Date(today.getFullYear(), 0, 1);
   const currentYearEnd = new Date(today.getFullYear(), 11, 31);
   currentYearEnd.setHours(23, 59, 59, 999);
@@ -373,7 +347,6 @@ const DoctorAppointments = () => {
   const filteredAppointments = useMemo(() => {
     let filtered = appointments;
 
-    // Filter by period - normalize dates for comparison
     if (filterPeriod === "today") {
       filtered = filtered.filter((apt) => {
         const aptDate = new Date(apt.date || apt.appointmentDate);
@@ -402,12 +375,9 @@ const DoctorAppointments = () => {
         );
       });
     }
-    // 'all' shows all appointments
 
-    // Filter by selected calendar date (overlays on top of period filter)
     if (selectedDate) {
       filtered = filtered.filter((apt) => {
-        // Prefer precomputed localDate (YYYY-MM-DD); if missing, fall back to raw date
         if (apt.localDate) {
           return apt.localDate === selectedDate;
         }
@@ -422,7 +392,6 @@ const DoctorAppointments = () => {
       });
     }
 
-    // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(
         (apt) =>
@@ -433,7 +402,6 @@ const DoctorAppointments = () => {
       );
     }
 
-    // Sort by date (newest first)
     return filtered.sort((a, b) => {
       const dateA = new Date(a.date || a.appointmentDate || 0);
       const dateB = new Date(b.date || b.appointmentDate || 0);
@@ -452,9 +420,7 @@ const DoctorAppointments = () => {
     currentYearEnd,
   ]);
 
-  // Calculate statistics - use backend statistics if available, otherwise calculate from appointments
   const stats = useMemo(() => {
-    // If backend statistics are available, use them
     if (statistics) {
       return {
         today: statistics.today || { scheduled: 0, rescheduled: 0, total: 0 },
@@ -468,8 +434,6 @@ const DoctorAppointments = () => {
       };
     }
 
-    // Fallback: calculate from appointments (client-side)
-    // Normalize dates for proper comparison
     const todayApts = appointments.filter((apt) => {
       const aptDate = new Date(apt.date || apt.appointmentDate);
       aptDate.setHours(0, 0, 0, 0);
@@ -495,66 +459,32 @@ const DoctorAppointments = () => {
       );
     });
 
-    // Calculate scheduled and rescheduled counts
-    const todayScheduled = todayApts.filter((apt) => !apt.isRescheduled).length;
-    const todayRescheduled = todayApts.filter(
-      (apt) => apt.isRescheduled,
-    ).length;
-    const monthlyScheduled = monthlyApts.filter(
-      (apt) => !apt.isRescheduled,
-    ).length;
-    const monthlyRescheduled = monthlyApts.filter(
-      (apt) => apt.isRescheduled,
-    ).length;
-    const yearlyScheduled = yearlyApts.filter(
-      (apt) => !apt.isRescheduled,
-    ).length;
-    const yearlyRescheduled = yearlyApts.filter(
-      (apt) => apt.isRescheduled,
-    ).length;
-    const totalScheduled = appointments.filter(
-      (apt) => !apt.isRescheduled,
-    ).length;
-    const totalRescheduled = appointments.filter(
-      (apt) => apt.isRescheduled,
-    ).length;
-
     return {
       today: {
-        scheduled: todayScheduled,
-        rescheduled: todayRescheduled,
+        scheduled: todayApts.filter((apt) => !apt.isRescheduled).length,
+        rescheduled: todayApts.filter((apt) => apt.isRescheduled).length,
         total: todayApts.length,
       },
       monthly: {
-        scheduled: monthlyScheduled,
-        rescheduled: monthlyRescheduled,
+        scheduled: monthlyApts.filter((apt) => !apt.isRescheduled).length,
+        rescheduled: monthlyApts.filter((apt) => apt.isRescheduled).length,
         total: monthlyApts.length,
       },
       yearly: {
-        scheduled: yearlyScheduled,
-        rescheduled: yearlyRescheduled,
+        scheduled: yearlyApts.filter((apt) => !apt.isRescheduled).length,
+        rescheduled: yearlyApts.filter((apt) => apt.isRescheduled).length,
         total: yearlyApts.length,
       },
       total: {
-        scheduled: totalScheduled,
-        rescheduled: totalRescheduled,
+        scheduled: appointments.filter((apt) => !apt.isRescheduled).length,
+        rescheduled: appointments.filter((apt) => apt.isRescheduled).length,
         total: appointments.length,
       },
     };
-  }, [
-    statistics,
-    appointments,
-    today,
-    tomorrow,
-    currentMonthStart,
-    currentMonthEnd,
-    currentYearStart,
-    currentYearEnd,
-  ]);
+  }, [statistics, appointments, today, tomorrow, currentMonthStart, currentMonthEnd, currentYearStart, currentYearEnd]);
 
   const handleViewAppointment = async (appointment) => {
     try {
-      // First, try to find existing consultation for this appointment
       const consultationsResponse = await getDoctorConsultations();
       let existingConsultation = null;
 
@@ -565,7 +495,6 @@ const DoctorAppointments = () => {
           consultationsResponse.consultations ||
           [];
 
-        // Find consultation by appointmentId
         existingConsultation = consultations.find(
           (cons) =>
             cons.appointmentId?._id?.toString() ===
@@ -575,7 +504,6 @@ const DoctorAppointments = () => {
         );
       }
 
-      // If consultation exists, fetch full consultation data
       if (existingConsultation) {
         try {
           const consultationResponse = await getConsultationById(
@@ -595,7 +523,6 @@ const DoctorAppointments = () => {
         }
       }
 
-      // If no consultation exists, fetch patient data and create consultation object
       let patientData = null;
       if (appointment.patientId) {
         try {
@@ -608,7 +535,6 @@ const DoctorAppointments = () => {
         }
       }
 
-      // Calculate age from dateOfBirth
       const calculateAge = (dateOfBirth) => {
         if (!dateOfBirth) return null;
         try {
@@ -629,7 +555,6 @@ const DoctorAppointments = () => {
         }
       };
 
-      // Use patient data from API or fallback to appointment data
       const finalPatientData =
         patientData || appointment.originalData?.patientId || {};
       const patientDateOfBirth =
@@ -639,7 +564,6 @@ const DoctorAppointments = () => {
         ? calculateAge(patientDateOfBirth)
         : finalPatientData.age || appointment.age || null;
 
-      // Format address properly
       let formattedAddress = "Not provided";
       const address =
         finalPatientData.address ||
@@ -663,14 +587,12 @@ const DoctorAppointments = () => {
         formattedAddress = appointment.patientAddress;
       }
 
-      // Format appointment date properly
       const appointmentDate = appointment.date || appointment.appointmentDate;
       const appointmentTime = appointment.time || "00:00";
       const formattedAppointmentTime = appointmentDate
         ? `${appointmentDate.split("T")[0]}T${appointmentTime}`
         : new Date().toISOString();
 
-      // Create consultation object with real data
       const consultationData = {
         id: `cons-${appointment.id}-${Date.now()}`,
         _id: `cons-${appointment.id}-${Date.now()}`,
@@ -720,7 +642,7 @@ const DoctorAppointments = () => {
   };
 
   const handleCancelClick = (e, appointment) => {
-    e.stopPropagation(); // Prevent card click
+    e.stopPropagation();
     setAppointmentToCancel(appointment);
     setShowCancelModal(true);
   };
@@ -736,7 +658,6 @@ const DoctorAppointments = () => {
         cancelReason.trim(),
       );
 
-      // ✅ UPDATE appointment instead of removing
       setAppointments((prev) =>
         prev.map((apt) =>
           apt.id === appointmentToCancel.id ||
@@ -785,7 +706,6 @@ const DoctorAppointments = () => {
               : "border-purple-200 bg-purple-50 hover:bg-purple-100 hover:border-purple-300"
               }`}
           >
-            {/* Animated Background Gradient */}
             <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-purple-500/0 group-hover:from-purple-500/10 group-hover:to-purple-500/20 transition-all duration-300"></div>
             <div className="relative">
               <p className="text-[10px] font-semibold uppercase text-purple-700 mb-1 group-hover:text-purple-900 transition-colors">
@@ -813,7 +733,6 @@ const DoctorAppointments = () => {
               : "border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300"
               }`}
           >
-            {/* Animated Background Gradient */}
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-500/0 group-hover:from-blue-500/10 group-hover:to-blue-500/20 transition-all duration-300"></div>
             <div className="relative">
               <p className="text-[10px] font-semibold uppercase text-blue-700 mb-1 group-hover:text-blue-900 transition-colors">
@@ -841,7 +760,6 @@ const DoctorAppointments = () => {
               : "border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300"
               }`}
           >
-            {/* Animated Background Gradient */}
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 to-emerald-500/0 group-hover:from-emerald-500/10 group-hover:to-emerald-500/20 transition-all duration-300"></div>
             <div className="relative">
               <p className="text-[10px] font-semibold uppercase text-emerald-700 mb-1 group-hover:text-emerald-900 transition-colors">
@@ -869,7 +787,6 @@ const DoctorAppointments = () => {
               : "border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300"
               }`}
           >
-            {/* Animated Background Gradient */}
             <div className="absolute inset-0 bg-gradient-to-br from-slate-500/0 to-slate-500/0 group-hover:from-slate-500/10 group-hover:to-slate-500/20 transition-all duration-300"></div>
             <div className="relative">
               <p className="text-[10px] font-semibold uppercase text-slate-600 mb-1 group-hover:text-slate-900 transition-colors">
@@ -906,7 +823,6 @@ const DoctorAppointments = () => {
             />
           </div>
 
-          {/* Date filter */}
           <div className="flex items-center gap-2">
             <label className="text-xs font-medium text-slate-600">
               Filter by date:
@@ -956,13 +872,10 @@ const DoctorAppointments = () => {
                   }}
                   className="group relative overflow-hidden rounded-2xl sm:rounded-xl lg:rounded-lg border border-slate-200 bg-white p-4 sm:p-3 lg:p-2.5 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 hover:border-primary/30 cursor-pointer active:scale-[0.98] lg:hover:scale-[1.01]"
                 >
-                  {/* Hover Background */}
                   <div className="absolute inset-0 bg-gradient-to-br from-[#0077C2]/0 to-[#0077C2]/0 group-hover:from-[#0077C2]/5 group-hover:to-[#0077C2]/10 transition-all duration-300"></div>
 
                   <div className="relative flex flex-col gap-3 sm:gap-2">
-                    {/* Top Row: Image + Name + Status Badge */}
                     <div className="flex items-center gap-3 sm:gap-2">
-                      {/* Patient Image */}
                       <div className="relative shrink-0">
                         <img
                           src={appointment.patientImage}
@@ -976,7 +889,6 @@ const DoctorAppointments = () => {
                           }}
                         />
 
-                        {/* Status badges on avatar */}
                         {appointment.status === "completed" && (
                           <div className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 sm:h-3 sm:w-3 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-white">
                             <IoCheckmarkCircleOutline className="h-2.5 w-2.5 sm:h-1.5 sm:w-1.5 text-white" />
@@ -993,13 +905,11 @@ const DoctorAppointments = () => {
                         )}
                       </div>
 
-                      {/* Name, Reason & Status Badge */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           <h3 className="text-base sm:text-sm font-bold text-slate-900 truncate group-hover:text-primary transition-colors">
                             {appointment.patientName}
                           </h3>
-                          {/* Status Badge inline with name */}
                           <span
                             className={`inline-flex items-center gap-1 shrink-0 rounded-full border px-2 py-0.5 text-[10px] sm:text-[9px] font-semibold uppercase tracking-wide ${statusColor}`}
                           >
@@ -1016,10 +926,8 @@ const DoctorAppointments = () => {
                       </div>
                     </div>
 
-                    {/* Action Buttons Row - Separate from patient info */}
                     {appointment.status !== "cancelled" && appointment.status !== "completed" && (
                       <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
-                        {/* For scheduled/pending appointments - Show Confirm + Cancel */}
                         {appointment.status === "scheduled" && (
                           <>
                             <button
@@ -1054,7 +962,6 @@ const DoctorAppointments = () => {
                           </>
                         )}
 
-                        {/* For confirmed appointments - Show Complete only */}
                         {appointment.status === "confirmed" && (
                           <button
                             type="button"
@@ -1081,7 +988,6 @@ const DoctorAppointments = () => {
                           </button>
                         )}
                         
-                        {/* Join Call Button for Video/Audio Consultations */}
                         {(() => {
                           const mode = appointment.consultationMode;
                           const isCallSupported = mode === "video_call" || mode === "voice_call" || mode === "online";
@@ -1093,8 +999,6 @@ const DoctorAppointments = () => {
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  
-                                  // Emit call:initiate event via socket to notify patient
                                   const socket = getSocket();
                                   const normalizedPatientId =
                                     typeof appointment.patientId === "object"
@@ -1108,7 +1012,6 @@ const DoctorAppointments = () => {
                                       toast.error("Patient ID missing. Cannot initiate call.");
                                       return;
                                     }
-                                    console.log('📞 Emitting call:initiate for patient:', appointment.patientId);
                                     socket.emit('call:initiate', {
                                       callId,
                                       appointmentId: appointment.id || appointment._id,
@@ -1116,8 +1019,6 @@ const DoctorAppointments = () => {
                                       doctorName: doctorName,
                                       callType: mode === "video_call" ? "video" : "audio"
                                     });
-                                  } else {
-                                    console.warn('⚠️ Socket not connected, call invitation not sent');
                                   }
                                   
                                   startCall(
@@ -1126,10 +1027,10 @@ const DoctorAppointments = () => {
                                     mode === "video_call" ? "video" : "audio"
                                   );
                                 }}
-                                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 sm:py-2 text-sm sm:text-xs font-bold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700 active:scale-95 animate-pulse"
+                                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 sm:py-2 text-sm sm:text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 active:scale-95 animate-pulse"
                               >
                                 {mode === "video_call" ? <IoVideocamOutline className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> : <IoCallOutline className="h-4 w-4 sm:h-3.5 sm:w-3.5" />}
-                                <span>Join {mode === "video_call" ? "Video" : "Voice"} Call</span>
+                                <span>Join Call</span>
                               </button>
                             );
                           }
@@ -1138,72 +1039,51 @@ const DoctorAppointments = () => {
                       </div>
                     )}
 
-                    {/* Rescheduled Notice */}
                     {appointment.isRescheduled && appointment.rescheduleReason && (
-                      <div className="rounded-xl sm:rounded-lg border border-blue-200 bg-blue-50 p-2.5 sm:p-1.5">
-                        <div className="flex items-start gap-2 sm:gap-1">
-                          <IoInformationCircleOutline className="h-4 w-4 sm:h-3 sm:w-3 text-blue-600 shrink-0 mt-0.5" />
+                      <div className="rounded-xl border border-blue-200 bg-blue-50 p-2.5">
+                        <div className="flex items-start gap-2">
+                          <IoInformationCircleOutline className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs sm:text-[9px] font-semibold text-blue-800 mb-0.5">
-                              Rescheduled
-                            </p>
-                            <p className="text-[11px] sm:text-[8px] text-blue-700 line-clamp-2">
-                              {appointment.rescheduleReason}
-                            </p>
+                            <p className="text-xs font-semibold text-blue-800 mb-0.5">Rescheduled</p>
+                            <p className="text-[11px] text-blue-700 line-clamp-2">{appointment.rescheduleReason}</p>
                           </div>
                         </div>
                       </div>
                     )}
 
-                    {/* Cancelled Reason */}
                     {appointment.status === "cancelled" && appointment.cancelReason && (
-                      <div className="rounded-xl sm:rounded-lg border border-red-200 bg-red-50 p-2.5 sm:p-1.5">
-                        <div className="flex items-start gap-2 sm:gap-1">
-                          <IoCloseCircleOutline className="h-4 w-4 sm:h-3 sm:w-3 text-red-600 shrink-0 mt-0.5" />
+                      <div className="rounded-xl border border-red-200 bg-red-50 p-2.5">
+                        <div className="flex items-start gap-2">
+                          <IoCloseCircleOutline className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
                           <div className="flex-1">
-                            <p className="text-xs sm:text-[9px] font-semibold text-red-800">
-                              Cancelled by{" "}
-                              {appointment.cancelledBy === "doctor"
-                                ? "Doctor"
-                                : "Patient"}
+                            <p className="text-xs font-semibold text-red-800">
+                              Cancelled by {appointment.cancelledBy === "doctor" ? "Doctor" : "Patient"}
                             </p>
-                            <p className="text-[11px] sm:text-[8px] text-red-700 line-clamp-2">
-                              Reason: {appointment.cancelReason}
-                            </p>
+                            <p className="text-[11px] text-red-700 line-clamp-2">Reason: {appointment.cancelReason}</p>
                           </div>
                         </div>
                       </div>
                     )}
 
-                    {/* Details Row */}
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:gap-x-2 sm:gap-y-1 text-xs sm:text-[10px] text-slate-600 mt-1 p-2.5 sm:p-0 bg-slate-50 sm:bg-transparent rounded-xl sm:rounded-none">
-                      <div className="flex items-center gap-1.5 sm:gap-1">
-                        <IoCalendarOutline className="h-4 w-4 sm:h-3 sm:w-3 text-primary shrink-0" />
-                        <span className="font-semibold text-slate-800">
-                          {formatDate(appointment.localDate || appointment.date)}
-                        </span>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs text-slate-600 mt-1 p-2.5 bg-slate-50 rounded-xl">
+                      <div className="flex items-center gap-1.5">
+                        <IoCalendarOutline className="h-4 w-4 text-primary shrink-0" />
+                        <span className="font-semibold text-slate-800">{formatDate(appointment.localDate || appointment.date)}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 sm:gap-1">
-                        <IoTimeOutline className="h-4 w-4 sm:h-3 sm:w-3 text-primary shrink-0" />
+                      <div className="flex items-center gap-1.5">
+                        <IoTimeOutline className="h-4 w-4 text-primary shrink-0" />
                         <span className="font-semibold text-slate-800">{formatTime(appointment.time)}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 sm:gap-1">
-                        <TypeIcon className="h-4 w-4 sm:h-3 sm:w-3 text-primary shrink-0" />
+                      <div className="flex items-center gap-1.5">
+                        <TypeIcon className="h-4 w-4 text-primary shrink-0" />
                         <span className="text-slate-700">{appointment.type}</span>
                       </div>
-                      {appointment.duration ? (
-                        <div className="flex items-center gap-1.5 sm:gap-1">
-                          <span className="text-slate-700">{appointment.duration}</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 sm:gap-1">
-                          <IoDocumentTextOutline className="h-4 w-4 sm:h-3 sm:w-3 text-primary shrink-0" />
-                          <span className="text-slate-700">{appointment.appointmentType}</span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        <IoDocumentTextOutline className="h-4 w-4 text-primary shrink-0" />
+                        <span className="text-slate-700">{appointment.appointmentType}</span>
+                      </div>
                     </div>
 
-                    {/* Payment Status Info */}
                     {(appointment.paymentStatus || appointment.paymentMethod === "cod") && (
                       <div className="mt-2 space-y-1">
                         {appointment.paymentStatus === "partial" && (
@@ -1277,8 +1157,6 @@ const DoctorAppointments = () => {
           )}
         </div>
 
-
-        {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
           <div className="mt-4">
             <Pagination
@@ -1296,7 +1174,6 @@ const DoctorAppointments = () => {
         )}
       </section>
 
-      {/* Cancel Appointment Modal */}
       {showCancelModal && appointmentToCancel && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4 py-6 backdrop-blur-sm"
@@ -1306,19 +1183,14 @@ const DoctorAppointments = () => {
             className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-200 p-4 sm:p-6">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
                   <IoCloseCircleOutline className="h-5 w-5 text-red-600" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900">
-                    Cancel Appointment
-                  </h2>
-                  <p className="text-xs text-slate-600">
-                    Patient: {appointmentToCancel.patientName}
-                  </p>
+                  <h2 className="text-lg font-bold text-slate-900">Cancel Appointment</h2>
+                  <p className="text-xs text-slate-600">Patient: {appointmentToCancel.patientName}</p>
                 </div>
               </div>
               <button
@@ -1330,7 +1202,6 @@ const DoctorAppointments = () => {
               </button>
             </div>
 
-            {/* Content */}
             <div className="p-4 sm:p-6 space-y-4">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <div className="flex items-center gap-2 text-sm text-slate-600 mb-1">
@@ -1345,8 +1216,7 @@ const DoctorAppointments = () => {
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-900">
-                  Reason for Cancellation{" "}
-                  <span className="text-red-500">*</span>
+                  Reason for Cancellation <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   value={cancelReason}
@@ -1355,14 +1225,10 @@ const DoctorAppointments = () => {
                   rows="4"
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                 />
-                <p className="mt-1.5 text-xs text-slate-500">
-                  The patient will be notified and can reschedule for a new date
-                  and time.
-                </p>
+                <p className="mt-1.5 text-xs text-slate-500">The patient will be notified and can reschedule.</p>
               </div>
             </div>
 
-            {/* Footer */}
             <div className="flex gap-3 border-t border-slate-200 p-4 sm:p-6">
               <button
                 type="button"
@@ -1383,7 +1249,6 @@ const DoctorAppointments = () => {
           </div>
         </div>
       )}
-
     </>
   );
 };

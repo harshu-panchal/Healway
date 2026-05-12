@@ -3,7 +3,9 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import { getSocket } from '../../../utils/socketClient'
 import DoctorNavbar from '../doctor-components/DoctorNavbar'
 import DoctorSidebar from '../doctor-components/DoctorSidebar'
+import PageLoader from '../../../components/PageLoader'
 import { useToast } from '../../../contexts/ToastContext'
+import DoctorPendingApproval from '../doctor-components/DoctorPendingApproval'
 import {
   getDoctorDashboard,
   getDoctorAppointments,
@@ -152,6 +154,7 @@ const DoctorDashboard = () => {
           clinicName: doctor.clinicDetails?.name || '',
           clinicAddress: doctor.clinicDetails?.address || {},
           isActive: doctor.isActive !== undefined ? doctor.isActive : true,
+          status: doctor.status || 'pending',
         })
       }
 
@@ -725,6 +728,14 @@ const DoctorDashboard = () => {
       console.error('Error handling appointment view:', error)
       toast.error('Failed to load consultation data')
     }
+  }
+
+  if (loading && !profile) {
+    return <PageLoader />
+  }
+
+  if (profile?.status === 'pending') {
+    return <DoctorPendingApproval doctorName={profile.firstName} />
   }
 
   return (

@@ -714,7 +714,29 @@ exports.checkDoctorSlotAvailability = asyncHandler(async (req, res) => {
   ][appointmentDate.getDay()];
 
   // 3️⃣ Fetch session slots
-  const slots = getSessionSlots(doctor, appointmentDate, normalizedMode);
+  let slots = getSessionSlots(doctor, appointmentDate, normalizedMode);
+
+  // 3.5️⃣ Filter slots for "today" - show only if at least 1 hour before end time
+  const now = new Date();
+  const isToday = appointmentDate.toDateString() === now.toDateString();
+
+  if (isToday && slots && slots.length > 0) {
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    slots = slots.filter(s => {
+      const endMins = timeToMinutes(s.endTime);
+      const startMins = timeToMinutes(s.startTime);
+      if (endMins === null || startMins === null) return true;
+
+      let effectiveEndMins = endMins;
+      // Handle midnight crossing (e.g., 10 PM to 2 AM)
+      if (endMins < startMins) {
+        effectiveEndMins += 1440;
+      }
+
+      // Slot is available only if current time is at least 60 minutes before effective end time
+      return currentMinutes <= (effectiveEndMins - 60);
+    });
+  }
 
   // Helper: check if DAY requires payment (slot may still be free)
   const checkDayRequiresPayment = () => {
