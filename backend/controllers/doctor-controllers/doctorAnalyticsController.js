@@ -4,6 +4,7 @@ const Doctor = require('../../models/Doctor');
 const Follow = require('../../models/Follow');
 const ProfileView = require('../../models/ProfileView');
 const Patient = require('../../models/Patient');
+const Specialty = require('../../models/Specialty');
 
 /**
  * GET /api/doctors/analytics/summary - Get total followers and views
@@ -14,7 +15,7 @@ exports.getAnalyticsSummary = asyncHandler(async (req, res) => {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
   const [doctor, newFollowersThisWeek, viewsThisWeek] = await Promise.all([
-    Doctor.findById(doctorId).select('followerCount viewCount').lean(),
+    Doctor.findById(doctorId).select('followerCount viewCount specialization').lean(),
     Follow.countDocuments({
       doctorId,
       createdAt: { $gte: sevenDaysAgo }
@@ -24,9 +25,20 @@ exports.getAnalyticsSummary = asyncHandler(async (req, res) => {
       createdAt: { $gte: sevenDaysAgo }
     })
   ]);
-  
+
   if (!doctor) {
     return res.status(404).json({ success: false, message: "Doctor not found" });
+  }
+
+  // Get specialization search count
+  let specializationSearchCount = 0;
+  if (doctor.specialization) {
+    const specialty = await Specialty.findOne({
+      name: new RegExp(`^${doctor.specialization}$`, 'i')
+    }).select('searchCount').lean();
+    if (specialty) {
+      specializationSearchCount = specialty.searchCount || 0;
+    }
   }
 
   res.status(200).json({
@@ -37,7 +49,8 @@ exports.getAnalyticsSummary = asyncHandler(async (req, res) => {
       followersGrowth: newFollowersThisWeek,
       viewsGrowth: viewsThisWeek,
       followRate: doctor.viewCount > 0 ? (doctor.followerCount / doctor.viewCount) * 100 : 0,
-      activeGrowth: viewsThisWeek > 0 ? (newFollowersThisWeek / viewsThisWeek) * 100 : 0
+      activeGrowth: viewsThisWeek > 0 ? (newFollowersThisWeek / viewsThisWeek) * 100 : 0,
+      specializationSearchCount: specializationSearchCount
     }
   });
 });

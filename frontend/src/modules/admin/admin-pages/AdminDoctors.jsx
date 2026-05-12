@@ -38,6 +38,7 @@ import {
   reorderDoctors,
   deleteDoctor,
   toggleDoctorStatus,
+  updateDoctorCounts,
 } from '../admin-services/adminService'
 import Pagination from '../../../components/Pagination'
 
@@ -68,6 +69,9 @@ const AdminDoctors = () => {
   const [doctorStats, setDoctorStats] = useState(null)
   const [loadingStats, setLoadingStats] = useState(false)
   const [selectedPatient, setSelectedPatient] = useState(null)
+  const [showCountsModal, setShowCountsModal] = useState(false)
+  const [countsForm, setCountsForm] = useState({ followerCount: 0, viewCount: 0 })
+  const [updatingCounts, setUpdatingCounts] = useState(false)
 
   useEffect(() => {
     setCurrentPage(1)
@@ -254,6 +258,53 @@ const AdminDoctors = () => {
     }
   }
 
+  const [countsDoctor, setCountsDoctor] = useState(null)
+
+  const openCountsModal = (doctor) => {
+    setCountsDoctor(doctor)
+    setCountsForm({
+      followerCount: doctor.followersCount || doctor.followerCount || 0,
+      viewCount: doctor.profileViews || doctor.viewCount || 0
+    })
+    setShowCountsModal(true)
+  }
+
+  const handleUpdateCounts = async () => {
+    if (!countsDoctor) return
+    const doctorId = countsDoctor._id || countsDoctor.id
+    if (!doctorId) {
+      toast.error('Doctor ID not found')
+      return
+    }
+    try {
+      setUpdatingCounts(true)
+      const res = await updateDoctorCounts(doctorId, countsForm)
+      if (res.success) {
+        toast.success('Counts updated successfully')
+        setShowCountsModal(false)
+        // Update local state
+        const updatedDoctors = doctors.map(d =>
+          (d._id === doctorId || d.id === doctorId)
+            ? { ...d, followersCount: countsForm.followerCount, profileViews: countsForm.viewCount, followerCount: countsForm.followerCount, viewCount: countsForm.viewCount }
+            : d
+        )
+        setDoctors(updatedDoctors)
+        // Also update in allDoctors if exists
+        const updatedAllDoctors = allDoctors.map(d =>
+          (d._id === doctorId || d.id === doctorId)
+            ? { ...d, followersCount: countsForm.followerCount, profileViews: countsForm.viewCount, followerCount: countsForm.followerCount, viewCount: countsForm.viewCount }
+            : d
+        )
+        setAllDoctors(updatedAllDoctors)
+      }
+    } catch (error) {
+      console.error('Error updating counts:', error)
+      toast.error(error.message || 'Failed to update counts')
+    } finally {
+      setUpdatingCounts(false)
+    }
+  }
+
   const handleRejectClick = (doctorId) => {
     setRejectingDoctorId(doctorId)
     setRejectionReason('')
@@ -422,7 +473,7 @@ const AdminDoctors = () => {
   }
 
   return (
-    <section className="flex flex-col gap-2 pb-20 pt-0">
+    <section className="flex flex-col gap-2 pb-20 pt-0 px-3 sm:px-0">
       {/* Header */}
       <header className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-2.5">
         <div>
@@ -446,7 +497,7 @@ const AdminDoctors = () => {
         </div>
         <input
           type="text"
-          placeholder="Search doctors by name, specialty, or clinic..."
+          placeholder="Search doctors..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="block w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 py-2.5 text-sm placeholder-slate-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
@@ -454,46 +505,46 @@ const AdminDoctors = () => {
       </div>
 
       {/* Stats Summary - Clickable Filters */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <button
           onClick={() => setStatusFilter('all')}
-          className={`rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md ${
+          className={`rounded-xl border border-slate-200 bg-white p-3 sm:p-4 text-left shadow-sm transition-all hover:shadow-md ${
             statusFilter === 'all' ? 'border-primary ring-2 ring-primary/10 bg-primary/5' : ''
           }`}
         >
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Doctors</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{allDoctors.length}</p>
+          <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-slate-500">Total</p>
+          <p className="mt-1 text-xl sm:text-2xl font-bold text-slate-900">{allDoctors.length}</p>
         </button>
         <button
           onClick={() => setStatusFilter('verified')}
-          className={`rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md ${
+          className={`rounded-xl border border-slate-200 bg-white p-3 sm:p-4 text-left shadow-sm transition-all hover:shadow-md ${
             statusFilter === 'verified' ? 'border-emerald-500 ring-2 ring-emerald-500/10 bg-emerald-50' : ''
           }`}
         >
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Verified</p>
-          <p className="mt-1 text-2xl font-bold text-emerald-600">
+          <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-slate-500">Verified</p>
+          <p className="mt-1 text-xl sm:text-2xl font-bold text-emerald-600">
             {allDoctors.filter((d) => d.status === 'verified').length}
           </p>
         </button>
         <button
           onClick={() => setStatusFilter('pending')}
-          className={`rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md ${
+          className={`rounded-xl border border-slate-200 bg-white p-3 sm:p-4 text-left shadow-sm transition-all hover:shadow-md ${
             statusFilter === 'pending' ? 'border-blue-500 ring-2 ring-blue-500/10 bg-blue-50' : ''
           }`}
         >
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pending Approval</p>
-          <p className="mt-1 text-2xl font-bold text-blue-600">
+          <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-slate-500">Pending</p>
+          <p className="mt-1 text-xl sm:text-2xl font-bold text-blue-600">
             {allDoctors.filter((d) => d.status === 'pending').length}
           </p>
         </button>
         <button
           onClick={() => setStatusFilter('rejected')}
-          className={`rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md ${
+          className={`rounded-xl border border-slate-200 bg-white p-3 sm:p-4 text-left shadow-sm transition-all hover:shadow-md ${
             statusFilter === 'rejected' ? 'border-red-500 ring-2 ring-red-500/10 bg-red-50' : ''
           }`}
         >
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Rejected</p>
-          <p className="mt-1 text-2xl font-bold text-red-600">
+          <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-slate-500">Rejected</p>
+          <p className="mt-1 text-xl sm:text-2xl font-bold text-red-600">
             {allDoctors.filter((d) => d.status === 'rejected').length}
           </p>
         </button>
@@ -520,6 +571,7 @@ const AdminDoctors = () => {
                 getAccessModeBadge={getAccessModeBadge}
                 setStatusModalDoctor={setStatusModalDoctor}
                 handleDeleteDoctor={handleDeleteDoctor}
+                openCountsModal={openCountsModal}
                 processingId={processingId}
                 handleViewDoctor={handleViewDoctor}
                 handleDoctorStatsClick={handleDoctorStatsClick}
@@ -614,6 +666,77 @@ const AdminDoctors = () => {
                 className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed"
               >
                 {processingId === rejectingDoctorId ? 'Processing...' : 'Confirm Reject'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Update Counts Modal */}
+      {showCountsModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowCountsModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <h2 className="text-lg font-semibold text-slate-900">Update Followers & Views</h2>
+              <button
+                onClick={() => setShowCountsModal(false)}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <IoCloseOutline className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              <p className="text-sm text-slate-600">
+                Manually update follower count and profile view count for this doctor.
+              </p>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Follower Count
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={countsForm.followerCount}
+                  onChange={(e) => setCountsForm({ ...countsForm, followerCount: parseInt(e.target.value, 10) || 0 })}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Profile Views
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={countsForm.viewCount}
+                  onChange={(e) => setCountsForm({ ...countsForm, viewCount: parseInt(e.target.value, 10) || 0 })}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-slate-200 px-4 py-3">
+              <button
+                onClick={() => setShowCountsModal(false)}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateCounts}
+                disabled={updatingCounts}
+                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-dark disabled:bg-primary/50 disabled:cursor-not-allowed"
+              >
+                {updatingCounts ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -934,6 +1057,13 @@ const AdminDoctors = () => {
                         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500 shadow-lg">
                           <IoPeopleOutline className="h-6 w-6 text-white" />
                         </div>
+                        <button
+                          onClick={() => openCountsModal({ _id: selectedDoctor.id, followerCount: selectedDoctor.followersCount || 0, viewCount: selectedDoctor.profileViews || 0 })}
+                          className="p-1.5 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"
+                          title="Edit Counts"
+                        >
+                          <IoPencilOutline className="w-4 h-4" />
+                        </button>
                       </div>
                       <p className="text-sm font-medium text-purple-700 mb-1">Total Followers</p>
                       <p className="text-3xl font-black text-purple-900">
@@ -947,6 +1077,13 @@ const AdminDoctors = () => {
                         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500 shadow-lg">
                           <IoEyeOutline className="h-6 w-6 text-white" />
                         </div>
+                        <button
+                          onClick={() => openCountsModal({ _id: selectedDoctor.id, followerCount: selectedDoctor.followersCount || 0, viewCount: selectedDoctor.profileViews || 0 })}
+                          className="p-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-600 transition-colors"
+                          title="Edit Counts"
+                        >
+                          <IoPencilOutline className="w-4 h-4" />
+                        </button>
                       </div>
                       <p className="text-sm font-medium text-amber-700 mb-1">Profile Views</p>
                       <p className="text-3xl font-black text-amber-900">
@@ -1108,7 +1245,8 @@ const DoctorItem = ({
   handleApprove,
   handleRejectClick,
   formatDate,
-  navigate
+  navigate,
+  openCountsModal
 }) => {
   const dragControls = useDragControls()
 
@@ -1203,43 +1341,51 @@ const DoctorItem = ({
                  </button>
                 )}
               </div>
-              <div className="flex gap-2 mt-2 flex-wrap">
+              <div className="flex gap-1.5 sm:gap-2 mt-2 flex-wrap">
                 <button
                   type="button"
                   onClick={() => handleViewDoctor(doctor.id)}
                   disabled={loadingDoctorDetails}
-                  className="flex items-center gap-1 rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 rounded-lg bg-slate-600 px-2 sm:px-3 py-1 text-xs font-semibold text-white hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
                 >
                   <IoEyeOutline className="h-3.5 w-3.5" />
-                  View
+                  <span className="hidden sm:inline">View</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDoctorStatsClick(doctor)}
-                  className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-dark transition"
+                  className="flex items-center gap-1 rounded-lg bg-primary px-2 sm:px-3 py-1 text-xs font-semibold text-white hover:bg-primary-dark transition"
                 >
                   <IoStatsChartOutline className="h-3.5 w-3.5" />
-                  Stats
+                  <span className="hidden sm:inline">Stats</span>
                 </button>
-                
+
                 {doctor.status === 'verified' && (
                   <>
                     <button
                       type="button"
                       onClick={() => navigate(`/admin/doctors/edit/${doctor.id}`)}
-                      className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                      className="flex items-center gap-1 rounded-lg bg-blue-600 px-2 sm:px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"
                     >
                       <IoPencilOutline className="h-3.5 w-3.5" />
-                      Edit
+                      <span className="hidden sm:inline">Edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openCountsModal(doctor)}
+                      className="flex items-center gap-1 rounded-lg bg-purple-600 px-2 sm:px-3 py-1 text-xs font-semibold text-white hover:bg-purple-700"
+                    >
+                      <IoPeopleOutline className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Followers</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDeleteDoctor(doctor.id)}
                       disabled={processingId === doctor.id}
-                      className="flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:bg-red-300"
+                      className="flex items-center gap-1 rounded-lg bg-red-600 px-2 sm:px-3 py-1 text-xs font-semibold text-white hover:bg-red-700 disabled:bg-red-300"
                     >
                       <IoTrashOutline className="h-3.5 w-3.5" />
-                      Delete
+                      <span className="hidden sm:inline">Delete</span>
                     </button>
                   </>
                 )}
@@ -1250,7 +1396,7 @@ const DoctorItem = ({
                       type="button"
                       onClick={() => handleApprove(doctor.id)}
                       disabled={processingId === doctor.id}
-                      className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-dark disabled:bg-primary/30 disabled:cursor-not-allowed"
+                      className="rounded-lg bg-primary px-2 sm:px-3 py-1 text-xs font-semibold text-white hover:bg-primary-dark disabled:bg-primary/30 disabled:cursor-not-allowed"
                     >
                       {processingId === doctor.id ? 'Processing...' : 'Approve'}
                     </button>
@@ -1258,7 +1404,7 @@ const DoctorItem = ({
                       type="button"
                       onClick={() => handleRejectClick(doctor.id)}
                       disabled={processingId === doctor.id}
-                      className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed"
+                      className="rounded-lg bg-red-600 px-2 sm:px-3 py-1 text-xs font-semibold text-white hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed"
                     >
                       Reject
                     </button>
@@ -1267,7 +1413,7 @@ const DoctorItem = ({
               </div>
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-4 text-xs font-medium">
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium">
             <span className="flex items-center gap-1 text-slate-500">
               <IoCalendarOutline className="h-3 w-3" />
               Consultations: <span className="text-slate-900">{doctor.totalConsultations}</span>

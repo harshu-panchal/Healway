@@ -386,6 +386,7 @@ const PatientDoctorDetails = () => {
   const [error, setError] = useState(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
+  const [specializationSearchCount, setSpecializationSearchCount] = useState(0);
   const [followLoading, setFollowLoading] = useState(false);
 
   const resolveIsFollowing = (payload) => {
@@ -773,6 +774,7 @@ const PatientDoctorDetails = () => {
           setIsFollowing(finalFollowStatus);
           storeFollowStatus(doctorData._id || doctorData.id, finalFollowStatus);
           setFollowerCount(doctorData.followerCount || 0);
+          setSpecializationSearchCount(doctorData.specializationSearchCount || 0);
           setLoading(false);
         }
       } catch (err) {
@@ -2550,7 +2552,26 @@ const PatientDoctorDetails = () => {
                       </motion.p>
                     </AnimatePresence>
                   </motion.div>
-                  
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col items-center justify-center min-w-[70px] px-3 py-2 bg-pink-50 rounded-2xl border border-pink-100"
+                  >
+                    <p className="text-[9px] font-black text-pink-400 uppercase tracking-widest leading-none mb-1">Searches</p>
+                    <AnimatePresence mode="wait">
+                      <motion.p
+                        key={specializationSearchCount}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 1.2 }}
+                        className="text-lg font-black text-pink-600 leading-none"
+                      >
+                        {specializationSearchCount}
+                      </motion.p>
+                    </AnimatePresence>
+                  </motion.div>
+
                   <motion.button
                     type="button"
                     whileHover={{ scale: 1.02 }}

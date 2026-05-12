@@ -539,12 +539,24 @@ exports.getDoctorById = asyncHandler(async (req, res) => {
     isFollowing = !!follow;
   }
 
+  // Get specialization search count
+  let specializationSearchCount = 0;
+  if (doctor.specialization) {
+    const specialty = await Specialty.findOne({
+      name: new RegExp(`^${doctor.specialization}$`, 'i')
+    }).select('searchCount').lean();
+    if (specialty) {
+      specializationSearchCount = specialty.searchCount || 0;
+    }
+  }
+
   return res.status(200).json({
     success: true,
     data: {
       doctor: {
         ...transformDoctorFees(doctor),
-        isFollowing
+        isFollowing,
+        specializationSearchCount
       },
     },
   });

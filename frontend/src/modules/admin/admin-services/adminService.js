@@ -354,6 +354,22 @@ export const getDoctorStats = async (doctorId, filter = 'all') => {
 }
 
 /**
+ * Update doctor follower and view counts
+ * @param {string} doctorId - Doctor ID
+ * @param {object} counts - Object with followerCount and/or viewCount
+ * @returns {Promise<object>} Updated counts
+ */
+export const updateDoctorCounts = async (doctorId, counts = {}) => {
+  try {
+    const response = await apiClient.patch(`/admin/doctors/${doctorId}/update-counts`, counts)
+    return response;
+  } catch (error) {
+    console.error('Error updating doctor counts:', error)
+    throw error
+  }
+}
+
+/**
  * Verify doctor
  */
 export const verifyDoctor = async (doctorId, verificationData = {}) => {
@@ -838,6 +854,7 @@ export default {
   getDoctors,
   getDoctorById,
   getDoctorStats,
+  updateDoctorCounts,
   createDoctor,
   updateDoctor,
   deleteDoctor,
@@ -935,6 +952,24 @@ export default {
       return response
     } catch (error) {
       console.error('Error fetching specialties:', error)
+      throw error
+    }
+  },
+  getSpecialtyStats: async () => {
+    try {
+      const response = await apiClient.get('/admin/specialties/stats')
+      return response
+    } catch (error) {
+      console.error('Error fetching specialty stats:', error)
+      throw error
+    }
+  },
+  updateSpecialtySearchCount: async (specialtyId, searchCount) => {
+    try {
+      const response = await apiClient.patch(`/admin/specialties/${specialtyId}/search-count`, { searchCount })
+      return response
+    } catch (error) {
+      console.error('Error updating specialty search count:', error)
       throw error
     }
   },

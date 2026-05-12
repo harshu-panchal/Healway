@@ -1,30 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  Row, 
-  Col, 
-  Statistic, 
-  Table, 
-  Tag, 
-  Avatar, 
-  Select, 
-  Typography, 
-  Button, 
-  Space,
-  Empty,
+import {
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Tag,
+  Select,
+  Typography,
+  Button,
   Skeleton
 } from 'antd';
-import { 
-  UserOutlined, 
-  EyeOutlined, 
-  TeamOutlined, 
+import {
+  EyeOutlined,
+  TeamOutlined,
   LineChartOutlined,
   CalendarOutlined,
   FilterOutlined,
   ArrowUpOutlined,
-  ArrowDownOutlined
+  ArrowDownOutlined,
+  SearchOutlined
 } from '@ant-design/icons';
-import { getAnalyticsSummary, getFollowersList } from '../doctor-services/doctorService';
+import { getAnalyticsSummary } from '../doctor-services/doctorService';
 import { useToast } from '../../../contexts/ToastContext';
 import { motion } from 'framer-motion';
 
@@ -32,7 +28,6 @@ const { Title, Text } = Typography;
 
 const DoctorBusinessAnalytics = () => {
   const [summary, setSummary] = useState(null);
-  const [followers, setFollowers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState(30);
   const toast = useToast();
@@ -61,16 +56,6 @@ const DoctorBusinessAnalytics = () => {
         console.error('Summary fetch error:', err);
       }
 
-      // Fetch followers
-      try {
-        const followersRes = await getFollowersList({ limit: 10 });
-        if (followersRes && followersRes.success) {
-          setFollowers(Array.isArray(followersRes.data) ? followersRes.data : (followersRes.data.items || []));
-        }
-      } catch (err) {
-        console.error('Followers fetch error:', err);
-      }
-
     } catch (error) {
       console.error('Error in analytics dashboard:', error);
       toast.error('Failed to load some analytics data');
@@ -78,54 +63,6 @@ const DoctorBusinessAnalytics = () => {
       setLoading(false);
     }
   };
-
-  const followerColumns = [
-    {
-      title: 'Patient',
-      dataIndex: 'patientId',
-      key: 'name',
-      width: 250,
-      render: (patient) => {
-        const name = patient ? `${patient.firstName || ''} ${patient.lastName || ''}`.trim() : 'Unknown Patient';
-        return (
-          <Space>
-            <Avatar 
-              icon={<UserOutlined />} 
-              src={patient?.profileImage} 
-              className="bg-primary-50 text-primary border border-primary-100"
-              size={40}
-            />
-            <div className="flex flex-col">
-              <Text strong className="text-slate-900 leading-tight">
-                {name || 'Unknown Patient'}
-              </Text>
-              <Text type="secondary" className="text-[11px]">
-                {patient?.phone || 'No phone provided'}
-              </Text>
-            </div>
-          </Space>
-        );
-      }
-    },
-    {
-      title: 'Email',
-      dataIndex: 'patientId',
-      key: 'email',
-      render: (patient) => <Text type="secondary">{patient?.email || 'N/A'}</Text>
-    },
-    {
-      title: 'Followed On',
-      dataIndex: 'createdAt',
-      key: 'date',
-      render: (date) => (
-        <Text className="text-slate-600">
-          {new Date(date).toLocaleDateString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric' 
-          })}
-        </Text>
-      )
-    }
-  ];
 
   if (loading && !summary) {
     return (
@@ -265,26 +202,30 @@ const DoctorBusinessAnalytics = () => {
         </Col>
       </Row>
 
-      {/* Followers List */}
-      <Card 
-        title={<span className="font-bold text-slate-800">Recent Followers</span>} 
-        className="rounded-3xl shadow-sm border-none overflow-hidden"
-      >
-        <div className="overflow-x-auto">
-          <Table 
-            columns={followerColumns} 
-            dataSource={followers} 
-            loading={loading}
-            pagination={false}
-            rowKey="_id"
-            className="custom-table"
-            scroll={{ x: 600 }}
-          />
-        </div>
-        {followers.length === 0 && !loading && (
-          <Empty description="You don't have any followers yet" className="py-8" />
-        )}
-      </Card>
+      {/* Specialization Search Count */}
+      <Row gutter={[16, 16]} className="mt-4">
+        <Col xs={24} sm={12} lg={6}>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+            <Card
+              className="rounded-3xl shadow-lg border-none overflow-hidden relative group"
+              style={{ background: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)' }}
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-110 transition-transform">
+                <SearchOutlined style={{ fontSize: 64, color: '#fff' }} />
+              </div>
+              <Statistic
+                title={<Text style={{ color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '10px', fontWeight: '900' }}>Specialization Searches</Text>}
+                value={summary?.specializationSearchCount || 0}
+                valueStyle={{ color: '#fff', fontWeight: '900', fontSize: '2rem' }}
+              />
+              <div className="mt-4 flex items-center gap-2">
+                <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', padding: '2px 8px', borderRadius: '999px', fontSize: '10px', fontWeight: 'bold' }}>Your Specialty</div>
+                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}>Total Searches</Text>
+              </div>
+            </Card>
+          </motion.div>
+        </Col>
+      </Row>
 
       <style jsx global>{`
         .custom-table .ant-table {

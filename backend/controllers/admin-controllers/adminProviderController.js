@@ -967,3 +967,46 @@ exports.getDoctorPopularityStats = asyncHandler(async (req, res) => {
   });
 });
 
+// PATCH /api/admin/doctors/:id/update-counts
+exports.updateDoctorCounts = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { followerCount, viewCount } = req.body;
+
+  const updateFields = {};
+  if (followerCount !== undefined) {
+    updateFields.followerCount = Math.max(0, parseInt(followerCount, 10) || 0);
+  }
+  if (viewCount !== undefined) {
+    updateFields.viewCount = Math.max(0, parseInt(viewCount, 10) || 0);
+  }
+
+  if (Object.keys(updateFields).length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'No valid fields to update.',
+    });
+  }
+
+  const doctor = await Doctor.findByIdAndUpdate(
+    id,
+    { $set: updateFields },
+    { new: true, runValidators: true }
+  );
+
+  if (!doctor) {
+    return res.status(404).json({
+      success: false,
+      message: 'Doctor not found.',
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: 'Doctor counts updated successfully.',
+    data: {
+      followerCount: doctor.followerCount,
+      viewCount: doctor.viewCount,
+    },
+  });
+});
+

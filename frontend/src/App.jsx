@@ -56,7 +56,6 @@ const DoctorPatients = lazy(() => import('./modules/doctor/doctor-pages/DoctorPa
 const DoctorAllPatients = lazy(() => import('./modules/doctor/doctor-pages/DoctorAllPatients'))
 const DoctorAppointments = lazy(() => import('./modules/doctor/doctor-pages/DoctorAppointments'))
 const DoctorAllConsultations = lazy(() => import('./modules/doctor/doctor-pages/DoctorAllConsultations'))
-const DoctorAnnouncements = lazy(() => import('./modules/doctor/doctor-pages/DoctorAnnouncements'))
 const DoctorSupport = lazy(() => import('./modules/doctor/doctor-pages/DoctorSupport'))
 const DoctorSlotManagement = lazy(() => import('./modules/doctor/doctor-pages/DoctorSlotManagement'))
 const PrivacyPolicy = lazy(() => import('./modules/doctor/doctor-pages/PrivacyPolicy'))
@@ -493,16 +492,6 @@ function DoctorRoutes() {
                 <Suspense fallback={<PageLoader />}>
                   <ProtectedRoute module="doctor">
                     <DoctorConsultations />
-                  </ProtectedRoute>
-                </Suspense>
-              }
-            />
-            <Route
-              path="/announcements"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <ProtectedRoute module="doctor">
-                    <DoctorAnnouncements />
                   </ProtectedRoute>
                 </Suspense>
               }

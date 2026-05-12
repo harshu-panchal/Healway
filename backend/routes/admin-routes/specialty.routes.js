@@ -186,4 +186,62 @@ router.patch('/reorder', protect(ROLES.ADMIN), asyncHandler(async (req, res) => 
     });
 }));
 
+// @desc    Update specialty search count (manual override)
+// @route   PATCH /api/admin/specialties/:id/search-count
+// @access  Private (Admin)
+router.patch('/:id/search-count', protect(ROLES.ADMIN), asyncHandler(async (req, res) => {
+    const { searchCount } = req.body;
+
+    if (searchCount === undefined || typeof searchCount !== 'number' || searchCount < 0) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid search count value.',
+        });
+    }
+
+    const specialty = await Specialty.findByIdAndUpdate(
+        req.params.id,
+        { $set: { searchCount: Math.floor(searchCount) } },
+        { new: true }
+    );
+
+    if (!specialty) {
+        return res.status(404).json({ success: false, message: 'Specialty not found' });
+    }
+
+    res.status(200).json({
+        success: true,
+        message: 'Specialty search count updated successfully.',
+        data: specialty,
+    });
+}));
+
+// @desc    Get specialty stats (including search counts)
+// @route   GET /api/admin/specialties/stats
+// @access  Private (Admin)
+router.get('/stats', protect(ROLES.ADMIN), asyncHandler(async (req, res) => {
+    const specialties = await Specialty.find().sort({ searchCount: -1 }).lean();
+
+    const Doctor = require('../../models/Doctor');
+    const { APPROVAL_STATUS } = require('../../utils/constants');
+
+    const specialtiesWithStats = await Promise.all(specialties.map(async (specialty) => {
+        const count = await Doctor.countDocuments({
+            specialization: new RegExp(`^${specialty.name}$`, 'i'),
+            status: APPROVAL_STATUS.APPROVED,
+            isActive: true
+        });
+        return {
+            ...specialty,
+            doctorCount: count,
+            searchCount: specialty.searchCount || 0
+        };
+    }));
+
+    res.status(200).json({
+        success: true,
+        data: specialtiesWithStats,
+    });
+}));
+
 module.exports = router;

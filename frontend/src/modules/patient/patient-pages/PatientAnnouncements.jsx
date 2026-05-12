@@ -90,8 +90,8 @@ const PatientAnnouncements = () => {
                     </div>
                   </div>
                   {ann.image && (
-                    <div className="mb-4 rounded-xl overflow-hidden h-48 w-full bg-slate-100 border border-slate-100">
-                      <img src={ann.image} alt="Announcement" className="w-full h-full object-cover" />
+                    <div className="mb-4 rounded-xl overflow-hidden w-full bg-slate-100 border border-slate-100">
+                      <img src={ann.image} alt="Announcement" className="w-full h-auto max-h-96 object-contain" />
                     </div>
                   )}
                   <p className="text-slate-600 text-sm leading-relaxed mb-4 whitespace-pre-wrap">{ann.content}</p>

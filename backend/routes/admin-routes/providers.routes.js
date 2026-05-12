@@ -12,6 +12,7 @@ const {
   toggleFeatured,
   getPendingVerifications,
   getDoctorPopularityStats,
+  updateDoctorCounts,
 } = require('../../controllers/admin-controllers/adminProviderController');
 const { protect } = require('../../middleware/authMiddleware');
 const { sanitizeInput } = require('../../middleware/validationMiddleware');
@@ -35,6 +36,7 @@ router.patch('/doctors/:id/verify', sanitizeInput, verifyDoctor);
 router.patch('/doctors/:id/reject', sanitizeInput, rejectDoctor);
 router.patch('/doctors/:id/toggle-featured', sanitizeInput, toggleFeatured);
 router.patch('/doctors/:id/toggle-status', toggleDoctorStatus);
+router.patch('/doctors/:id/update-counts', updateDoctorCounts);
 
 
 

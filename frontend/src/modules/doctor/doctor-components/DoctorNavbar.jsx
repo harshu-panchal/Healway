@@ -8,7 +8,6 @@ import {
   IoDocumentTextOutline,
   IoPeopleOutline,
   IoHelpCircleOutline,
-  IoMegaphoneOutline,
   IoTimeOutline,
   IoTrendingUpOutline,
 } from 'react-icons/io5'
@@ -23,7 +22,6 @@ const allNavItems = [
   { id: 'queue', label: 'Queue', to: '/doctor/queue', Icon: IoTimeOutline },
   { id: 'consultations', label: 'Consultations', to: '/doctor/consultations', Icon: IoDocumentTextOutline },
   { id: 'patients', label: 'Patients', to: '/doctor/patients', Icon: IoPeopleOutline },
-  { id: 'announcements', label: 'Announcements', to: '/doctor/announcements', Icon: IoMegaphoneOutline },
   { id: 'wallet', label: 'Wallet', to: '/doctor/wallet', Icon: IoWalletOutline },
   { id: 'support', label: 'Support', to: '/doctor/support', Icon: IoHelpCircleOutline },
   { id: 'profile', label: 'Profile', to: '/doctor/profile', Icon: IoPersonCircleOutline },

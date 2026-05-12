@@ -9,7 +9,8 @@ import {
     IoCloseCircleOutline,
     IoGridOutline,
     IoListOutline,
-    IoMenuOutline
+    IoMenuOutline,
+    IoCloseOutline
 } from 'react-icons/io5'
 import { Reorder } from 'framer-motion'
 import { useToast } from '../../../contexts/ToastContext'
@@ -25,6 +26,10 @@ const AdminSpecialization = () => {
     const [editingSpecialty, setEditingSpecialty] = useState(null)
     const [imagePreview, setImagePreview] = useState(null)
     const [viewMode, setViewMode] = useState('grid') // 'grid' or 'list'
+    const [showSearchCountModal, setShowSearchCountModal] = useState(false)
+    const [editingSearchCountSpecialty, setEditingSearchCountSpecialty] = useState(null)
+    const [searchCountForm, setSearchCountForm] = useState({ searchCount: 0 })
+    const [updatingSearchCount, setUpdatingSearchCount] = useState(false)
 
     const fileInputRef = useRef(null)
     const toast = useToast()
@@ -42,7 +47,7 @@ const AdminSpecialization = () => {
     const fetchSpecialties = async () => {
         try {
             setLoading(true)
-            const response = await adminService.getAllSpecialties()
+            const response = await adminService.getSpecialtyStats()
             if (response && response.success) {
                 setSpecialties(response.data || [])
             } else {
@@ -52,6 +57,35 @@ const AdminSpecialization = () => {
             toast.error('Failed to fetch specializations')
         } finally {
             setLoading(false)
+        }
+    }
+
+    const openSearchCountModal = (specialty) => {
+        setEditingSearchCountSpecialty(specialty)
+        setSearchCountForm({ searchCount: specialty.searchCount || 0 })
+        setShowSearchCountModal(true)
+    }
+
+    const handleUpdateSearchCount = async () => {
+        if (!editingSearchCountSpecialty) return
+        try {
+            setUpdatingSearchCount(true)
+            const res = await adminService.updateSpecialtySearchCount(editingSearchCountSpecialty._id, searchCountForm.searchCount)
+            if (res.success) {
+                toast.success('Search count updated successfully')
+                setShowSearchCountModal(false)
+                // Update local state
+                setSpecialties(specialties.map(s =>
+                    s._id === editingSearchCountSpecialty._id
+                        ? { ...s, searchCount: searchCountForm.searchCount }
+                        : s
+                ))
+            }
+        } catch (error) {
+            console.error('Error updating search count:', error)
+            toast.error(error.message || 'Failed to update search count')
+        } finally {
+            setUpdatingSearchCount(false)
         }
     }
 
@@ -260,9 +294,25 @@ const AdminSpecialization = () => {
                                     {specialty.description || 'No description provided.'}
                                 </p>
                                 <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                                    <div className="flex items-center gap-1 text-xs text-slate-400">
-                                        <span className="font-semibold text-primary text-sm">{specialty.doctorCount || 0}</span>
-                                        <span>Doctors</span>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-1 text-xs text-slate-400">
+                                            <span className="font-semibold text-primary text-sm">{specialty.doctorCount || 0}</span>
+                                            <span>Doctors</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 text-xs text-pink-400">
+                                            <span className="font-semibold text-pink-500 text-sm">{specialty.searchCount || 0}</span>
+                                            <span>Searches</span>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    openSearchCountModal(specialty)
+                                                }}
+                                                className="ml-1 p-1 text-pink-400 hover:text-pink-600 hover:bg-pink-50 rounded transition-colors"
+                                                title="Edit Search Count"
+                                            >
+                                                <IoPencilOutline className="text-xs" />
+                                            </button>
+                                        </div>
                                     </div>
                                     <div className="flex gap-2">
                                         <button
@@ -302,6 +352,7 @@ const AdminSpecialization = () => {
                                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Name</th>
                                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Description</th>
                                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Doctors</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Searches</th>
                                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Status</th>
                                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
                                 </tr>
@@ -346,6 +397,21 @@ const AdminSpecialization = () => {
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <span className="text-sm font-semibold text-primary">{specialty.doctorCount || 0}</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <div className="flex items-center justify-center gap-1">
+                                                <span className="text-sm font-semibold text-pink-500">{specialty.searchCount || 0}</span>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        openSearchCountModal(specialty)
+                                                    }}
+                                                    className="p-1 text-pink-400 hover:text-pink-600 hover:bg-pink-50 rounded transition-colors"
+                                                    title="Edit Search Count"
+                                                >
+                                                    <IoPencilOutline className="text-xs" />
+                                                </button>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <button
@@ -499,6 +565,64 @@ const AdminSpecialization = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Update Search Count Modal */}
+            {showSearchCountModal && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                    onClick={() => setShowSearchCountModal(false)}
+                >
+                    <div
+                        className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+                            <h2 className="text-lg font-semibold text-slate-900">Update Search Count</h2>
+                            <button
+                                onClick={() => setShowSearchCountModal(false)}
+                                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                            >
+                                <IoCloseOutline className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <div className="p-4 space-y-4">
+                            <p className="text-sm text-slate-600">
+                                Manually update search count for <strong className="text-slate-900">{editingSearchCountSpecialty?.name}</strong>
+                            </p>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    Search Count
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={searchCountForm.searchCount}
+                                    onChange={(e) => setSearchCountForm({ searchCount: parseInt(e.target.value, 10) || 0 })}
+                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2 border-t border-slate-200 px-4 py-3">
+                            <button
+                                onClick={() => setShowSearchCountModal(false)}
+                                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleUpdateSearchCount}
+                                disabled={updatingSearchCount}
+                                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-dark disabled:bg-primary/50 disabled:cursor-not-allowed"
+                            >
+                                {updatingSearchCount ? 'Saving...' : 'Save Changes'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
