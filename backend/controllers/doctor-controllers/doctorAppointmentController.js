@@ -2,6 +2,7 @@ const asyncHandler = require('../../middleware/asyncHandler');
 const Appointment = require('../../models/Appointment');
 const Patient = require('../../models/Patient');
 const Doctor = require('../../models/Doctor');
+const Transaction = require('../../models/Transaction');
 const { getIO } = require('../../config/socket');
 const {
   sendAppointmentCancellationEmail,
@@ -78,6 +79,26 @@ exports.updateAppointment = asyncHandler(async (req, res) => {
             consultationMode: appointment.consultationMode,
             cancellationReason: appointment.cancellationReason,
           },
+        });
+
+        // Create main transaction record so it shows in patient's transaction history
+        await Transaction.create({
+          userId: appointment.patientId,
+          userType: 'patient',
+          type: 'refund',
+          amount: paidAmount,
+          status: 'completed',
+          description: `Refund for appointment cancelled by doctor`,
+          referenceId: appointment._id.toString(),
+          category: 'appointment',
+          appointmentId: appointment._id,
+          paymentMethod: 'wallet',
+          metadata: {
+            doctorId: doctorId,
+            appointmentDate: appointment.appointmentDate,
+            consultationMode: appointment.consultationMode,
+            cancellationReason: appointment.cancellationReason,
+          }
         });
 
         // Store refund info in appointment and reset payment status

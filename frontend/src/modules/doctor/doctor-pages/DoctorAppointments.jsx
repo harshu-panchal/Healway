@@ -846,7 +846,7 @@ const DoctorAppointments = () => {
         </div>
 
         {/* Appointments List */}
-        <div className="space-y-4 sm:space-y-3 lg:grid lg:grid-cols-6 lg:gap-3 lg:space-y-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
           {filteredAppointments.length === 0 ? (
             <div className="lg:col-span-6 rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
               <IoCalendarOutline className="mx-auto h-12 w-12 text-slate-300" />

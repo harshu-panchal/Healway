@@ -71,10 +71,12 @@ const PatientTransactions = () => {
             let serviceName = txn.description || ''
             if (txn.category === 'appointment' && txn.appointmentId) {
               const doctor = txn.appointmentId.doctorId
+              const isRefund = (txn.type || txn.transactionType) === 'refund'
+              
               if (doctor && doctor.specialization) {
-                serviceName = `Appointment with ${providerName} - ${doctor.specialization}`
+                serviceName = `${isRefund ? 'Refund for ' : ''}Appointment with ${providerName} - ${doctor.specialization}`
               } else {
-                serviceName = `Appointment payment for appointment`
+                serviceName = isRefund ? 'Refund for appointment' : `Appointment payment for appointment`
               }
             }
 

@@ -1009,6 +1009,25 @@ exports.cancelAppointment = asyncHandler(async (req, res) => {
         },
       });
 
+      // Create main transaction record so it shows in patient's transaction history
+      await Transaction.create({
+        userId: id,
+        userType: 'patient',
+        type: 'refund',
+        amount: paidAmount,
+        status: 'completed',
+        description: `Refund for appointment cancelled by patient`,
+        referenceId: appointment._id.toString(),
+        category: 'appointment',
+        appointmentId: appointment._id,
+        paymentMethod: 'wallet',
+        metadata: {
+          doctorId: appointment.doctorId,
+          appointmentDate: appointment.appointmentDate,
+          consultationMode: appointment.consultationMode,
+        }
+      });
+
       // Store refund info in appointment and reset payment status
       appointment.refundAmount = paidAmount;
       appointment.refundStatus = 'completed';

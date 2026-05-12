@@ -898,7 +898,7 @@ const DoctorDashboard = () => {
             </div>
             <p className="relative text-[10px] lg:text-xs text-slate-600 leading-tight group-hover:text-slate-700 transition-colors">Recent active</p>
             <div className="hidden lg:block mt-3 pt-3 border-t border-slate-100 group-hover:border-amber-200 transition-colors">
-              <p className="text-xs text-primary font-medium transition-colors flex items-center gap-1 group-hover:underline">Manage announcements <IoArrowForwardOutline className="h-3 w-3" /></p>
+              <p className="text-xs text-primary font-medium transition-colors flex items-center gap-1 group-hover:underline">View announcements <IoArrowForwardOutline className="h-3 w-3" /></p>
             </div>
           </article>
         </div>
