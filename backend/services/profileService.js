@@ -344,6 +344,10 @@ const applyPatientUpdates = async (doc, updates, Model) => {
   const enumFields = ['gender', 'bloodGroup'];
 
   if (updates.email && updates.email !== doc.email) {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(String(updates.email).trim().toLowerCase())) {
+      throw createError(400, 'Please provide a valid email address.');
+    }
     await ensureUniqueField(Model, 'email', updates.email, doc._id, 'Email already registered.');
     doc.email = updates.email.toLowerCase().trim();
   }

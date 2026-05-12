@@ -180,9 +180,9 @@ const AdminUserForm = () => {
       toast.warning('Please fill in all required fields (First Name, Email, Phone)')
       return false
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
     if (!emailRegex.test(formData.email.trim())) {
-      toast.warning('Please enter a valid email address')
+      toast.warning('Please enter a valid email address (e.g., patient@example.com)')
       return false
     }
     if (formData.phone.replace(/\D/g, '').length !== 10) {
@@ -329,6 +329,7 @@ const AdminUserForm = () => {
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
+                    pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
                     className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 pl-11 text-sm text-slate-900 focus:border-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
                     placeholder="patient@example.com"
                   />

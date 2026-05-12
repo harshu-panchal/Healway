@@ -344,9 +344,9 @@ const PatientLogin = () => {
       }
 
       // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
       if (!emailRegex.test(signupData.email.trim())) {
-        toast.error('Please enter a valid email address')
+        toast.error('Please enter a valid email address (e.g., user@example.com)')
         return
       }
 
@@ -686,7 +686,7 @@ const PatientLogin = () => {
                           <span className="absolute inset-y-0 left-3 flex items-center text-primary">
                             <IoMailOutline className="h-5 w-5" aria-hidden="true" />
                           </span>
-                          <input
+                           <input
                             id="signup-email"
                             name="email"
                             type="email"
@@ -697,6 +697,7 @@ const PatientLogin = () => {
                             placeholder="you@example.com"
                             maxLength={100}
                             disabled={isSubmitting}
+                            pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
                             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 pl-11 text-sm text-slate-900 shadow-sm outline-none transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-slate-50 disabled:cursor-not-allowed"
                             style={{ '--tw-ring-color': 'var(--color-primary-border)' }}
                           />

@@ -104,6 +104,14 @@ exports.registerDoctor = asyncHandler(async (req, res) => {
     });
   }
 
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(String(email).trim().toLowerCase())) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide a valid email address.',
+    });
+  }
+
   const normalizedEmail = String(email).trim().toLowerCase();
   const normalizedPhone = String(phone).trim();
   const normalizedSpecialization = String(specialization).trim();

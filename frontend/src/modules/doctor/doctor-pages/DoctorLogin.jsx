@@ -637,9 +637,9 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
       return
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
     if (!emailRegex.test(patientSignupData.email.trim())) {
-      toast.error('Please enter a valid email address')
+      toast.error('Please enter a valid email address (e.g., user@example.com)')
       return
     }
 
@@ -1038,9 +1038,9 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
     }
 
     // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
     if (!emailRegex.test(doctorSignupData.email.trim())) {
-      toast.error('Please enter a valid email address')
+      toast.error('Please enter a valid email address (e.g., doctor@example.com)')
       return
     }
 
@@ -1472,6 +1472,7 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
                       onChange={handlePatientSignupChange}
                       required
                       placeholder="john@example.com"
+                      pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 pl-11 text-sm text-slate-900 shadow-sm outline-none transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                     />
                   </div>
@@ -1663,6 +1664,7 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
                               required
                               placeholder="you@example.com"
                               maxLength={100}
+                              pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
                               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 pl-11 text-sm text-slate-900 shadow-sm outline-none transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                               style={{ '--tw-ring-color': 'var(--color-primary-border)' }}
                             />
