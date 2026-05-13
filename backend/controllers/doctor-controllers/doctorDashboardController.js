@@ -152,7 +152,7 @@ exports.getAppointments = asyncHandler(async (req, res) => {
   const [appointments, total, stats] = await Promise.all([
     Appointment.find(filter)
       .populate('patientId', 'firstName lastName phone email profileImage dateOfBirth gender address')
-      .sort({ appointmentDate: 1, time: 1 })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean(),

@@ -403,9 +403,9 @@ const DoctorAppointments = () => {
     }
 
     return filtered.sort((a, b) => {
-      const dateA = new Date(a.date || a.appointmentDate || 0);
-      const dateB = new Date(b.date || b.appointmentDate || 0);
-      return dateB.getTime() - dateA.getTime();
+      const timeA = new Date(a.originalData?.createdAt || a.date || a.appointmentDate || 0).getTime();
+      const timeB = new Date(b.originalData?.createdAt || b.date || b.appointmentDate || 0).getTime();
+      return timeB - timeA;
     });
   }, [
     appointments,
