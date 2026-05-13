@@ -7,7 +7,7 @@ const { sendPushNotification } = require('../services/firebaseAdminService');
  *
  * @param {string} userId - MongoDB user ID
  * @param {string} userType - 'patient' | 'doctor' | 'admin'
- * @param {object} payload - { title, body, data, icon }
+ * @param {object} payload - { title, body, data, icon, priority }
  * @param {boolean} includeMobile - Whether to include mobile tokens (default: true)
  */
 async function sendNotificationToUser(userId, userType, payload, includeMobile = true) {

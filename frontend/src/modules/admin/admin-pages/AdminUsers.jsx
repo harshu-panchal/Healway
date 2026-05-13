@@ -213,13 +213,13 @@ const AdminUsers = () => {
           type="text"
           placeholder="Search patients by name, email, or phone..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => setSearchTerm(e.target.value.trimStart())}
           className="block w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 py-2.5 text-sm placeholder-slate-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </div>
 
       {/* Stats Summary - Clickable Cards */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <button
           onClick={() => setStatusFilter('all')}
           className={`rounded-xl border border-slate-200 bg-white p-3 text-left transition-all hover:shadow-md ${
@@ -238,17 +238,6 @@ const AdminUsers = () => {
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Active</p>
           <p className="mt-1 text-2xl font-bold text-emerald-600">
             {allUsers.filter((u) => u.status === 'active').length}
-          </p>
-        </button>
-        <button
-          onClick={() => setStatusFilter('inactive')}
-          className={`rounded-xl border border-slate-200 bg-white p-4 text-left transition-all hover:shadow-md ${
-            statusFilter === 'inactive' ? 'border-slate-500 bg-slate-50' : ''
-          }`}
-        >
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Inactive</p>
-          <p className="mt-1 text-2xl font-bold text-slate-600">
-            {allUsers.filter((u) => u.status === 'inactive').length}
           </p>
         </button>
         <div className="rounded-xl border border-slate-200 bg-white p-4">

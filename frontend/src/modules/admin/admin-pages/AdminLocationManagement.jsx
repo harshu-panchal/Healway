@@ -142,7 +142,7 @@ const AdminLocationManagement = () => {
     }
 
     const filteredStates = states.filter(s =>
-        s.name.toLowerCase().includes(searchQuery.toLowerCase())
+        s.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
     )
 
     if (loading && states.length === 0) return <PageLoader />
@@ -188,7 +188,7 @@ const AdminLocationManagement = () => {
                             type="text"
                             placeholder={`Search ${activeTab}...`}
                             value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onChange={(e) => setSearchQuery(e.target.value.trimStart())}
                             className="w-full pl-11 pr-4 py-2.5 rounded-xl border-none focus:ring-0 transition-all outline-none"
                         />
                     </div>
@@ -265,7 +265,7 @@ const AdminLocationManagement = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {cities.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).map((city) => (
+                                {cities.filter(c => c.name.toLowerCase().includes(searchQuery.trim().toLowerCase())).map((city) => (
                                     <tr key={city._id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">

@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const asyncHandler = require('../../middleware/asyncHandler');
 const WithdrawalRequest = require('../../models/WithdrawalRequest');
 const WalletTransaction = require('../../models/WalletTransaction');
@@ -45,43 +46,6 @@ exports.getWalletOverview = asyncHandler(async (req, res) => {
     dateFilter = { $gte: yearStart };
   }
 
-  // Get total earnings from doctors (with date filter if applicable)
-  const matchFilter = { userType: 'doctor', type: 'earning', status: 'completed' };
-  if (Object.keys(dateFilter).length > 0) {
-    matchFilter.createdAt = dateFilter;
-  }
-
-  const doctorEarnings = await WalletTransaction.aggregate([
-    { $match: matchFilter },
-    { $group: { _id: null, total: { $sum: '$amount' } } },
-  ]).then(result => result[0]?.total || 0);
-
-  const totalEarnings = doctorEarnings;
-
-  // Get pending withdrawals (only pending status)
-  const pendingWithdrawals = await WithdrawalRequest.aggregate([
-    { $match: { status: 'pending' } },
-    { $group: { _id: null, total: { $sum: '$amount' } } },
-  ]);
-
-  const pendingAmount = pendingWithdrawals[0]?.total || 0;
-
-  // Get approved withdrawals (approved but not yet paid)
-  const approvedWithdrawals = await WithdrawalRequest.aggregate([
-    { $match: { status: 'approved' } },
-    { $group: { _id: null, total: { $sum: '$amount' } } },
-  ]);
-
-  const approvedAmount = approvedWithdrawals[0]?.total || 0;
-
-  // Get total paid out withdrawals (paid withdrawals)
-  const paidOutWithdrawals = await WithdrawalRequest.aggregate([
-    { $match: { status: 'paid' } },
-    { $group: { _id: null, total: { $sum: '$amount' } } },
-  ]);
-
-  const totalPaidOut = paidOutWithdrawals[0]?.total || 0;
-
   // Calculate total commission from appointments
   const Appointment = require('../../models/Appointment');
   const { calculateProviderEarning } = require('../../utils/commissionConfig');
@@ -96,26 +60,46 @@ exports.getWalletOverview = asyncHandler(async (req, res) => {
     ];
   }
 
+  // Get commission rate once
+  const { getCommissionRate } = require('../../utils/commissionConfig');
+  const doctorCommissionRate = await getCommissionRate('doctor');
+  console.log(`📊 Admin Overview: Using doctor commission rate ${doctorCommissionRate * 100}%`);
+
   // Get paid appointments and calculate commission (with date filter if applicable)
-  const allAppointments = await Appointment.find(appointmentQuery).lean();
+  // Get total earnings from doctors using aggregation (much faster than fetching all records)
+  const earningsMatch = { ...appointmentQuery };
+  
+  const [earningsResult, totalTransactions, activeDoctorsCount, withdrawals, pendingWithdrawalRes, approvedWithdrawalRes] = await Promise.all([
+    Appointment.aggregate([
+      { $match: earningsMatch },
+      { $group: { _id: null, total: { $sum: '$fee' } } }
+    ]),
+    Appointment.countDocuments(earningsMatch),
+    Doctor.countDocuments({ status: 'approved', isActive: true }),
+    WithdrawalRequest.aggregate([
+      {
+        $group: {
+          _id: null,
+          pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, '$amount', 0] } },
+          approved: { $sum: { $cond: [{ $eq: ['$status', 'approved'] }, '$amount', 0] } },
+          paid: { $sum: { $cond: [{ $eq: ['$status', 'paid'] }, '$amount', 0] } }
+        }
+      }
+    ]),
+    WithdrawalRequest.aggregate([{ $match: { status: 'pending' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
+    WithdrawalRequest.aggregate([{ $match: { status: 'approved' } }, { $group: { _id: null, total: { $sum: '$amount' } } }])
+  ]);
 
-  let totalCommissionFromAppointments = 0;
-  let totalGBVFromAppointments = 0;
-  for (const apt of allAppointments) {
-    if (apt.fee) {
-      const { commission } = await calculateProviderEarning(apt.fee, 'doctor');
-      totalCommissionFromAppointments += commission;
-      totalGBVFromAppointments += apt.fee;
-    }
-  }
+  const totalGBVFromAppointments = earningsResult[0]?.total || 0;
+  const totalCommission = totalGBVFromAppointments * doctorCommissionRate;
 
-  // Total commission = commission from appointments
-  const totalCommission = totalCommissionFromAppointments;
-  const totalPatientPayments = totalGBVFromAppointments;
+  const pendingAmount = pendingWithdrawalRes[0]?.total || 0;
+  const approvedAmount = approvedWithdrawalRes[0]?.total || 0;
+  const totalPaidOut = withdrawals[0]?.paid || 0;
 
   // Calculate available balance
-  const committedWithdrawals = totalPaidOut + approvedAmount;
-  const availableBalance = Math.max(0, totalPatientPayments - committedWithdrawals);
+  const committedWithdrawals = totalPaidOut + approvedAmount + pendingAmount;
+  const availableBalance = Math.max(0, totalCommission - committedWithdrawals);
 
   // Calculate this month and last month earnings
   const currentMonthStart = new Date();
@@ -126,11 +110,6 @@ exports.getWalletOverview = asyncHandler(async (req, res) => {
   const lastMonthEnd = new Date(currentMonthStart);
   lastMonthEnd.setDate(0);
   lastMonthEnd.setHours(23, 59, 59, 999);
-
-  const [totalTransactions, activeDoctorsCount] = await Promise.all([
-    Transaction.countDocuments({ userType: 'patient', type: 'payment', status: 'completed' }),
-    Doctor.countDocuments({ status: 'approved', isActive: true }),
-  ]);
 
   // Calculate this month and last month commission from appointments
   const thisMonthAppointments = await Appointment.find({
@@ -165,22 +144,22 @@ exports.getWalletOverview = asyncHandler(async (req, res) => {
     }
   }
 
-  const adminAvailableBalance = totalCommission;
+  const adminAvailableBalance = totalCommission - committedWithdrawals;
 
   return res.status(200).json({
     success: true,
     data: {
       totalEarnings: totalCommission,
       totalCommission: totalCommission,
-      doctorEarnings: Number(doctorEarnings) || 0,
-      totalGBV: Number(totalPatientPayments) || 0,
-      availableBalance: Number(adminAvailableBalance) || 0,
-      pendingWithdrawals: Number(pendingAmount) || 0,
-      approvedWithdrawals: Number(approvedAmount) || 0,
-      totalPaidOut: Number(totalPaidOut) || 0,
-      thisMonthEarnings: Number(thisMonthCommission) || 0,
-      lastMonthEarnings: Number(lastMonthCommission) || 0,
-      totalTransactions: Number(totalTransactions) || 0,
+      doctorEarnings: totalGBVFromAppointments - totalCommission,
+      totalGBV: totalGBVFromAppointments,
+      availableBalance: availableBalance,
+      pendingWithdrawals: pendingAmount,
+      approvedWithdrawals: approvedAmount,
+      totalPaidOut: totalPaidOut,
+      thisMonthEarnings: thisMonthCommission,
+      lastMonthEarnings: lastMonthCommission,
+      totalTransactions: totalTransactions,
       activeDoctors: activeDoctorsCount,
       period: period,
       periodEarnings: totalCommission,
@@ -222,76 +201,92 @@ exports.getProviderSummaries = asyncHandler(async (req, res) => {
     return res.status(200).json({ success: true, data: { items: [], stats: { total: 0, doctors: 0 } } });
   }
 
-  const summaries = [];
-  for (const r of roles) {
-    const providers = await Doctor.find()
-      .select('firstName lastName email phone');
+  // 1. Get all doctors first
+  const providers = await Doctor.find()
+    .select('firstName lastName email phone')
+    .lean();
 
-    for (const provider of providers) {
-      const allTimeEarnings = await WalletTransaction.aggregate([
-        { $match: { userId: provider._id, userType: r, type: 'earning', status: 'completed' } },
-        { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
-      ]);
+  const providerIds = providers.map(p => p._id);
 
-      let bPeriodEarnings = allTimeEarnings;
-      if (Object.keys(dateFilter).length > 0) {
-        bPeriodEarnings = await WalletTransaction.aggregate([
-          { $match: { userId: provider._id, userType: r, type: 'earning', status: 'completed', createdAt: dateFilter } },
-          { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
-        ]);
+  // 2. Bulk aggregate earnings (all-time and period)
+  const earningsMatch = { 
+    userId: { $in: providerIds }, 
+    userType: { $in: roles }, 
+    type: 'earning', 
+    status: 'completed' 
+  };
+  
+  const [allTimeEarningsRes, periodEarningsRes] = await Promise.all([
+    WalletTransaction.aggregate([
+      { $match: earningsMatch },
+      { $group: { _id: '$userId', total: { $sum: '$amount' }, count: { $sum: 1 } } }
+    ]),
+    Object.keys(dateFilter).length > 0 ? WalletTransaction.aggregate([
+      { $match: { ...earningsMatch, createdAt: dateFilter } },
+      { $group: { _id: '$userId', total: { $sum: '$amount' }, count: { $sum: 1 } } }
+    ]) : Promise.resolve([])
+  ]);
+
+  // 3. Bulk aggregate withdrawals
+  const withdrawalsRes = await WithdrawalRequest.aggregate([
+    { $match: { userId: { $in: providerIds }, userType: { $in: roles } } },
+    {
+      $group: {
+        _id: '$userId',
+        pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, '$amount', 0] } },
+        approved: { $sum: { $cond: [{ $eq: ['$status', 'approved'] }, '$amount', 0] } },
+        paid: { $sum: { $cond: [{ $eq: ['$status', 'paid'] }, '$amount', 0] } }
       }
-
-      const withdrawals = await WithdrawalRequest.aggregate([
-        { $match: { userId: provider._id, userType: r } },
-        {
-          $group: {
-            _id: null,
-            pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, '$amount', 0] } },
-            approved: { $sum: { $cond: [{ $eq: ['$status', 'approved'] }, '$amount', 0] } },
-            paid: { $sum: { $cond: [{ $eq: ['$status', 'paid'] }, '$amount', 0] } }
-          }
-        }
-      ]);
-
-      const allTime = allTimeEarnings[0] || { total: 0, count: 0 };
-      const periodData = bPeriodEarnings[0] || { total: 0, count: 0 };
-      const w = withdrawals[0] || { pending: 0, approved: 0, paid: 0 };
-
-      const totalEarnings = Number(allTime.total) || 0;
-      const totalTransactions = Number(allTime.count) || 0;
-      const periodEarningsAmount = Number(periodData.total) || 0;
-      const periodTransactions = Number(periodData.count) || 0;
-
-      const pendingBalance = Number(w.pending) || 0;
-      const approvedBalance = Number(w.approved) || 0;
-      const totalWithdrawals = Number(w.paid) || 0;
-      const availableBalance = Math.max(0, totalEarnings - (pendingBalance + approvedBalance + totalWithdrawals));
-
-      const providerName = `${provider.firstName || ''} ${provider.lastName || ''}`.trim();
-
-      summaries.push({
-        _id: provider._id,
-        providerId: provider._id,
-        role: r,
-        type: r,
-        name: providerName,
-        email: provider.email,
-        phone: provider.phone,
-        totalEarnings,
-        periodEarnings: periodEarningsAmount,
-        totalTransactions,
-        periodTransactions,
-        availableBalance,
-        pendingBalance,
-        approvedBalance,
-        totalWithdrawals,
-        pendingWithdrawal: pendingBalance,
-        approvedWithdrawal: approvedBalance,
-        paidWithdrawal: totalWithdrawals,
-        balance: availableBalance
-      });
     }
-  }
+  ]);
+
+  // Create lookup maps
+  const earningsMap = new Map(allTimeEarningsRes.map(e => [e._id.toString(), e]));
+  const periodMap = new Map(periodEarningsRes.map(e => [e._id.toString(), e]));
+  const withdrawalsMap = new Map(withdrawalsRes.map(w => [w._id.toString(), w]));
+
+  const summaries = providers.map(provider => {
+    const idStr = provider._id.toString();
+    const allTime = earningsMap.get(idStr) || { total: 0, count: 0 };
+    const periodData = periodMap.get(idStr) || { total: 0, count: 0 };
+    const w = withdrawalsMap.get(idStr) || { pending: 0, approved: 0, paid: 0 };
+
+    const totalEarnings = Number(allTime.total) || 0;
+    const totalTransactions = Number(allTime.count) || 0;
+    const periodEarningsAmount = Number(periodData.total) || 0;
+    const periodTransactions = Number(periodData.count) || 0;
+
+    const pendingBalance = Number(w.pending) || 0;
+    const approvedBalance = Number(w.approved) || 0;
+    const totalWithdrawals = Number(w.paid) || 0;
+    const availableBalance = Math.max(0, totalEarnings - (pendingBalance + approvedBalance + totalWithdrawals));
+
+    const providerName = `${provider.firstName || ''} ${provider.lastName || ''}`.trim();
+
+    return {
+      _id: provider._id,
+      providerId: provider._id,
+      role: 'doctor', // We only support doctors here now
+      type: 'doctor',
+      name: providerName,
+      email: provider.email,
+      phone: provider.phone,
+      totalEarnings,
+      periodEarnings: periodEarningsAmount,
+      totalTransactions,
+      periodTransactions,
+      availableBalance,
+      pendingBalance,
+      approvedBalance,
+      totalWithdrawals,
+      pendingWithdrawal: pendingBalance,
+      approvedWithdrawal: approvedBalance,
+      paidWithdrawal: totalWithdrawals,
+      balance: availableBalance
+    };
+  });
+
+  console.log(`👨‍⚕️ Provider Summaries: Found ${summaries.length} doctors`);
 
   return res.status(200).json({
     success: true,
@@ -526,14 +521,7 @@ exports.getAdminWalletTransactions = asyncHandler(async (req, res) => {
   const { type, category, startDate, endDate } = req.query;
   const { page, limit, skip } = buildPagination(req);
 
-  const transactionType = type && type !== 'all' ? type : 'payment';
-
-  const baseFilter = {
-    $or: [
-      { userType: 'patient', type: transactionType, status: 'completed' },
-      { userType: 'admin', type: transactionType, status: 'completed' },
-    ],
-  };
+  const transactionType = type && type !== 'all' ? type : null;
 
   const dateFilter = {};
   if (startDate) {
@@ -547,12 +535,18 @@ exports.getAdminWalletTransactions = asyncHandler(async (req, res) => {
     dateFilter.$lte = end;
   }
 
-  const filter = { ...baseFilter };
-  if (category) {
-    filter.$or = filter.$or.map(condition => ({ ...condition, category }));
+  let filter = { status: 'completed' };
+  
+  if (transactionType) {
+    filter.type = transactionType;
   }
+
+  if (category && category !== 'all') {
+    filter.category = category;
+  }
+
   if (Object.keys(dateFilter).length > 0) {
-    filter.$or = filter.$or.map(condition => ({ ...condition, createdAt: dateFilter }));
+    filter.createdAt = dateFilter;
   }
 
   const [transactions, total] = await Promise.all([
@@ -565,32 +559,44 @@ exports.getAdminWalletTransactions = asyncHandler(async (req, res) => {
   ]);
 
   const Patient = require('../../models/Patient');
-  const enrichedTransactions = await Promise.all(
-    transactions.map(async (transaction) => {
-      const transactionObj = transaction.toObject();
-      if (transaction.userId && transaction.userType === 'patient') {
-        const patient = await Patient.findById(transaction.userId)
-          .select('firstName lastName phone email');
-        if (patient) {
-          transactionObj.patient = patient;
-          transactionObj.patientName = `${patient.firstName || ''} ${patient.lastName || ''}`.trim();
-        }
+  const Doctor = require('../../models/Doctor');
+
+  // Collect all unique user IDs to fetch in bulk
+  const patientIds = [...new Set(transactions.filter(t => t.userType === 'patient').map(t => t.userId))];
+  const doctorIds = [...new Set(transactions.filter(t => t.userType === 'doctor').map(t => t.userId))];
+
+  const [patients, doctors] = await Promise.all([
+    Patient.find({ _id: { $in: patientIds } }).select('firstName lastName email phone').lean(),
+    Doctor.find({ _id: { $in: doctorIds } }).select('firstName lastName email phone').lean()
+  ]);
+
+  const patientMap = new Map(patients.map(p => [p._id.toString(), p]));
+  const doctorMap = new Map(doctors.map(d => [d._id.toString(), d]));
+
+  const enrichedTransactions = transactions.map(transaction => {
+    const transactionObj = transaction.toObject();
+    const userIdStr = transaction.userId?.toString();
+
+    if (transaction.userType === 'patient') {
+      const patient = patientMap.get(userIdStr);
+      if (patient) {
+        transactionObj.patient = patient;
+        transactionObj.patientName = `${patient.firstName || ''} ${patient.lastName || ''}`.trim();
+        transactionObj.providerName = transactionObj.patientName;
       }
-      if (!transactionObj.patient && transaction.metadata?.patientId) {
-        const patient = await Patient.findById(transaction.metadata.patientId)
-          .select('firstName lastName phone email');
-        if (patient) {
-          transactionObj.patient = patient;
-          transactionObj.patientName = `${patient.firstName || ''} ${patient.lastName || ''}`.trim();
-        }
+    } else if (transaction.userType === 'doctor') {
+      const doctor = doctorMap.get(userIdStr);
+      if (doctor) {
+        transactionObj.doctor = doctor;
+        transactionObj.providerName = `${doctor.firstName || ''} ${doctor.lastName || ''}`.trim();
       }
-      if (transaction.userType === 'admin') {
-        transactionObj.providerName = 'Platform';
-        transactionObj.providerType = 'admin';
-      }
-      return transactionObj;
-    })
-  );
+    } else if (transaction.userType === 'admin') {
+      transactionObj.providerName = 'Platform';
+      transactionObj.providerType = 'admin';
+    }
+
+    return transactionObj;
+  });
 
   return res.status(200).json({
     success: true,

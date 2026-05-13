@@ -26,6 +26,7 @@ import {
   IoToggle,
   IoPersonOutline,
 } from 'react-icons/io5'
+import { TbStethoscope } from 'react-icons/tb'
 import { Reorder, useDragControls } from 'framer-motion'
 import { useToast } from '../../../contexts/ToastContext'
 import {
@@ -516,7 +517,7 @@ const AdminDoctors = () => {
           type="text"
           placeholder="Search doctors..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => setSearchTerm(e.target.value.trimStart())}
           className="block w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 py-2.5 text-sm placeholder-slate-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </div>

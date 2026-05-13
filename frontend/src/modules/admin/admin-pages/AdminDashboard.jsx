@@ -24,6 +24,7 @@ import {
   IoHeartOutline,
   IoDocumentTextOutline,
 } from 'react-icons/io5'
+import { TbStethoscope } from 'react-icons/tb'
 
 const defaultStats = {
   totalUsers: 0,
@@ -422,7 +423,7 @@ const getActivityIcon = (type) => {
     case 'user':
       return IoPeopleOutline
     case 'doctor':
-      return IoMedicalOutline
+      return TbStethoscope
     case 'consultation':
       return IoDocumentTextOutline
     default:
@@ -961,7 +962,7 @@ const AdminDashboard = () => {
                 </p>
               </div>
               <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-emerald-500 text-white shrink-0">
-                <IoMedicalOutline className="text-base sm:text-lg" aria-hidden="true" />
+                <TbStethoscope className="text-base sm:text-lg" aria-hidden="true" />
               </div>
             </div>
             <p className="text-[8px] sm:text-[9px] text-slate-600 leading-tight">Active doctors</p>
@@ -1072,7 +1073,7 @@ const AdminDashboard = () => {
                 >
                   <div className="flex items-start gap-4">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                      <IoMedicalOutline className="h-6 w-6 text-primary" />
+                      <TbStethoscope className="h-6 w-6 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-3">

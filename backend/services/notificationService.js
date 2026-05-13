@@ -130,6 +130,7 @@ const createNotification = async ({
         ),
       },
       icon,
+      priority,
     }).catch((err) => console.error('Push notification error (non-critical):', err));
 
     return notification;
@@ -354,7 +355,7 @@ const createAppointmentNotification = async ({ userId, userType, appointment, ev
     title,
     message,
     data: notificationData,
-    priority: eventType === 'token_called' ? 'urgent' : 'medium',
+    priority: eventType === 'token_called' ? 'urgent' : (['created', 'rescheduled'].includes(eventType) ? 'high' : 'medium'),
     actionUrl,
     icon: 'appointment',
     sendEmail,

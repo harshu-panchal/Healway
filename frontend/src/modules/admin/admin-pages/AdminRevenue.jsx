@@ -9,6 +9,7 @@ import {
   IoMedicalOutline,
   IoReloadOutline,
 } from 'react-icons/io5'
+import { TbStethoscope } from 'react-icons/tb'
 
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat('en-IN', {
@@ -409,7 +410,7 @@ const AdminRevenue = () => {
           >
             <div className="flex items-center gap-3 mb-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500">
-                <IoMedicalOutline className="h-5 w-5 text-white" />
+                <TbStethoscope className="h-5 w-5 text-white" />
               </div>
               <div>
                 <p className="text-xs font-semibold text-slate-700">Doctor Revenue</p>
@@ -522,7 +523,7 @@ const AdminRevenue = () => {
                           }`}
                       >
                         {transaction.type === 'Doctor' ? (
-                          <IoMedicalOutline className="h-3 w-3" />
+                          <TbStethoscope className="h-3 w-3" />
                         ) : (
                           <IoFlaskOutline className="h-3 w-3" />
                         )}

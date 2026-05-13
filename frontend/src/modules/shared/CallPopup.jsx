@@ -34,8 +34,7 @@ const CallPopup = () => {
   const [remoteParticipant, setRemoteParticipant] = useState(
     activeCall?.remoteParticipant || "Participant"
   );
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
-  const [diagnosticLogs, setDiagnosticLogs] = useState([]);
+
   const [mediaStreams, setMediaStreams] = useState({ local: null, remote: null }); // Track streams reliably
   const [useP2P, setUseP2P] = useState(true); // P2P enabled by default (SFU has issues)
   const p2pManagerRef = useRef(null);
@@ -3307,16 +3306,7 @@ const CallPopup = () => {
             <IoRemoveOutline className="text-xl" />
           </button>
 
-          {/* Diagnostic Toggle Button - Adjusted for video mode */}
-          <button
-            onClick={() => setShowDiagnostics(!showDiagnostics)}
-            className={`absolute top-4 left-4 z-50 text-xs px-2 py-1 rounded transition ${isVideoCall
-              ? 'bg-black/30 text-white/80 hover:bg-black/50 border border-white/10'
-              : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-              }`}
-            title="Toggle Diagnostics">
-            🔍 {showDiagnostics ? "Hide" : "Show"} Diagnostics
-          </button>
+
 
           {isVideoCall ? (
             /* ================= VIDEO CALL UI ================= */
@@ -3493,159 +3483,7 @@ const CallPopup = () => {
             </>
           )}
 
-          {/* Diagnostic Panel */}
-          {showDiagnostics && (
-            <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200 max-h-96 overflow-y-auto">
-              <h3 className="text-sm font-bold text-slate-900 mb-2">
-                🔍 Diagnostic Information
-              </h3>
-              <div className="space-y-2 text-xs">
-                <div>
-                  <strong>Call ID:</strong> {callIdRef.current || "N/A"}
-                </div>
-                <div>
-                  <strong>Status:</strong> {status}
-                </div>
 
-                {socketRef.current && (
-                  <div className="mt-2">
-                    <strong>Socket:</strong>
-                    <div className="ml-2 text-slate-600">
-                      ID: {socketRef.current.id}
-                      <br />
-                      Connected: {socketRef.current.connected ? "✅" : "❌"}
-                      <br />
-                      Room Joined: {roomJoinedRef.current ? "✅ Yes" : "❌ No"}
-                    </div>
-                  </div>
-                )}
-
-                {sendTransportRef.current && (
-                  <div className="mt-2">
-                    <strong>Send Transport:</strong>
-                    <div className="ml-2 text-slate-600">
-                      ID: {sendTransportRef.current.id}
-                      <br />
-                      State:{" "}
-                      <span
-                        className={
-                          sendTransportRef.current.connectionState ===
-                            "connected"
-                            ? "text-green-600"
-                            : "text-yellow-600"
-                        }>
-                        {sendTransportRef.current.connectionState}
-                      </span>
-                      <br />
-                      Closed: {sendTransportRef.current.closed ? "❌" : "✅"}
-                    </div>
-                  </div>
-                )}
-
-                {recvTransportRef.current && (
-                  <div className="mt-2">
-                    <strong>Recv Transport:</strong>
-                    <div className="ml-2 text-slate-600">
-                      ID: {recvTransportRef.current.id}
-                      <br />
-                      State:{" "}
-                      <span
-                        className={
-                          recvTransportRef.current.connectionState ===
-                            "connected"
-                            ? "text-green-600"
-                            : "text-yellow-600"
-                        }>
-                        {recvTransportRef.current.connectionState}
-                      </span>
-                      <br />
-                      Closed: {recvTransportRef.current.closed ? "❌" : "✅"}
-                    </div>
-                  </div>
-                )}
-
-                {producerRef.current && (
-                  <div className="mt-2">
-                    <strong>Producer:</strong>
-                    <div className="ml-2 text-slate-600">
-                      ID: {producerRef.current.id}
-                      <br />
-                      Paused: {producerRef.current.paused ? "⏸️" : "▶️"}
-                      <br />
-                      Closed: {producerRef.current.closed ? "❌" : "✅"}
-                      <br />
-                      {producerRef.current.track && (
-                        <>
-                          Track Enabled:{" "}
-                          {producerRef.current.track.enabled ? "✅" : "❌"}
-                          <br />
-                          Track Muted:{" "}
-                          {producerRef.current.track.muted ? "🔇" : "🔊"}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {consumerRef.current && (
-                  <div className="mt-2">
-                    <strong>Consumer:</strong>
-                    <div className="ml-2 text-slate-600">
-                      ID: {consumerRef.current.id}
-                      <br />
-                      Producer ID: {consumerRef.current.producerId}
-                      <br />
-                      Paused: {consumerRef.current.paused ? "⏸️" : "▶️"}
-                      <br />
-                      Closed: {consumerRef.current.closed ? "❌" : "✅"}
-                      <br />
-                      {consumerRef.current.track && (
-                        <>
-                          Track Enabled:{" "}
-                          {consumerRef.current.track.enabled ? "✅" : "❌"}
-                          <br />
-                          Track Muted:{" "}
-                          {consumerRef.current.track.muted ? "🔇" : "🔊"}
-                          <br />
-                          Track State: {consumerRef.current.track.readyState}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {remoteAudioRef.current && (
-                  <div className="mt-2">
-                    <strong>Audio Element:</strong>
-                    <div className="ml-2 text-slate-600">
-                      Paused: {remoteAudioRef.current.paused ? "⏸️" : "▶️"}
-                      <br />
-                      Muted: {remoteAudioRef.current.muted ? "🔇" : "🔊"}
-                      <br />
-                      Volume: {remoteAudioRef.current.volume}
-                      <br />
-                      Ready State: {remoteAudioRef.current.readyState}
-                      <br />
-                      Has Source:{" "}
-                      {remoteAudioRef.current.srcObject ? "✅" : "❌"}
-                      <br />
-                      {remoteAudioRef.current.error && (
-                        <span className="text-red-600">
-                          Error: {remoteAudioRef.current.error.message}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className="mt-2 text-xs text-slate-500">
-                  <em>
-                    Check browser console (F12) for detailed diagnostic logs
-                  </em>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </>

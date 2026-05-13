@@ -9,6 +9,8 @@ import PageLoader from './components/PageLoader'
 import ProtectedRoute from './components/ProtectedRoute'
 import { initializePushNotifications, setupForegroundNotificationHandler } from './services/pushNotificationService'
 
+import ScrollToTop from './components/ScrollToTop'
+
 // Shared Components
 import PatientNavbar from './modules/patient/patient-components/PatientNavbar'
 import DoctorNavbar from './modules/doctor/doctor-components/DoctorNavbar'
@@ -705,6 +707,7 @@ function App() {
   return (
     <CallProvider>
       <Router>
+        <ScrollToTop />
         <div className="min-h-screen bg-slate-50 text-slate-900">
           <Routes>
             {/* Patient Routes */}

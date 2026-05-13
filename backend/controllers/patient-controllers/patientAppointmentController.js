@@ -469,12 +469,14 @@ exports.createAppointment = asyncHandler(async (req, res) => {
       patientId: id,
       doctorId,
       appointmentDate: parsedAppointmentDate,
+      appointmentTime: time,
       status: { $nin: ["cancelled"] },
     }).select('_id').lean(),
     Appointment.findOne({
       patientId: id,
       doctorId,
       appointmentDate: parsedAppointmentDate,
+      appointmentTime: time,
       status: "cancelled",
       cancelledBy: "doctor",
     }).select('_id').lean(),
@@ -497,14 +499,14 @@ exports.createAppointment = asyncHandler(async (req, res) => {
   if (existingAppointment) {
     return res.status(400).json({
       success: false,
-      message: "You already have an appointment with this doctor on this date",
+      message: "You already have an appointment with this doctor at this time on this date",
     });
   }
 
   if (doctorCancelledToday) {
     return res.status(400).json({
       success: false,
-      message: "Doctor has cancelled your appointment for this date. You cannot book another appointment with this doctor on the same date. Please select a different date.",
+      message: "Doctor has cancelled your appointment for this specific time slot. Please select a different time or date.",
     });
   }
 
@@ -789,8 +791,8 @@ exports.createAppointment = asyncHandler(async (req, res) => {
 
   const appointment = await Appointment.create(appointmentData);
 
-  // Handle automatic wallet payment
-  if (requiresPayment && paymentStatus !== "free") {
+  // Handle wallet payment if requested
+  if (requiresPayment && paymentStatus !== "free" && req.body.useWallet === true) {
     const patient = await Patient.findById(id);
     if (patient && patient.walletBalance > 0) {
       const deduction = Math.min(patient.walletBalance, calculatedFee);
@@ -862,8 +864,23 @@ exports.createAppointment = asyncHandler(async (req, res) => {
     io.to(`doctor-${doctorId}`).emit("appointment:created", {
       appointment: populatedAppointment
     });
+
+    // Send push and in-app notification to doctor if confirmed (COD/Free/Wallet)
+    if (appointment.status === 'scheduled') {
+      const { createAppointmentNotification } = require('../../services/notificationService');
+      const fullPopulatedAppointment = await Appointment.findById(appointment._id)
+        .populate("doctorId", "firstName lastName specialization profileImage");
+
+      createAppointmentNotification({
+        userId: doctorId,
+        userType: "doctor",
+        appointment: fullPopulatedAppointment,
+        eventType: "created",
+        patient: patient,
+      }).catch((e) => console.error("Doctor creation notification error:", e));
+    }
   } catch (error) {
-    console.error("Socket.IO error:", error);
+    console.error("Socket.IO/Notification error:", error);
   }
 
   // Get appointment - only necessary fields
@@ -1773,7 +1790,7 @@ exports.verifyAppointmentPayment = asyncHandler(async (req, res) => {
         userId: appointment.doctorId,
         userType: "doctor",
         appointment: populatedAppointment,
-        eventType: "confirmed",
+        eventType: "created",
         patient,
       }).catch((e) => console.error("Doctor notification error:", e));
     } catch (error) {

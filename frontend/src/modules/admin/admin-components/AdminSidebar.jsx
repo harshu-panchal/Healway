@@ -10,11 +10,12 @@ import {
   IoDocumentTextOutline,
   IoLocationOutline,
 } from 'react-icons/io5'
+import { TbStethoscope } from 'react-icons/tb'
 
 const sidebarNavItems = [
   { id: 'overview', label: 'Overview', to: '/admin/dashboard', Icon: IoBarChartOutline },
   { id: 'verification', label: 'Verification', to: '/admin/verification', Icon: IoShieldCheckmarkOutline },
-  { id: 'doctors', label: 'Doctors', to: '/admin/doctors', Icon: IoMedicalOutline },
+  { id: 'doctors', label: 'Doctors', to: '/admin/doctors', Icon: TbStethoscope },
   { id: 'patients', label: 'Patients', to: '/admin/users', Icon: IoPeopleOutline },
   { id: 'specialization', label: 'Specialization', to: '/admin/specialization', Icon: IoPeopleOutline },
   { id: 'locations', label: 'Location Management', to: '/admin/locations', Icon: IoLocationOutline },

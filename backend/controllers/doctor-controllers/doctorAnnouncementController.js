@@ -43,6 +43,7 @@ exports.getMyAnnouncements = asyncHandler(async (req, res) => {
         targetType: { $in: ['all', 'both', 'doctors'] },
         $or: [
           { expiryDate: { $exists: false } },
+          { expiryDate: null },
           { expiryDate: { $gt: new Date() } }
         ]
       }

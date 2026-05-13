@@ -32,6 +32,7 @@ exports.getAnnouncements = asyncHandler(async (req, res) => {
     ],
     $or: [
       { expiryDate: { $exists: false } },
+      { expiryDate: null },
       { expiryDate: { $gt: new Date() } }
     ]
   })

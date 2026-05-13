@@ -74,8 +74,24 @@ async function sendPushNotification(tokens, payload) {
       tokens,
     };
 
-    // Add icon if provided (Android only)
-    if (payload.icon) {
+    // Add priority
+    if (payload.priority === 'high' || payload.priority === 'urgent') {
+      message.android = {
+        ...message.android,
+        priority: 'high',
+        notification: {
+          ...message.android?.notification,
+          icon: payload.icon || 'stock_ticker_update',
+          color: '#7e22ce', // Purple theme
+        },
+      };
+      // For web/multicast
+      message.webpush = {
+        headers: {
+          Urgency: 'high',
+        },
+      };
+    } else if (payload.icon) {
       message.android = {
         notification: {
           icon: payload.icon,

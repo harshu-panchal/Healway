@@ -54,7 +54,6 @@ const AdminUserForm = () => {
       phone: '',
       relation: '',
     },
-    status: 'active',
     referenceName: '',
   })
 
@@ -145,13 +144,28 @@ const AdminUserForm = () => {
       value = value.replace(/\D/g, '').slice(0, 6)
     }
 
+    let finalValue = value;
+    if (field === 'firstName' || field === 'lastName' || field === 'emergencyContact.name' || field === 'referenceName' || field === 'address.country') {
+      // Restrict to alphabets and spaces
+      finalValue = value.replace(/[^a-zA-Z\s]/g, '');
+
+      // Capitalize first letter of each word
+      finalValue = finalValue
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    } else if (field === 'email') {
+      // Always lowercase email
+      finalValue = value.toLowerCase().trim();
+    }
+
     if (field.startsWith('address.')) {
       const key = field.replace('address.', '')
       setFormData(prev => ({
         ...prev,
         address: {
           ...prev.address,
-          [key]: value,
+          [key]: finalValue,
         },
       }))
       return
@@ -163,7 +177,7 @@ const AdminUserForm = () => {
         ...prev,
         emergencyContact: {
           ...prev.emergencyContact,
-          [key]: value,
+          [key]: finalValue,
         },
       }))
       return
@@ -171,7 +185,7 @@ const AdminUserForm = () => {
 
     setFormData(prev => ({
       ...prev,
-      [field]: value,
+      [field]: finalValue,
     }))
   }
 
@@ -197,10 +211,6 @@ const AdminUserForm = () => {
       toast.warning('Pincode must be 6 digits')
       return false
     }
-    if (!isEditMode && (!formData.password || formData.password.length < 8)) {
-      toast.warning('Password must be at least 8 characters long')
-      return false
-    }
     return true
   }
 
@@ -219,12 +229,8 @@ const AdminUserForm = () => {
         bloodGroup: formData.bloodGroup || undefined,
         address: formData.address,
         emergencyContact: formData.emergencyContact,
-        isActive: formData.status === 'active',
+        isActive: true, // Default to active since field is removed
         referenceName: formData.referenceName || '',
-      }
-
-      if (formData.password) {
-        payload.password = formData.password
       }
 
       if (isEditMode) {
@@ -354,21 +360,6 @@ const AdminUserForm = () => {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">Password {!isEditMode && <span className="text-red-500">*</span>}</label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-3 flex items-center text-primary">
-                    <IoLockClosedOutline className="h-5 w-5" />
-                  </span>
-                  <input
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 pl-11 text-sm text-slate-900 focus:border-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
-                    placeholder={isEditMode ? "Leave blank to keep current" : "Enter password (min 8 characters)"}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-700">Date of Birth</label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-3 flex items-center text-primary">
@@ -419,18 +410,6 @@ const AdminUserForm = () => {
                   {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => (
                     <option key={bg} value={bg}>{bg}</option>
                   ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">Status</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => handleInputChange('status', e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 focus:border-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="suspended">Suspended</option>
                 </select>
               </div>
               <div className="space-y-2">

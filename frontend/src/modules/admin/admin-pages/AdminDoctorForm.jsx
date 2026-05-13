@@ -256,9 +256,22 @@ const AdminDoctorForm = () => {
     }
 
 
+    let finalValue = value;
+
+    if (field === 'firstName' || field === 'lastName') {
+      // Capitalize first letter of each word
+      finalValue = value
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    } else if (field === 'email') {
+      // Always lowercase email
+      finalValue = value.toLowerCase().trim();
+    }
+
     setFormData(prev => ({
       ...prev,
-      [field]: value,
+      [field]: finalValue,
     }))
   }
 
@@ -279,14 +292,14 @@ const AdminDoctorForm = () => {
   }, [])
 
   const filteredSpecializations = useMemo(() => {
-    const term = specializationSearchTerm.toLowerCase()
+    const term = specializationSearchTerm.trim().toLowerCase()
     return availableSpecializations.filter(s =>
       s.toLowerCase().includes(term)
     )
   }, [availableSpecializations, specializationSearchTerm])
 
   const filteredServices = useMemo(() => {
-    const term = serviceSearchTerm.toLowerCase()
+    const term = serviceSearchTerm.trim().toLowerCase()
     return availableServices.filter(s =>
       s.toLowerCase().includes(term) && !formData.services.includes(s)
     )

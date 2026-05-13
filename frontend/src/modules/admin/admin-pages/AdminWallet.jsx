@@ -154,6 +154,8 @@ const AdminWallet = () => {
   const [commissionRate, setCommissionRate] = useState('') // percentage string - initialize empty to see if fetch works
   const [isSavingCommission, setIsSavingCommission] = useState(false)
   const [isLoadingSettings, setIsLoadingSettings] = useState(true)
+  const [withdrawalFilter, setWithdrawalFilter] = useState('pending') // all, pending, paid, rejected
+  const [withdrawalSearchTerm, setWithdrawalSearchTerm] = useState('')
 
   // Load commission settings once (avoid polling /admin/settings repeatedly)
   const fetchSettings = async () => {
@@ -201,7 +203,7 @@ const AdminWallet = () => {
       document.body.style.overflow = ''
       document.documentElement.style.overflow = ''
     }
-    
+
     return () => {
       document.body.style.overflow = ''
       document.documentElement.style.overflow = ''
@@ -214,17 +216,22 @@ const AdminWallet = () => {
       try {
         setLoading(true)
         setError(null)
+        // Fetch with individual error handling to prevent one failure from blocking everything
         const [overviewRes, summariesRes, withdrawalsRes, transactionsRes] = await Promise.all([
-          getAdminWalletOverview(earningsPeriod),
-          getProviderSummaries(null, providerPeriod),
-          getWithdrawals(),
-          getAdminWalletTransactions(),
+          getAdminWalletOverview(earningsPeriod).catch(e => { console.error('Overview error:', e); return null; }),
+          getProviderSummaries(null, providerPeriod).catch(e => { console.error('Summaries error:', e); return null; }),
+          getWithdrawals().catch(e => { console.error('Withdrawals error:', e); return null; }),
+          getAdminWalletTransactions().catch(e => { console.error('Transactions error:', e); return null; }),
         ])
 
-        const overview = overviewRes?.data
-        const summaries = summariesRes?.data
-        const withdrawalsData = withdrawalsRes?.data
-        const transactionsData = transactionsRes?.data
+        const overview = overviewRes
+        const summaries = summariesRes
+        const withdrawalsData = withdrawalsRes
+        const transactionsData = transactionsRes
+
+        if (!overview && !summaries && !withdrawalsData && !transactionsData) {
+          throw new Error('Could not fetch any wallet data. Please check your connection.')
+        }
 
         // 1. Handle Overview
         if (overview) {
@@ -369,13 +376,15 @@ const AdminWallet = () => {
   // Legacy localStorage loading removed - using API now
 
   const allProviders = [
-    ...(providers.doctors || []).map(p => ({ ...p, type: 'doctor' })),
+    ...(providers?.doctors || []).map(p => ({ ...p, type: 'doctor' })),
   ]
 
   const filteredProviders = allProviders.filter((provider) => {
+    const name = provider?.name || ''
+    const email = provider?.email || ''
     const matchesSearch =
-      provider.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      provider.email.toLowerCase().includes(searchTerm.toLowerCase())
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      email.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = selectedProviderType === 'all' || provider.type === selectedProviderType
     return matchesSearch && matchesType
   })
@@ -601,6 +610,22 @@ const AdminWallet = () => {
 
   return (
     <section className="flex flex-col gap-3 pb-20 pt-0">
+      {/* Error Display */}
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 mb-4">
+          <div className="flex items-center gap-2 text-red-800">
+            <IoCloseCircleOutline className="h-5 w-5" />
+            <p className="text-sm font-semibold">{error}</p>
+          </div>
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-2 text-xs font-bold text-red-600 hover:text-red-700 underline"
+          >
+            Retry Loading
+          </button>
+        </div>
+      )}
+
       {/* Notification */}
       {notification && (
         <div className={`fixed top-20 right-4 z-50 rounded-lg border px-4 py-3 shadow-lg ${notification.type === 'success'
@@ -802,12 +827,17 @@ const AdminWallet = () => {
         </button>
         <button
           onClick={() => setActiveTab('withdrawals')}
-          className={`shrink-0 px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'withdrawals'
+          className={`shrink-0 px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-2 ${activeTab === 'withdrawals'
             ? 'border-b-2 border-primary text-primary'
             : 'text-slate-600 hover:text-slate-900'
             }`}
         >
           Withdrawal Requests
+          {walletOverview.pendingWithdrawalRequests > 0 && (
+            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-100 px-1.5 text-[10px] font-bold text-red-600">
+              {walletOverview.pendingWithdrawalRequests}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setActiveTab('transactions')}
@@ -822,431 +852,593 @@ const AdminWallet = () => {
 
       {/* Provider Details Tab */}
       {activeTab === 'overview' && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <header className="mb-4 flex flex-col gap-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <h2 className="text-base font-semibold text-slate-900">All Providers Wallet Details</h2>
-                <p className="mt-1 text-xs text-slate-600">View earnings and balances for all providers</p>
-              </div>
-              {/* Period Filter for Provider Cards */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-slate-600 hidden sm:inline">Filter:</span>
-                <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 border border-slate-200">
-                  <button
-                    onClick={() => setProviderPeriod('daily')}
-                    className={`px-2.5 py-1.5 text-xs font-medium rounded transition-all ${providerPeriod === 'daily'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                      }`}
-                  >
-                    Daily
-                  </button>
-                  <button
-                    onClick={() => setProviderPeriod('weekly')}
-                    className={`px-2.5 py-1.5 text-xs font-medium rounded transition-all ${providerPeriod === 'weekly'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                      }`}
-                  >
-                    Weekly
-                  </button>
-                  <button
-                    onClick={() => setProviderPeriod('monthly')}
-                    className={`px-2.5 py-1.5 text-xs font-medium rounded transition-all ${providerPeriod === 'monthly'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                      }`}
-                  >
-                    Monthly
-                  </button>
-                  <button
-                    onClick={() => setProviderPeriod('yearly')}
-                    className={`px-2.5 py-1.5 text-xs font-medium rounded transition-all ${providerPeriod === 'yearly'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                      }`}
-                  >
-                    Yearly
-                  </button>
-                  <button
-                    onClick={() => setProviderPeriod('all')}
-                    className={`px-2.5 py-1.5 text-xs font-medium rounded transition-all ${providerPeriod === 'all'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                      }`}
-                  >
-                    All
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1 sm:flex-initial">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <IoSearchOutline className="h-5 w-5 text-slate-400" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search providers..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 py-2 text-sm placeholder-slate-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-              <select
-                value={selectedProviderType}
-                onChange={(e) => setSelectedProviderType(e.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="all">All Types</option>
-                <option value="doctor">Doctors</option>
-
-              </select>
-            </div>
-          </header>
-
-          <div className="space-y-3">
-            {filteredProviders.length === 0 ? (
-              <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
-                <p className="text-slate-600">No providers found</p>
-              </div>
-            ) : (
-              filteredProviders.map((provider) => {
-                const ProviderIcon = getProviderIcon(provider.type)
-                return (
-                  <article
-                    key={provider.id}
-                    className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-100">
-                        <ProviderIcon className="h-6 w-6 text-slate-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-base font-semibold text-slate-900">{provider.name}</h3>
-                            <p className="mt-0.5 text-sm text-slate-600 truncate">{provider.email}</p>
-                            <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                              <div>
-                                <p className="text-xs font-semibold text-slate-500 uppercase">
-                                  Earnings {providerPeriod !== 'all' && `(${providerPeriod})`}
-                                </p>
-                                <p className="mt-1 text-sm font-bold text-slate-900">
-                                  {formatCurrency(providerPeriod === 'all' ? (provider.totalEarnings || 0) : (provider.periodEarnings || 0))}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-semibold text-slate-500 uppercase">Available</p>
-                                <p className="mt-1 text-sm font-bold text-emerald-600">{formatCurrency(provider.availableBalance)}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-semibold text-slate-500 uppercase">Pending</p>
-                                <p className="mt-1 text-sm font-bold text-amber-600">{formatCurrency(provider.pendingBalance)}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-semibold text-slate-500 uppercase">Withdrawals</p>
-                                <p className="mt-1 text-sm font-bold text-slate-900">{formatCurrency(provider.totalWithdrawals)}</p>
-                              </div>
-                            </div>
-                          </div>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 capitalize">
-                            {provider.type}
-                          </span>
-                        </div>
-                        <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-                          <IoReceiptOutline className="h-3.5 w-3.5" />
-                          <span>
-                            {(providerPeriod === 'all' ? provider.totalTransactions : provider.periodTransactions)} transaction{(providerPeriod === 'all' ? provider.totalTransactions : provider.periodTransactions) !== 1 ? 's' : ''}
-                            {providerPeriod !== 'all' && ` (${providerPeriod})`}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                )
-              })
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* Transactions Tab */}
-      {activeTab === 'transactions' && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <header className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-slate-900">All Transactions</h2>
-              <p className="mt-1 text-xs text-slate-600">View all platform transactions and platform fees</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1 sm:flex-initial">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <IoSearchOutline className="h-5 w-5 text-slate-400" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search transactions..."
-                  value={transactionSearchTerm}
-                  onChange={(e) => setTransactionSearchTerm(e.target.value)}
-                  className="block w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 py-2 text-sm placeholder-slate-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-              <select
-                value={transactionFilter}
-                onChange={(e) => setTransactionFilter(e.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="all">All Types</option>
-                <option value="commission">Platform Fees</option>
-                <option value="withdrawal">Withdrawals</option>
-              </select>
-            </div>
-          </header>
-
-          <div className="space-y-3">
-            {(() => {
-              let filteredTransactions = transactions
-
-              // Filter by type
-              if (transactionFilter !== 'all') {
-                filteredTransactions = filteredTransactions.filter(
-                  txn => txn.type === transactionFilter
-                )
-              }
-
-              // Filter by search
-              if (transactionSearchTerm.trim()) {
-                const normalizedSearch = transactionSearchTerm.trim().toLowerCase()
-                filteredTransactions = filteredTransactions.filter(
-                  txn =>
-                    txn.providerName.toLowerCase().includes(normalizedSearch) ||
-                    txn.transactionId.toLowerCase().includes(normalizedSearch) ||
-                    txn.description.toLowerCase().includes(normalizedSearch) ||
-                    (txn.orderId && txn.orderId.toLowerCase().includes(normalizedSearch))
-                )
-              }
-
-              // Sort by date (newest first)
-              filteredTransactions = filteredTransactions.sort((a, b) => {
-                return new Date(b.createdAt) - new Date(a.createdAt)
-              })
-
-              if (filteredTransactions.length === 0) {
-                return (
-                  <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
-                    <IoReceiptOutline className="mx-auto h-12 w-12 text-slate-300 mb-3" />
-                    <p className="text-sm font-medium text-slate-600">No transactions found</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {transactionSearchTerm.trim() || transactionFilter !== 'all'
-                        ? 'Try adjusting your filters'
-                        : 'Transactions will appear here'}
+        <div className="space-y-6">
+          {/* Action Required: Pending Withdrawals */}
+          {withdrawals.filter(w => w.status === 'pending').length > 0 && (
+            <section className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
+              <header className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100">
+                    <IoTimeOutline className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-900">Action Required</h2>
+                    <p className="text-[11px] text-slate-600">
+                      {withdrawals.filter(w => w.status === 'pending').length} withdrawal request{(withdrawals.filter(w => w.status === 'pending').length !== 1) ? 's' : ''} awaiting approval
                     </p>
                   </div>
-                )
-              }
+                </div>
+                <button
+                  onClick={() => {
+                    setActiveTab('withdrawals')
+                    setWithdrawalFilter('pending')
+                  }}
+                  className="text-xs font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 group"
+                >
+                  View All
+                  <IoArrowForwardOutline className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                </button>
+              </header>
 
-              return filteredTransactions.map((transaction) => {
-                const ProviderIcon = getProviderIcon(transaction.providerType)
-                const isCredit = transaction.amount > 0
-                const isWithdrawal = transaction.type === 'withdrawal'
-
-                return (
-                  <article
-                    key={transaction.id}
-                    className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${isCredit ? 'bg-emerald-100' : 'bg-red-100'
-                        }`}>
-                        {isCredit ? (
-                          <IoArrowDownOutline className={`h-6 w-6 ${isCredit ? 'text-emerald-600' : 'text-red-600'}`} />
-                        ) : (
-                          <IoArrowUpOutline className="h-6 w-6 text-red-600" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <ProviderIcon className="h-4 w-4 text-slate-500" />
-                              <h3 className="text-sm font-semibold text-slate-900">{transaction.providerName}</h3>
-                              <span className="text-xs text-slate-500 capitalize">• {transaction.providerType}</span>
-                            </div>
-                            <p className="text-xs text-slate-600 mb-2">{transaction.description}</p>
-                            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                              <div className="flex items-center gap-1">
-                                <IoCalendarOutline className="h-3.5 w-3.5" />
-                                <span>{formatDate(transaction.createdAt)}</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <IoReceiptOutline className="h-3.5 w-3.5" />
-                                <span>{transaction.transactionId}</span>
-                              </div>
-                              {transaction.orderId && (
-                                <div className="flex items-center gap-1">
-                                  <span className="font-semibold">Order:</span>
-                                  <span>{transaction.orderId}</span>
-                                </div>
-                              )}
-                            </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {withdrawals
+                  .filter(w => w.status === 'pending')
+                  .sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt))
+                  .slice(0, 3)
+                  .map((withdrawal) => {
+                    const ProviderIcon = getProviderIcon(withdrawal.providerType)
+                    return (
+                      <article
+                        key={withdrawal.id}
+                        className="group relative flex flex-col gap-3 rounded-xl border border-amber-200 bg-white p-3 shadow-sm transition-all hover:shadow-md hover:border-amber-300"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 group-hover:bg-amber-50 transition-colors">
+                            <ProviderIcon className="h-5 w-5 text-slate-600 group-hover:text-amber-600" />
                           </div>
-                          <div className="flex flex-col items-end gap-2">
-                            <div className={`text-lg font-bold ${isCredit ? 'text-emerald-600' : 'text-red-600'
-                              }`}>
-                              {isCredit ? '+' : ''}{formatCurrency(transaction.amount)}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-xs font-bold text-slate-900 truncate">{withdrawal.providerName}</h3>
+                            <p className="text-[10px] text-slate-500">{formatDate(withdrawal.requestedAt)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-50">
+                          <div>
+                            <p className="text-[10px] font-semibold text-slate-500 uppercase">Amount</p>
+                            <p className="text-sm font-black text-slate-900">{formatCurrency(withdrawal.amount)}</p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              // Find provider wallet data
+                              const allProvidersList = Object.values(providers).flat()
+                              const withdrawalUserId = withdrawal.providerId || withdrawal.originalData?.userId?._id || withdrawal.originalData?.userId
+                              const providerData = allProvidersList.find(p => (p.id || p.providerId)?.toString() === withdrawalUserId?.toString())
+
+                              let finalWithdrawal = { ...withdrawal }
+                              if (providerData) {
+                                finalWithdrawal.totalEarnings = providerData.totalEarnings || 0
+                                finalWithdrawal.availableBalance = providerData.availableBalance || 0
+                                finalWithdrawal.totalWithdrawals = providerData.totalWithdrawals || 0
+                              }
+                              setViewingWithdrawal(finalWithdrawal)
+                            }}
+                            className="rounded-lg bg-slate-900 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-slate-800 transition-colors"
+                          >
+                            Process
+                          </button>
+                        </div>
+                      </article>
+                    )
+                  })}
+              </div>
+            </section>
+          )}
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <header className="mb-4 flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">All Providers Wallet Details</h2>
+                  <p className="mt-1 text-xs text-slate-600">View earnings and balances for all providers</p>
+                </div>
+                {/* Period Filter for Provider Cards */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-slate-600 hidden sm:inline">Filter:</span>
+                  <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 border border-slate-200">
+                    <button
+                      onClick={() => setProviderPeriod('daily')}
+                      className={`px-2.5 py-1.5 text-xs font-medium rounded transition-all ${providerPeriod === 'daily'
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                        }`}
+                    >
+                      Daily
+                    </button>
+                    <button
+                      onClick={() => setProviderPeriod('weekly')}
+                      className={`px-2.5 py-1.5 text-xs font-medium rounded transition-all ${providerPeriod === 'weekly'
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                        }`}
+                    >
+                      Weekly
+                    </button>
+                    <button
+                      onClick={() => setProviderPeriod('monthly')}
+                      className={`px-2.5 py-1.5 text-xs font-medium rounded transition-all ${providerPeriod === 'monthly'
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                        }`}
+                    >
+                      Monthly
+                    </button>
+                    <button
+                      onClick={() => setProviderPeriod('yearly')}
+                      className={`px-2.5 py-1.5 text-xs font-medium rounded transition-all ${providerPeriod === 'yearly'
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                        }`}
+                    >
+                      Yearly
+                    </button>
+                    <button
+                      onClick={() => setProviderPeriod('all')}
+                      className={`px-2.5 py-1.5 text-xs font-medium rounded transition-all ${providerPeriod === 'all'
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                        }`}
+                    >
+                      All
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1 sm:flex-initial">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <IoSearchOutline className="h-5 w-5 text-slate-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search providers..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="block w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 py-2 text-sm placeholder-slate-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <select
+                  value={selectedProviderType}
+                  onChange={(e) => setSelectedProviderType(e.target.value)}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="all">All Types</option>
+                  <option value="doctor">Doctors</option>
+
+                </select>
+              </div>
+            </header>
+
+            <div className="space-y-3">
+              {filteredProviders.length === 0 ? (
+                <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
+                  <p className="text-slate-600">No providers found</p>
+                </div>
+              ) : (
+                filteredProviders.map((provider) => {
+                  const ProviderIcon = getProviderIcon(provider.type)
+                  return (
+                    <article
+                      key={provider.id}
+                      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-100">
+                          <ProviderIcon className="h-6 w-6 text-slate-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-base font-semibold text-slate-900">{provider.name}</h3>
+                              <p className="mt-0.5 text-sm text-slate-600 truncate">{provider.email}</p>
+                              <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                <div>
+                                  <p className="text-xs font-semibold text-slate-500 uppercase">
+                                    Earnings {providerPeriod !== 'all' && `(${providerPeriod})`}
+                                  </p>
+                                  <p className="mt-1 text-sm font-bold text-slate-900">
+                                    {formatCurrency(providerPeriod === 'all' ? (provider.totalEarnings || 0) : (provider.periodEarnings || 0))}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-semibold text-slate-500 uppercase">Available</p>
+                                  <p className="mt-1 text-sm font-bold text-emerald-600">{formatCurrency(provider.availableBalance)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-semibold text-slate-500 uppercase">Pending</p>
+                                  <p className="mt-1 text-sm font-bold text-amber-600">{formatCurrency(provider.pendingBalance)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-semibold text-slate-500 uppercase">Withdrawals</p>
+                                  <p className="mt-1 text-sm font-bold text-slate-900">{formatCurrency(provider.totalWithdrawals)}</p>
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {getStatusBadge(transaction.status)}
-                              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold ${transaction.type === 'commission'
-                                ? 'bg-blue-50 text-blue-700'
-                                : 'bg-purple-50 text-purple-700'
-                                }`}>
-                                {transaction.type === 'commission' ? 'Platform Fee' : 'Withdrawal'}
-                              </span>
-                            </div>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 capitalize">
+                              {provider.type}
+                            </span>
+                          </div>
+                          <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+                            <IoReceiptOutline className="h-3.5 w-3.5" />
+                            <span>
+                              {(providerPeriod === 'all' ? provider.totalTransactions : provider.periodTransactions)} transaction{(providerPeriod === 'all' ? provider.totalTransactions : provider.periodTransactions) !== 1 ? 's' : ''}
+                              {providerPeriod !== 'all' && ` (${providerPeriod})`}
+                            </span>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </article>
-                )
-              })
-            })()}
-          </div>
-        </section>
+                    </article>
+                  )
+                })
+              )}
+            </div>
+          </section>
+        </div>
       )}
 
-      {/* Withdrawal Requests Tab */}
-      {activeTab === 'withdrawals' && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <header className="mb-4">
-            <h2 className="text-base font-semibold text-slate-900">Withdrawal Requests</h2>
-            <p className="mt-1 text-xs text-slate-600">Manage provider withdrawal requests</p>
-          </header>
-
-          <div className="space-y-3">
-            {withdrawals.map((withdrawal) => {
-              const ProviderIcon = getProviderIcon(withdrawal.providerType)
-              return (
-                <article
-                  key={withdrawal.id}
-                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-100">
-                      <ProviderIcon className="h-6 w-6 text-slate-600" />
+          {/* Transactions Tab */}
+          {activeTab === 'transactions' && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <header className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">All Transactions</h2>
+                  <p className="mt-1 text-xs text-slate-600">View all platform transactions and platform fees</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1 sm:flex-initial">
+                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                      <IoSearchOutline className="h-5 w-5 text-slate-400" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-base font-semibold text-slate-900">{withdrawal.providerName}</h3>
-                          <p className="mt-0.5 text-sm text-slate-600 capitalize">{withdrawal.providerType}</p>
-                          <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
-                            <div>
-                              <p className="text-xs font-semibold text-slate-500 uppercase">Amount</p>
-                              <p className="mt-1 text-base font-bold text-slate-900">{formatCurrency(withdrawal.amount)}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs font-semibold text-slate-500 uppercase">Method</p>
-                              <p className="mt-1 text-sm text-slate-600">{withdrawal.payoutMethod}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs font-semibold text-slate-500 uppercase">Requested</p>
-                              <p className="mt-1 text-sm text-slate-600">{formatDate(withdrawal.requestedAt)}</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          {getStatusBadge(withdrawal.status)}
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => {
-                                // Find provider wallet data from providers list
-                                const allProviders = Object.values(providers).flat()
-                                const withdrawalUserId = withdrawal.providerId || withdrawal.originalData?.userId?._id || withdrawal.originalData?.userId
+                    <input
+                      type="text"
+                      placeholder="Search transactions..."
+                      value={transactionSearchTerm}
+                      onChange={(e) => setTransactionSearchTerm(e.target.value)}
+                      className="block w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 py-2 text-sm placeholder-slate-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <select
+                    value={transactionFilter}
+                    onChange={(e) => setTransactionFilter(e.target.value)}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="all">All Types</option>
+                    <option value="commission">Platform Fees</option>
+                    <option value="withdrawal">Withdrawals</option>
+                  </select>
+                </div>
+              </header>
 
-                                const providerData = allProviders.find(p => {
-                                  const providerIdStr = (p.id || p.providerId)?.toString()
-                                  const userIdStr = withdrawalUserId?.toString()
-                                  return providerIdStr === userIdStr
-                                })
+              <div className="space-y-3">
+                {(() => {
+                  let filteredTransactions = transactions
 
-                                // Also ensure provider info is extracted from originalData if missing
-                                let finalWithdrawal = { ...withdrawal }
+                  // Filter by type
+                  if (transactionFilter !== 'all') {
+                    filteredTransactions = filteredTransactions.filter(
+                      txn => txn.type === transactionFilter
+                    )
+                  }
 
-                                // If provider name/email/phone are missing, try to get from originalData
-                                if (!finalWithdrawal.providerName || finalWithdrawal.providerName === 'Provider') {
-                                  const origUserId = withdrawal.originalData?.userId
-                                  if (origUserId && typeof origUserId === 'object' && origUserId._id) {
-                                    if (withdrawal.providerType === 'doctor') {
-                                      const firstName = origUserId.firstName || ''
-                                      const lastName = origUserId.lastName || ''
-                                      finalWithdrawal.providerName = `${firstName} ${lastName}`.trim()
-                                      if (!finalWithdrawal.providerName) {
-                                        finalWithdrawal.providerName = origUserId.email?.split('@')[0] || 'Doctor'
-                                      }
-                                    }
-                                  }
-                                }
+                  // Filter by search
+                  if (transactionSearchTerm.trim()) {
+                    const normalizedSearch = transactionSearchTerm.trim().toLowerCase()
+                    filteredTransactions = filteredTransactions.filter(
+                      txn =>
+                        txn.providerName.toLowerCase().includes(normalizedSearch) ||
+                        txn.transactionId.toLowerCase().includes(normalizedSearch) ||
+                        txn.description.toLowerCase().includes(normalizedSearch) ||
+                        (txn.orderId && txn.orderId.toLowerCase().includes(normalizedSearch))
+                    )
+                  }
 
-                                if (!finalWithdrawal.providerEmail && withdrawal.originalData?.userId?.email) {
-                                  finalWithdrawal.providerEmail = withdrawal.originalData.userId.email
-                                }
+                  // Sort by date (newest first)
+                  filteredTransactions = filteredTransactions.sort((a, b) => {
+                    return new Date(b.createdAt) - new Date(a.createdAt)
+                  })
 
-                                if (!finalWithdrawal.providerPhone && withdrawal.originalData?.userId?.phone) {
-                                  finalWithdrawal.providerPhone = withdrawal.originalData.userId.phone
-                                }
+                  if (filteredTransactions.length === 0) {
+                    return (
+                      <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
+                        <IoReceiptOutline className="mx-auto h-12 w-12 text-slate-300 mb-3" />
+                        <p className="text-sm font-medium text-slate-600">No transactions found</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {transactionSearchTerm.trim() || transactionFilter !== 'all'
+                            ? 'Try adjusting your filters'
+                            : 'Transactions will appear here'}
+                        </p>
+                      </div>
+                    )
+                  }
 
-                                // Add provider wallet data if found
-                                if (providerData) {
-                                  finalWithdrawal.totalEarnings = providerData.totalEarnings || 0
-                                  finalWithdrawal.availableBalance = providerData.availableBalance || 0
-                                  finalWithdrawal.totalWithdrawals = providerData.totalWithdrawals || 0
-                                }
+                  return filteredTransactions.map((transaction) => {
+                    const ProviderIcon = getProviderIcon(transaction.providerType)
+                    const isCredit = transaction.amount > 0
+                    const isWithdrawal = transaction.type === 'withdrawal'
 
-                                setViewingWithdrawal(finalWithdrawal)
-                              }}
-                              className="flex items-center gap-1 rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700"
-                            >
-                              <IoEyeOutline className="h-3.5 w-3.5" />
-                              View
-                            </button>
-                            {withdrawal.status === 'pending' && (
-                              <>
-                                <button
-                                  onClick={() => handleApprove(withdrawal.id)}
-                                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
-                                >
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={() => handleRejectClick(withdrawal.id)}
-                                  className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
-                                >
-                                  Reject
-                                </button>
-                              </>
+                    return (
+                      <article
+                        key={transaction.id}
+                        className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md"
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${isCredit ? 'bg-emerald-100' : 'bg-red-100'
+                            }`}>
+                            {isCredit ? (
+                              <IoArrowDownOutline className={`h-6 w-6 ${isCredit ? 'text-emerald-600' : 'text-red-600'}`} />
+                            ) : (
+                              <IoArrowUpOutline className="h-6 w-6 text-red-600" />
                             )}
                           </div>
-                        </div>
-                        {withdrawal.status === 'rejected' && withdrawal.rejectionReason && (
-                          <div className="mt-3 rounded-lg bg-red-50 border border-red-200 p-3">
-                            <p className="text-xs font-semibold text-red-700 mb-1">Rejection Reason:</p>
-                            <p className="text-sm text-red-600">{withdrawal.rejectionReason}</p>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <ProviderIcon className="h-4 w-4 text-slate-500" />
+                                  <h3 className="text-sm font-semibold text-slate-900">{transaction.providerName}</h3>
+                                  <span className="text-xs text-slate-500 capitalize">• {transaction.providerType}</span>
+                                </div>
+                                <p className="text-xs text-slate-600 mb-2">{transaction.description}</p>
+                                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                                  <div className="flex items-center gap-1">
+                                    <IoCalendarOutline className="h-3.5 w-3.5" />
+                                    <span>{formatDate(transaction.createdAt)}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <IoReceiptOutline className="h-3.5 w-3.5" />
+                                    <span>{transaction.transactionId}</span>
+                                  </div>
+                                  {transaction.orderId && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="font-semibold">Order:</span>
+                                      <span>{transaction.orderId}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end gap-2">
+                                <div className={`text-lg font-bold ${isCredit ? 'text-emerald-600' : 'text-red-600'
+                                  }`}>
+                                  {isCredit ? '+' : ''}{formatCurrency(transaction.amount)}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {getStatusBadge(transaction.status)}
+                                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold ${transaction.type === 'commission'
+                                    ? 'bg-blue-50 text-blue-700'
+                                    : 'bg-purple-50 text-purple-700'
+                                    }`}>
+                                    {transaction.type === 'commission' ? 'Platform Fee' : 'Withdrawal'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              )
-            })}
-          </div>
-        </section>
-      )}
+                        </div>
+                      </article>
+                    )
+                  })
+                })()}
+              </div>
+            </section>
+          )}
 
+          {/* Withdrawal Requests Tab */}
+          {activeTab === 'withdrawals' && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <header className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">
+                    Withdrawal Requests
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Manage provider withdrawal requests
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1 sm:flex-initial">
+                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                      <IoSearchOutline className="h-5 w-5 text-slate-400" />
+                    </div>
+
+                    <input
+                      type="text"
+                      placeholder="Search providers..."
+                      value={withdrawalSearchTerm}
+                      onChange={(e) => setWithdrawalSearchTerm(e.target.value)}
+                      className="block w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 py-2 text-sm placeholder-slate-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+
+                  <select
+                    value={withdrawalFilter}
+                    onChange={(e) => setWithdrawalFilter(e.target.value)}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+              </header>
+
+              <div className="space-y-3">
+                {(() => {
+                  let filteredWithdrawals = withdrawals
+
+                  // Filter by status
+                  if (withdrawalFilter !== 'all') {
+                    filteredWithdrawals = filteredWithdrawals.filter(
+                      (w) => w.status === withdrawalFilter
+                    )
+                  }
+
+                  // Filter by search
+                  if (withdrawalSearchTerm.trim()) {
+                    const term = withdrawalSearchTerm.trim().toLowerCase()
+
+                    filteredWithdrawals = filteredWithdrawals.filter(
+                      (w) =>
+                        w.providerName.toLowerCase().includes(term) ||
+                        w.providerEmail.toLowerCase().includes(term) ||
+                        w.transactionId.toLowerCase().includes(term)
+                    )
+                  }
+
+                  // Sort by date
+                  filteredWithdrawals = filteredWithdrawals.sort(
+                    (a, b) =>
+                      new Date(b.requestedAt) - new Date(a.requestedAt)
+                  )
+
+                  if (filteredWithdrawals.length === 0) {
+                    return (
+                      <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
+                        <IoCashOutline className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+
+                        <p className="text-sm font-medium text-slate-600">
+                          No withdrawal requests found
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-500">
+                          {withdrawalSearchTerm.trim() ||
+                            withdrawalFilter !== 'all'
+                            ? 'Try adjusting your filters'
+                            : 'Requests will appear here'}
+                        </p>
+                      </div>
+                    )
+                  }
+
+                  return filteredWithdrawals.map((withdrawal) => {
+                    const ProviderIcon = getProviderIcon(
+                      withdrawal.providerType
+                    )
+
+                    return (
+                      <article
+                        key={withdrawal.id}
+                        className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md"
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-100">
+                            <ProviderIcon className="h-6 w-6 text-slate-600" />
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="text-base font-semibold text-slate-900">
+                                  {withdrawal.providerName}
+                                </h3>
+
+                                <p className="mt-0.5 text-sm capitalize text-slate-600">
+                                  {withdrawal.providerType}
+                                </p>
+
+                                <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
+                                  <div>
+                                    <p className="text-xs font-semibold uppercase text-slate-500">
+                                      Amount
+                                    </p>
+
+                                    <p className="mt-1 text-base font-bold text-slate-900">
+                                      {formatCurrency(withdrawal.amount)}
+                                    </p>
+                                  </div>
+
+                                  <div>
+                                    <p className="text-xs font-semibold uppercase text-slate-500">
+                                      Method
+                                    </p>
+
+                                    <p className="mt-1 text-sm text-slate-600">
+                                      {withdrawal.payoutMethod}
+                                    </p>
+                                  </div>
+
+                                  <div>
+                                    <p className="text-xs font-semibold uppercase text-slate-500">
+                                      Requested
+                                    </p>
+
+                                    <p className="mt-1 text-sm text-slate-600">
+                                      {formatDate(withdrawal.requestedAt)}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col items-end gap-2">
+                                {getStatusBadge(withdrawal.status)}
+
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setViewingWithdrawal(withdrawal)
+                                    }}
+                                    className="flex items-center gap-1 rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700"
+                                  >
+                                    <IoEyeOutline className="h-3.5 w-3.5" />
+                                    View
+                                  </button>
+
+                                  {withdrawal.status === 'pending' && (
+                                    <>
+                                      <button
+                                        onClick={() =>
+                                          handleApprove(withdrawal.id)
+                                        }
+                                        className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                                      >
+                                        Approve
+                                      </button>
+
+                                      <button
+                                        onClick={() =>
+                                          handleRejectClick(withdrawal.id)
+                                        }
+                                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+                                      >
+                                        Reject
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {withdrawal.status === 'rejected' &&
+                              withdrawal.rejectionReason && (
+                                <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3">
+                                  <p className="mb-1 text-xs font-semibold text-red-700">
+                                    Rejection Reason:
+                                  </p>
+
+                                  <p className="text-sm text-red-600">
+                                    {withdrawal.rejectionReason}
+                                  </p>
+                                </div>
+                              )}
+                          </div>
+                        </div>
+                      </article>
+                    )
+                  })
+                })()}
+              </div>
+            </section>
+      )}
       {/* View Withdrawal Details Modal */}
       {viewingWithdrawal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setViewingWithdrawal(null)}>

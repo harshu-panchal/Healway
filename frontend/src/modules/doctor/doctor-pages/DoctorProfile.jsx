@@ -225,6 +225,11 @@ const DoctorProfile = () => {
               doctor.fees.inPerson?.final ||
               doctor.consultationFee ||
               0,
+            codEnabled: !!doctor.fees.inPerson?.codEnabled,
+            confirmSlotPercentage:
+              doctor.fees.inPerson?.confirmSlotPercentage || 0,
+            confirmSlotAmount:
+              doctor.fees.inPerson?.confirmSlotAmount || 0,
             selectedDays: Array.isArray(
               doctor.fees.inPerson?.selectedDays,
             )
@@ -267,6 +272,9 @@ const DoctorProfile = () => {
             original: doctor.original_fees || 0,
             discount: doctor.discount_amount || 0,
             final: doctor.consultationFee || 0,
+            codEnabled: false,
+            confirmSlotPercentage: 0,
+            confirmSlotAmount: 0,
             selectedDays: [],
           },
           videoCall: {
@@ -791,6 +799,11 @@ const DoctorProfile = () => {
                     doctor.fees.inPerson?.final ||
                     doctor.consultationFee ||
                     0,
+                  codEnabled: !!doctor.fees.inPerson?.codEnabled,
+                  confirmSlotPercentage:
+                    doctor.fees.inPerson?.confirmSlotPercentage || 0,
+                  confirmSlotAmount:
+                    doctor.fees.inPerson?.confirmSlotAmount || 0,
                   selectedDays: Array.isArray(
                     doctor.fees.inPerson?.selectedDays,
                   )
@@ -833,6 +846,9 @@ const DoctorProfile = () => {
                   original: doctor.original_fees || 0,
                   discount: doctor.discount_amount || 0,
                   final: doctor.consultationFee || 0,
+                  codEnabled: false,
+                  confirmSlotPercentage: 0,
+                  confirmSlotAmount: 0,
                   selectedDays: [],
                 },
                 videoCall: {
@@ -1987,6 +2003,7 @@ const DoctorProfile = () => {
                   0,
                 final:
                   doctor.fees.inPerson?.final || doctor.consultationFee || 0,
+                codEnabled: !!doctor.fees.inPerson?.codEnabled,
                 confirmSlotPercentage:
                   doctor.fees.inPerson?.confirmSlotPercentage || 0,
                 confirmSlotAmount:
@@ -2023,6 +2040,7 @@ const DoctorProfile = () => {
                 original: doctor.original_fees || 0,
                 discount: doctor.discount_amount || 0,
                 final: doctor.consultationFee || 0,
+                codEnabled: false,
                 confirmSlotPercentage: 0,
                 confirmSlotAmount: 0,
                 selectedDays: [],

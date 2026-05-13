@@ -121,7 +121,7 @@ const AdminServices = () => {
     }
 
     const filteredServices = services.filter(s =>
-        s.name.toLowerCase().includes(searchQuery.toLowerCase())
+        s.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
     )
 
     if (loading && services.length === 0) return <PageLoader />
@@ -151,7 +151,7 @@ const AdminServices = () => {
                             type="text"
                             placeholder="Search services by name..."
                             value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onChange={(e) => setSearchQuery(e.target.value.trimStart())}
                             className="w-full pl-11 pr-4 py-2.5 rounded-xl border-none focus:ring-0 transition-all outline-none"
                         />
                     </div>

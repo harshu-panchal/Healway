@@ -151,11 +151,25 @@ const buildPagination = (req) => {
 const buildSearchFilter = (search, fields = []) => {
   if (!search || !search.trim() || !fields.length) return {};
 
-  const regex = new RegExp(search.trim(), 'i');
+  const cleanSearch = search.trim();
+  const regex = new RegExp(cleanSearch, 'i');
 
-  return {
-    $or: fields.map((field) => ({ [field]: regex })),
-  };
+  const orConditions = fields.map((field) => ({ [field]: regex }));
+
+  // Add support for combined name search if both name fields are present
+  if (fields.includes('firstName') && fields.includes('lastName')) {
+    orConditions.push({
+      $expr: {
+        $regexMatch: {
+          input: { $concat: ['$firstName', ' ', '$lastName'] },
+          regex: cleanSearch,
+          options: 'i',
+        },
+      },
+    });
+  }
+
+  return { $or: orConditions };
 };
 
 // ────────────────────────────────────────────────────────────────
@@ -574,6 +588,7 @@ exports.verifyDoctor = asyncHandler(async (req, res) => {
         approvedAt: doctor.approvedAt,
         specialization: doctor.specialization,
         doctorName: doctorName,
+        status: 'approved',
       },
       priority: 'high',
       actionUrl: '/doctor/dashboard',

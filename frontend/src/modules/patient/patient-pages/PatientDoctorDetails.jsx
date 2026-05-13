@@ -852,6 +852,18 @@ const PatientDoctorDetails = () => {
 
   const handleGuestDetailsChange = (e) => {
     const { name, value } = e.target;
+    if (name === "phone") {
+      const numericValue = value.replace(/\D/g, "");
+      if (numericValue.length <= 10) {
+        setGuestDetails(prev => ({ ...prev, [name]: numericValue }));
+      }
+      return;
+    }
+    if (name === "name") {
+      const alphaValue = value.replace(/[^A-Za-z\s]/g, "");
+      setGuestDetails(prev => ({ ...prev, [name]: alphaValue }));
+      return;
+    }
     setGuestDetails(prev => ({
       ...prev,
       [name]: value
@@ -2000,6 +2012,7 @@ const PatientDoctorDetails = () => {
         appointmentType: mappedAppointmentType, // Use mapped value
         consultationMode: appointmentType || "in_person", // Send consultation mode (in_person or call)
         paymentMethod: paymentType === "cod" ? "cod" : "online", // Add payment method info
+        useWallet: paymentType === "wallet",
         // Patient Details
         patientType: bookingFor,
         ...(bookingFor === "Else"
@@ -2076,7 +2089,7 @@ const PatientDoctorDetails = () => {
       const paymentOrderResponse = await createAppointmentPaymentOrder(
         appointmentId,
         {
-          paymentType: appointmentType === "in_person" ? paymentType : "full",
+          paymentType: appointmentType === "in_person" ? (paymentType === 'wallet' ? 'full' : paymentType) : "full",
         },
       );
       console.log("paymentOrderResponse", paymentOrderResponse);
@@ -3477,6 +3490,9 @@ const PatientDoctorDetails = () => {
                           type="primary"
                           className="w-full h-10 font-bold rounded-lg shadow-md shadow-primary/20"
                           onClick={() => {
+                            const phoneRegex = /^[0-9]{10}$/;
+                            const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
                             if (
                               !guestDetails.name ||
                               !guestDetails.phone ||
@@ -3487,6 +3503,17 @@ const PatientDoctorDetails = () => {
                               );
                               return;
                             }
+
+                            if (!phoneRegex.test(guestDetails.phone)) {
+                              toast.error("Please enter a valid 10-digit phone number");
+                              return;
+                            }
+
+                            if (guestDetails.email && !emailRegex.test(guestDetails.email)) {
+                              toast.error("Please enter a valid email address");
+                              return;
+                            }
+
                             setBookingStep(1);
                           }}
                         >
@@ -4241,40 +4268,47 @@ const PatientDoctorDetails = () => {
                               </Card>
                             )}
 
-                            {/* PAY AT CLINIC (COD) - Show if enabled OR disabled with overlay */}
-                            <Card
-                              hoverable={doctor.fees?.inPerson?.codEnabled}
-                              className={`border-2 rounded-xl relative transition-all
-                    ${paymentType === "cod"
+                            {/* PAY AT CLINIC (COD) - Only if enabled by doctor */}
+                            {doctor.fees?.inPerson?.codEnabled && (
+                              <Card
+                                hoverable
+                                className={`border-2 rounded-xl cursor-pointer transition-all ${paymentType === "cod"
                                   ? "border-emerald-500 bg-emerald-50 shadow-md"
-                                  : "border-slate-100"
-                                }
-                    ${!doctor.fees?.inPerson?.codEnabled
-                                  ? "opacity-50 cursor-not-allowed"
-                                  : "cursor-pointer hover:border-slate-200"
-                                }`}
-                              onClick={() => {
-                                if (!doctor.fees?.inPerson?.codEnabled) return;
-                                setPaymentType("cod");
-                              }}
-                              styles={{ body: { padding: "16px" } }}
-                            >
-                              <div className="text-center">
-                                <div className="text-xs sm:text-sm font-bold text-slate-700 mb-1">Pay at Clinic</div>
-                                <div className="text-xl sm:text-2xl font-black text-emerald-600">
-                                  Free
-                                </div>
-                                <div className="text-[10px] text-slate-500 mt-1">Pay offline</div>
-                              </div>
-
-                              {!doctor.fees?.inPerson?.codEnabled && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-[2px] rounded-xl">
-                                  <div className="bg-red-500 text-white text-[10px] sm:text-xs font-bold px-2 sm:px-3 py-1 rounded-full shadow-lg">
-                                    Disabled by Doctor
+                                  : "border-slate-100 hover:border-slate-200"
+                                  }`}
+                                onClick={() => setPaymentType("cod")}
+                                styles={{ body: { padding: "16px" } }}
+                              >
+                                <div className="text-center">
+                                  <div className="text-xs sm:text-sm font-bold text-slate-700 mb-1">Pay at Clinic</div>
+                                  <div className="text-xl sm:text-2xl font-black text-emerald-600">
+                                    {formatPrice(getFeeForDay(selectedDate, appointmentType))}
                                   </div>
+                                  <div className="text-[10px] text-slate-500 mt-1">Full Pay at Clinic</div>
                                 </div>
-                              )}
-                            </Card>
+                              </Card>
+                            )}
+
+                            {/* PAY WITH WALLET - Only if balance exists */}
+                            {(patientProfile?.walletBalance || 0) > 0 && (
+                              <Card
+                                hoverable
+                                className={`border-2 rounded-xl cursor-pointer transition-all ${paymentType === "wallet"
+                                  ? "border-indigo-500 bg-indigo-50 shadow-md"
+                                  : "border-slate-100 hover:border-slate-200"
+                                  }`}
+                                onClick={() => setPaymentType("wallet")}
+                                styles={{ body: { padding: "16px" } }}
+                              >
+                                <div className="text-center">
+                                  <div className="text-xs sm:text-sm font-bold text-slate-700 mb-1">Pay with Wallet</div>
+                                  <div className="text-xl sm:text-2xl font-black text-indigo-600">
+                                    ₹{patientProfile.walletBalance}
+                                  </div>
+                                  <div className="text-[10px] text-slate-500 mt-1">Available Balance</div>
+                                </div>
+                              </Card>
+                            )}
                           </div>
                         </div>
                       )}
@@ -4292,7 +4326,7 @@ const PatientDoctorDetails = () => {
                         }`}>
                         {(() => {
                           const fee = getFeeForDay(selectedDate, appointmentType);
-                          const wallet = patientProfile?.walletBalance || 0;
+                          const wallet = paymentType === 'wallet' ? (patientProfile?.walletBalance || 0) : 0;
                           const toPay = Math.max(0, fee - wallet);
 
                           if (hasDoctorCancelledAppointment) return "FREE";
@@ -4316,16 +4350,16 @@ const PatientDoctorDetails = () => {
                 <div className="p-4 bg-emerald-50 border rounded-xl text-sm font-bold text-emerald-800">
                   {(() => {
                     const fee = getFeeForDay(selectedDate, appointmentType);
-                    const wallet = patientProfile?.walletBalance || 0;
+                    const wallet = paymentType === 'wallet' ? (patientProfile?.walletBalance || 0) : 0;
 
                     if (hasDoctorCancelledAppointment) return "Free re-booking applied. Your previous payment will be adjusted.";
                     if (paymentType === "cod") return "Appointment confirmed. Pay full amount at clinic.";
                     if (fee === 0) return "This session is FREE. Click below to book your slot.";
 
-                    if (wallet > 0) {
+                    if (paymentType === 'wallet' && wallet > 0) {
                       const toPay = Math.max(0, fee - wallet);
                       if (toPay === 0) return `Wallet balance (₹${wallet}) covers the full fee. Direct booking will occur.`;
-                      return `Wallet balance (₹${wallet}) applied. You only need to pay ₹${toPay}.`;
+                      return `Wallet balance (₹${wallet}) applied. You only need to pay ₹${toPay} online.`;
                     }
 
                     if (paymentType === "confirmSlot") return "Slot confirmed. Remaining amount can be paid later.";
@@ -4345,7 +4379,7 @@ const PatientDoctorDetails = () => {
                     {hasDoctorCancelledAppointment ||
                       paymentType === "cod" ||
                       getFeeForDay(selectedDate, appointmentType) === 0 ||
-                      ((patientProfile?.walletBalance || 0) >= (paymentType === 'confirmSlot' ? (doctor?.fees?.inPerson?.confirmSlotAmount || 0) : getFeeForDay(selectedDate, appointmentType)))
+                      (paymentType === 'wallet' && (patientProfile?.walletBalance || 0) >= getFeeForDay(selectedDate, appointmentType))
                       ? "Confirm Now"
                       : "Pay & Confirm"}
                   </Button>
