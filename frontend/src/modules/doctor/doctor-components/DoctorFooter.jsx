@@ -18,7 +18,7 @@ import healwayLogo from '../../../assets/logo/healway-logo.png'
 const footerLinks = {
   quickLinks: [
     { label: 'Dashboard', to: '/doctor/dashboard' },
-    { label: 'Consultations', to: '/doctor/consultations' },
+    { label: 'Consultations', to: '/doctor/consultations?filter=active' },
     { label: 'Patients', to: '/doctor/patients' },
     { label: 'Appointments', to: '/doctor/appointments' },
     { label: 'Wallet', to: '/doctor/wallet' },

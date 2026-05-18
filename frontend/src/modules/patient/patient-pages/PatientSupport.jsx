@@ -17,15 +17,42 @@ const PatientSupport = () => {
   const [tickets, setTickets] = useState([])
   const [loadingTickets, setLoadingTickets] = useState(false)
 
+  const formatPhoneNumber = (value) => {
+    const cleaned = value.replace(/\D/g, '').slice(0, 10)
+    const match = cleaned.match(/^(\d{0,3})(\d{0,3})(\d{0,4})$/)
+    if (match) {
+      const part1 = match[1]
+      const part2 = match[2]
+      const part3 = match[3]
+      if (part3) {
+        return `${part1}-${part2}-${part3}`
+      }
+      if (part2) {
+        return `${part1}-${part2}`
+      }
+      return part1
+    }
+    return cleaned
+  }
+
   const handleChange = (e) => {
     const { name, value } = e.target
     
-    // Sanitize phone number
-    if (name === 'contactNumber') {
-      const sanitized = value.replace(/\D/g, '').slice(0, 10)
+    if (name === 'name') {
+      const alphaValue = value.replace(/[^a-zA-Z\s]/g, '').slice(0, 50)
       setFormData((prev) => ({
         ...prev,
-        [name]: sanitized,
+        [name]: alphaValue,
+      }))
+      return
+    }
+
+    // Sanitize phone number
+    if (name === 'contactNumber') {
+      const formatted = formatPhoneNumber(value)
+      setFormData((prev) => ({
+        ...prev,
+        [name]: formatted,
       }))
       return
     }
@@ -40,8 +67,13 @@ const PatientSupport = () => {
     e.preventDefault()
     
     // Validation
-    if (formData.contactNumber.length !== 10) {
+    const digitsOnly = formData.contactNumber.replace(/\D/g, '')
+    if (digitsOnly.length !== 10) {
       toast.warning('Contact number must be exactly 10 digits')
+      return
+    }
+    if (!/^[a-zA-Z\s]+$/.test(formData.name)) {
+      toast.warning('Name must contain only alphabets')
       return
     }
 
@@ -51,6 +83,8 @@ const PatientSupport = () => {
       const response = await createSupportTicket({
         subject: `Support Request from ${formData.name}`,
         message: formData.note,
+        contactNumber: formData.contactNumber,
+        email: formData.email,
         priority: 'medium',
       })
 
@@ -157,7 +191,12 @@ const PatientSupport = () => {
     }
   }
 
-  const isFormValid = formData.name && formData.email && formData.contactNumber && formData.note
+  const isFormValid =
+    formData.name &&
+    /^[a-zA-Z\s]+$/.test(formData.name) &&
+    formData.email &&
+    formData.contactNumber.replace(/\D/g, '').length === 10 &&
+    formData.note
 
   return (
     <div className="mx-auto max-w-2xl py-6">
@@ -210,6 +249,8 @@ const PatientSupport = () => {
               value={formData.name}
               onChange={handleChange}
               required
+              pattern="[A-Za-z\s]+"
+              title="Name should only contain alphabets and spaces"
               className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 transition hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               placeholder="Enter your full name"
             />
@@ -242,11 +283,11 @@ const PatientSupport = () => {
               value={formData.contactNumber}
               onChange={handleChange}
               required
-              pattern="[0-9]{10}"
-              maxLength="10"
-              title="Contact number should be 10 digits"
+              maxLength="12"
+              pattern="\d{3}-\d{3}-\d{4}"
+              title="Contact number should be formatted as 123-456-7890"
               className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 transition hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              placeholder="Enter your contact number"
+              placeholder="123-456-7890"
             />
           </div>
 

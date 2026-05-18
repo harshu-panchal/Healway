@@ -229,6 +229,14 @@ const PatientPrescriptions = () => {
   }
 
   const generatePDF = async (prescriptionData) => {
+    const safePrescriptionData = {
+      ...prescriptionData,
+      doctor: {
+        name: prescriptionData?.doctor?.name || 'Dr. Unknown',
+        specialty: prescriptionData?.doctor?.specialty || 'General Physician',
+        ...(prescriptionData?.doctor || {}),
+      },
+    }
     const { default: jsPDF } = await import('jspdf')
     const doc = new jsPDF()
     const pageWidth = doc.internal.pageSize.getWidth()
@@ -250,7 +258,7 @@ const PatientPrescriptions = () => {
     // Clinic Name in Primary (Below Healway) - Reduced size
     doc.setFontSize(18)
     doc.setFont('helvetica', 'bold')
-    const clinicName = prescriptionData.doctor?.clinicName || prescriptionData.originalData?.doctorId?.clinicDetails?.name || prescriptionData.originalData?.doctorId?.clinicDetails?.clinicName || 'Super Clinic'
+    const clinicName = safePrescriptionData.doctor?.clinicName || prescriptionData.originalData?.doctorId?.clinicDetails?.name || prescriptionData.originalData?.doctorId?.clinicDetails?.clinicName || 'Super Clinic'
     doc.text(clinicName, pageWidth / 2, yPos, { align: 'center' })
     yPos += 5
 
@@ -293,13 +301,13 @@ const PatientPrescriptions = () => {
     doc.setFillColor(200, 0, 0) // Red circle for phone
     doc.circle(margin + 2, contactY - 1, 1.2, 'F')
     doc.setTextColor(0, 0, 0)
-    const phone = prescriptionData.doctor?.phone || prescriptionData.originalData?.doctorId?.phone || 'N/A'
+    const phone = safePrescriptionData.doctor?.phone || prescriptionData.originalData?.doctorId?.phone || 'N/A'
     doc.text(phone, margin + 5, contactY)
 
     // Email icon and address (right)
     doc.setFillColor(100, 100, 100) // Gray circle for email
     doc.circle(pageWidth - margin - 2, contactY - 1, 1.2, 'F')
-    const email = prescriptionData.doctor?.email || prescriptionData.originalData?.doctorId?.email || 'N/A'
+    const email = safePrescriptionData.doctor?.email || prescriptionData.originalData?.doctorId?.email || 'N/A'
     doc.text(email, pageWidth - margin, contactY, { align: 'right' })
     yPos += 4
 
@@ -321,8 +329,8 @@ const PatientPrescriptions = () => {
     doc.setFont('helvetica', 'normal')
 
     // Doctor Info (Left)
-    doc.text(`Name: ${prescriptionData.doctor.name}`, margin, yPos)
-    doc.text(`Specialty: ${prescriptionData.doctor.specialty}`, margin, yPos + 3)
+    doc.text(`Name: ${safePrescriptionData.doctor.name}`, margin, yPos)
+    doc.text(`Specialty: ${safePrescriptionData.doctor.specialty}`, margin, yPos + 3)
     const issuedDate = formatDate(prescriptionData.issuedAt)
     doc.text(`Date: ${issuedDate}`, margin, yPos + 6)
 
@@ -533,7 +541,7 @@ const PatientPrescriptions = () => {
     const signatureY = yPos
 
     // Get digital signature from prescription data - handle both object and string formats
-    const digitalSignatureRaw = prescriptionData.doctor?.digitalSignature || prescriptionData.originalData?.doctorId?.digitalSignature
+    const digitalSignatureRaw = safePrescriptionData.doctor?.digitalSignature || prescriptionData.originalData?.doctorId?.digitalSignature
     let signatureImageUrl = ''
 
     // Extract imageUrl from signature object or use string directly
@@ -603,11 +611,11 @@ const PatientPrescriptions = () => {
     doc.setFontSize(8)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(0, 0, 0)
-    const doctorName = prescriptionData.doctor?.name || 'Dr. Unknown'
+    const doctorName = safePrescriptionData.doctor?.name || 'Dr. Unknown'
     doc.text(doctorName, centerX, textYPos, { align: 'center' })
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7)
-    const doctorSpecialty = prescriptionData.doctor?.specialty || ''
+    const doctorSpecialty = safePrescriptionData.doctor?.specialty || ''
     doc.text(doctorSpecialty, centerX, textYPos + 4, { align: 'center' })
 
     // Disclaimer at bottom center
@@ -651,7 +659,12 @@ const PatientPrescriptions = () => {
       }
 
       const doc = await generatePDF(prescription)
-      const fileName = `Prescription_${prescription.doctor.name.replace(/\s+/g, '_')}_${prescription.issuedAt}.pdf`
+      const safeDoctorName = String(prescription?.doctor?.name || 'Doctor')
+        .replace(/[^\w\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '_')
+      const safeIssuedAt = String(prescription?.issuedAt || new Date().toISOString().split('T')[0]).replace(/[^\d-]/g, '')
+      const fileName = `Prescription_${safeDoctorName || 'Doctor'}_${safeIssuedAt || new Date().toISOString().split('T')[0]}.pdf`
       doc.save(fileName)
     } catch (error) {
       console.error('Error generating PDF:', error)
@@ -694,7 +707,13 @@ const PatientPrescriptions = () => {
       // Generate PDF blob and open in new window
       const pdfBlob = doc.output('blob')
       const pdfUrl = URL.createObjectURL(pdfBlob)
-      window.open(pdfUrl, '_blank')
+      const opened = window.open(pdfUrl, '_blank')
+      if (!opened) {
+        // Popup blocked: fallback to download so user still gets the file
+        const fallbackName = `Prescription_${String(prescription?.doctor?.name || 'Doctor').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_')}_${String(prescription?.issuedAt || new Date().toISOString().split('T')[0]).replace(/[^\d-]/g, '')}.pdf`
+        doc.save(fallbackName)
+        toast.error('Popup blocked by browser. PDF downloaded instead.')
+      }
       // Clean up the URL after a delay
       setTimeout(() => {
         URL.revokeObjectURL(pdfUrl)

@@ -266,7 +266,11 @@ const DoctorConsultations = () => {
     try {
       setLoadingConsultations(true)
       setConsultationsError(null)
-      const response = await getDoctorConsultations()
+      const filters = {}
+      if (filterParam === 'active') {
+        filters.status = 'active'
+      }
+      const response = await getDoctorConsultations(filters)
 
       if (response) {
         const consultationsData = Array.isArray(response)
@@ -333,7 +337,7 @@ const DoctorConsultations = () => {
     } finally {
       setLoadingConsultations(false)
     }
-  }, [transformConsultationData])
+  }, [transformConsultationData, filterParam])
 
   // Fetch consultations from API
   useEffect(() => {
@@ -386,6 +390,10 @@ const DoctorConsultations = () => {
 
         return false
       })
+    } else if (filterParam === 'active') {
+      filtered = consultations.filter((consultation) =>
+        consultation.status !== 'completed' && consultation.status !== 'cancelled'
+      )
     } else if (filterParam === 'pending') {
       filtered = consultations.filter((consultation) =>
         consultation.status === 'waiting' || consultation.status === 'pending'
@@ -1865,12 +1873,20 @@ const DoctorConsultations = () => {
     doc.text('This is a digitally generated prescription. For any queries, please contact the clinic.', pageWidth / 2, disclaimerY, { align: 'center' })
 
     // Save PDF
-    const fileName = `Prescription_${prescriptionData.patientName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`
+    const safePatientName = String(
+      prescriptionData?.patientName || selectedConsultation?.patientName || 'Patient'
+    ).replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_')
+    const fileName = `Prescription_${safePatientName || 'Patient'}_${new Date().toISOString().split('T')[0]}.pdf`
     doc.save(fileName)
   }
 
   const handleDownloadPrescription = async (prescription) => {
-    await generatePDF(prescription)
+    try {
+      await generatePDF(prescription)
+    } catch (error) {
+      console.error('Error downloading prescription PDF:', error)
+      toast.error('Unable to download prescription PDF. Please try again.')
+    }
   }
 
   const handleEditPrescription = (prescription) => {
@@ -2946,6 +2962,8 @@ const DoctorConsultations = () => {
   // Get filter label
   const getFilterLabel = () => {
     switch (filterParam) {
+      case 'active':
+        return 'Active Consultations'
       case 'today':
         return 'Today\'s Appointments'
       case 'pending':

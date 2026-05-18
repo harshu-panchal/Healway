@@ -91,25 +91,10 @@ const DoctorAnnouncements = () => {
 
                   <p className="text-slate-600 text-sm leading-relaxed mb-4 whitespace-pre-wrap">{ann.content}</p>
 
-                  <div className="flex items-center justify-between flex-wrap gap-3 pt-3 border-t border-slate-50">
+                  <div className="flex items-center flex-wrap gap-3 pt-3 border-t border-slate-50">
                     <span className="text-xs font-medium text-slate-500">
                       {ann.senderRole === 'Admin' ? 'From: Healway Admin' : `Posted by Dr. ${ann.senderId?.firstName || 'Staff'}`}
                     </span>
-
-                    {ann.senderRole === 'Admin' && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            const adminPhone = '919876543210'
-                            window.location.href = `tel:${adminPhone}`
-                          }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-dark text-white text-[11px] font-bold rounded-lg transition-all shadow-sm"
-                        >
-                          Contact Support
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>

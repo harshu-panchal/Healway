@@ -17,7 +17,34 @@ import Pagination from '../../../components/Pagination'
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A'
   const date = new Date(dateString)
+  if (Number.isNaN(date.getTime())) return 'N/A'
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+const getLatestValidDate = (dateCandidates = []) => {
+  const validDates = dateCandidates
+    .filter(Boolean)
+    .map((value) => new Date(value))
+    .filter((date) => !Number.isNaN(date.getTime()))
+    .sort((a, b) => b.getTime() - a.getTime())
+
+  return validDates.length > 0 ? validDates[0].toISOString() : null
+}
+
+const getVisitsCount = (patient) => {
+  const explicitCount = Number(
+    patient.totalVisits ?? patient.totalAppointments ?? patient.totalConsultations
+  )
+
+  if (Number.isFinite(explicitCount) && explicitCount > 0) {
+    return explicitCount
+  }
+
+  const appointmentsCount = Array.isArray(patient.appointments) ? patient.appointments.length : 0
+  const consultationsCount = Array.isArray(patient.consultations) ? patient.consultations.length : 0
+  const derivedCount = Math.max(appointmentsCount, consultationsCount)
+
+  return derivedCount > 0 ? derivedCount : 0
 }
 
 const DoctorAllPatients = () => {
@@ -58,7 +85,35 @@ const DoctorAllPatients = () => {
             setPagination(response.pagination)
           }
 
-          const transformed = patientsData.map(patient => ({
+          const transformed = patientsData.map(patient => {
+            const lastVisitFallback = getLatestValidDate([
+              patient.lastVisit,
+              patient.lastAppointmentDate,
+              patient.lastConsultationDate,
+              patient.updatedAt,
+              patient.recentVisit?.date,
+              patient.recentVisit?.visitedAt,
+              ...(Array.isArray(patient.appointments)
+                ? patient.appointments.flatMap((apt) => [
+                  apt?.appointmentDate,
+                  apt?.createdAt,
+                  apt?.updatedAt,
+                  apt?.date,
+                ])
+                : []),
+              ...(Array.isArray(patient.consultations)
+                ? patient.consultations.flatMap((cons) => [
+                  cons?.consultationDate,
+                  cons?.createdAt,
+                  cons?.updatedAt,
+                  cons?.date,
+                ])
+                : []),
+            ])
+
+            const visitsCount = getVisitsCount(patient)
+
+            return ({
             id: patient._id || patient.id,
             patientId: patient._id || patient.id,
             patientName: patient.firstName && patient.lastName
@@ -88,13 +143,13 @@ const DoctorAllPatients = () => {
             // Preserve original address object for later use
             originalAddress: patient.address,
             firstVisit: patient.firstVisit || patient.firstAppointmentDate || null,
-            lastVisit: patient.lastVisit || patient.lastAppointmentDate || null,
-            totalVisits: patient.totalVisits || patient.totalAppointments || 0,
-            patientType: patient.totalVisits > 1 ? 'returning' : 'new',
-            totalConsultations: patient.totalConsultations || 0,
+            lastVisit: lastVisitFallback,
+            totalVisits: visitsCount,
+            patientType: visitsCount > 1 ? 'returning' : 'new',
+            totalConsultations: Number(patient.totalConsultations || 0),
             lastDiagnosis: patient.lastDiagnosis || '',
             status: patient.status || 'active',
-          }))
+          })})
 
           setPatients(transformed)
         }

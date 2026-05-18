@@ -20,7 +20,7 @@ const buildPagination = (req) => {
 // POST /api/patients/support
 exports.createSupportTicket = asyncHandler(async (req, res) => {
   const { id } = req.auth;
-  const { subject, message, priority } = req.body;
+  const { subject, message, priority, contactNumber, email } = req.body;
 
   if (!subject || !message) {
     return res.status(400).json({
@@ -34,6 +34,8 @@ exports.createSupportTicket = asyncHandler(async (req, res) => {
     userType: 'patient',
     subject,
     message,
+    contactNumber,
+    email,
     priority: priority || 'medium',
     status: 'open',
   });

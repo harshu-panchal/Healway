@@ -549,7 +549,7 @@ const DoctorDashboard = () => {
     { id: 'home', label: 'Dashboard', to: '/doctor/dashboard', Icon: IoHomeOutline },
     { id: 'analytics', label: 'Business & Analytics', to: '/doctor/analytics', Icon: IoTrendingUpOutline },
     { id: 'queue', label: 'Queue', to: '/doctor/queue', Icon: IoTimeOutline },
-    { id: 'consultations', label: 'Consultations', to: '/doctor/consultations', Icon: IoDocumentTextOutline },
+    { id: 'consultations', label: 'Consultations', to: '/doctor/consultations?filter=active', Icon: IoDocumentTextOutline },
     { id: 'patients', label: 'Patients', to: '/doctor/patients', Icon: IoPeopleOutline },
     { id: 'announcements', label: 'Announcements', to: '/doctor/announcements', Icon: IoMegaphoneOutline },
     { id: 'wallet', label: 'Wallet', to: '/doctor/wallet', Icon: IoWalletOutline },

@@ -960,7 +960,7 @@ const createAdminSupportTicketNotification = async ({ adminId, ticket, user, use
       message: ticket.message || '',
     },
     priority: ticket.priority === 'high' || ticket.priority === 'urgent' ? 'high' : 'medium',
-    actionUrl: `/admin/support/${ticket._id || ticket.id}`,
+    actionUrl: '/admin/support',
     icon: 'support',
     sendEmail: false,
     emitSocket: true,

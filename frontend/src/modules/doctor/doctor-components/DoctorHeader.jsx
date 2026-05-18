@@ -18,7 +18,7 @@ import NotificationBell from '../../../components/NotificationBell'
 const navItems = [
   { id: 'home', label: 'Dashboard', to: '/doctor/dashboard', Icon: IoHomeOutline },
   { id: 'appointments', label: 'Appointments', to: '/doctor/appointments', Icon: IoTimeOutline },
-  { id: 'consultations', label: 'Consultations', to: '/doctor/consultations', Icon: IoDocumentTextOutline },
+  { id: 'consultations', label: 'Consultations', to: '/doctor/consultations?filter=active', Icon: IoDocumentTextOutline },
   { id: 'patients', label: 'Patients', to: '/doctor/patients', Icon: IoPeopleOutline },
   { id: 'wallet', label: 'Wallet', to: '/doctor/wallet', Icon: IoWalletOutline },
   { id: 'support', label: 'Support', to: '/doctor/support', Icon: IoHelpCircleOutline },

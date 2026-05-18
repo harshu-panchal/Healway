@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { IoMegaphoneOutline, IoPeopleOutline, IoStatsChartOutline, IoTimeOutline, IoAddOutline, IoImageOutline } from 'react-icons/io5'
 import { useToast } from '../../../contexts/ToastContext'
-import { getAllAnnouncements, getAnnouncementMetrics, createAdminAnnouncement, updateAdminAnnouncementStatus, uploadAnnouncementImage } from '../admin-services/adminService'
+import { getAllAnnouncements, getAnnouncementMetrics, createAdminAnnouncement, uploadAnnouncementImage } from '../admin-services/adminService'
 import PageLoader from '../../../components/PageLoader'
 
 const AdminAnnouncements = () => {
+  const today = new Date().toISOString().split('T')[0]
   const [announcements, setAnnouncements] = useState([])
   const [metrics, setMetrics] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -57,21 +58,13 @@ const AdminAnnouncements = () => {
     }
   }
 
-  const handleStatusUpdate = async (id, status) => {
-    try {
-      if (!window.confirm(`Are you sure you want to ${status} this announcement?`)) return
-
-      await updateAdminAnnouncementStatus(id, status)
-      toast.success(`Announcement ${status} successfully`)
-      fetchData()
-    } catch (error) {
-      toast.error('Failed to update status')
-    }
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
+      if (formData.expiryDate && formData.expiryDate < today) {
+        toast.error('Expiry date cannot be in the past')
+        return
+      }
       setSubmitting(true)
       await createAdminAnnouncement(formData)
       toast.success('Announcement published successfully')
@@ -180,7 +173,6 @@ const AdminAnnouncements = () => {
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Author</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Target</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -221,24 +213,6 @@ const AdminAnnouncements = () => {
                         <span className="text-[10px] text-slate-500 font-medium ml-1">Expired</span>
                       )}
                     </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    {ann.approvalStatus === 'pending' && (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleStatusUpdate(ann._id, 'approved')}
-                          className="px-3 py-1.5 text-xs font-medium bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleStatusUpdate(ann._id, 'rejected')}
-                          className="px-3 py-1.5 text-xs font-medium bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    )}
                   </td>
                 </tr>
               ))}
@@ -363,7 +337,15 @@ const AdminAnnouncements = () => {
                 <input
                   type="date"
                   value={formData.expiryDate}
-                  onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+                  min={today}
+                  onChange={(e) => {
+                    const selectedDate = e.target.value
+                    if (selectedDate && selectedDate < today) {
+                      toast.error('Expiry date cannot be in the past')
+                      return
+                    }
+                    setFormData({ ...formData, expiryDate: selectedDate })
+                  }}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all outline-none"
                 />
               </div>

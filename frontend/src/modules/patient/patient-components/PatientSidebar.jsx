@@ -17,9 +17,16 @@ const PatientSidebar = ({ isOpen, onClose, navItems = [], onLogout }) => {
 
   useEffect(() => {
     if (isOpen) {
+      document.body.style.overflow = 'hidden'
       closeButtonRef.current?.focus({ preventScroll: true })
+    } else {
+      document.body.style.overflow = ''
     }
-  }, [isOpen, navItems])
+
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isOpen])
 
   return (
     <>

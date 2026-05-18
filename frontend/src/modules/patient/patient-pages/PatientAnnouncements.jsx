@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { IoMegaphoneOutline, IoTimeOutline, IoPersonOutline, IoChevronForwardOutline, IoLogoWhatsapp, IoCallOutline } from 'react-icons/io5'
+import { IoMegaphoneOutline, IoTimeOutline, IoPersonOutline, IoChevronForwardOutline } from 'react-icons/io5'
 import { getAnnouncements } from '../patient-services/patientService'
 import { useToast } from '../../../contexts/ToastContext'
 import PageLoader from '../../../components/PageLoader'
@@ -101,70 +101,6 @@ const PatientAnnouncements = () => {
                     </span>
 
                     <div className="flex items-center gap-2 flex-wrap">
-                      {/* Buttons for Admin */}
-                      {ann.senderRole === 'Admin' ? (
-                        <>
-                          {/* Admin Call Button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              const adminPhone = '919876543210' // Replace with actual admin phone number
-                              window.location.href = `tel:${adminPhone}`
-                            }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-lg transition-all shadow-sm hover:shadow-md"
-                          >
-                            <IoCallOutline className="text-base" />
-                            Call
-                          </button>
-
-                          {/* Admin WhatsApp Button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              const adminPhone = '919876543210' // Replace with actual admin WhatsApp number
-                              const message = encodeURIComponent(`Hi, I saw your announcement: "${ann.title}"`)
-                              window.open(`https://wa.me/${adminPhone}?text=${message}`, '_blank')
-                            }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all shadow-sm hover:shadow-md"
-                          >
-                            <IoLogoWhatsapp className="text-base" />
-                            WhatsApp
-                          </button>
-                        </>
-                      ) : (
-                        // Buttons for Doctor
-                        ann.senderId?.phone && (
-                          <>
-                            {/* Doctor Call Button */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                const doctorPhone = ann.senderId.phone.replace(/[^0-9]/g, '')
-                                window.location.href = `tel:${doctorPhone}`
-                              }}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-lg transition-all shadow-sm hover:shadow-md"
-                            >
-                              <IoCallOutline className="text-base" />
-                              Call
-                            </button>
-
-                            {/* Doctor WhatsApp Button */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                const doctorPhone = ann.senderId.phone.replace(/[^0-9]/g, '')
-                                const message = encodeURIComponent(`Hi Dr. ${ann.senderId?.firstName || ''}, I saw your announcement: "${ann.title}"`)
-                                window.open(`https://wa.me/${doctorPhone}?text=${message}`, '_blank')
-                              }}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all shadow-sm hover:shadow-md"
-                            >
-                              <IoLogoWhatsapp className="text-base" />
-                              WhatsApp
-                            </button>
-                          </>
-                        )
-                      )}
-
                       {/* View Doctor Button - Only for Doctor announcements */}
                       {ann.senderRole !== 'Admin' && (
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-primary text-xs font-bold">

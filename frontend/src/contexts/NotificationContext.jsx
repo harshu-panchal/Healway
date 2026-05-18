@@ -206,13 +206,32 @@ export const NotificationProvider = ({ children, module = 'patient' }) => {
         onClick: () => {
           // Only navigate if it's not the patient module or if the URL is not for appointments
           if (notification.actionUrl && (currentModule !== 'patient' || !notification.actionUrl.includes('appointment'))) {
-            navigate(notification.actionUrl)
+            let targetUrl = notification.actionUrl
+            if (currentModule === 'admin' && targetUrl.startsWith('/admin/support')) {
+              targetUrl = '/admin/support'
+            }
+            navigate(targetUrl)
           }
 
         },
       })
     }
   }, [toast, navigate, currentModule])
+
+  // Handle real-time announcement event
+  const handleAnnouncementNotification = useCallback((data) => {
+    const announcement = data?.announcement
+    if (!announcement) return
+
+    // Show toast only to doctor/patient modules
+    if (currentModule === 'doctor' || currentModule === 'patient') {
+      toast.info(announcement.title || 'New announcement', {
+        onClick: () => {
+          navigate(`/${currentModule}/announcements`)
+        },
+      })
+    }
+  }, [currentModule, navigate, toast])
 
   // Setup Socket.IO connection
   useEffect(() => {
@@ -241,6 +260,7 @@ export const NotificationProvider = ({ children, module = 'patient' }) => {
 
       // Listen for new notifications
       socket.on('notification:new', handleNewNotification)
+      socket.on('announcement:new', handleAnnouncementNotification)
 
       // Listen for appointment events (for backward compatibility)
       socket.on('appointment:created', () => {
@@ -396,6 +416,7 @@ export const NotificationProvider = ({ children, module = 'patient' }) => {
       if (socket) {
         try {
           socket.off('notification:new', handleNewNotification)
+          socket.off('announcement:new', handleAnnouncementNotification)
           socket.off('appointment:created')
           socket.off('appointment:payment:confirmed')
           socket.off('token:called')
@@ -423,7 +444,7 @@ export const NotificationProvider = ({ children, module = 'patient' }) => {
       }
       setIsConnected(false)
     }
-  }, [currentModule, location.pathname, handleNewNotification, fetchNotifications, fetchUnreadCount, toast])
+  }, [currentModule, location.pathname, handleNewNotification, handleAnnouncementNotification, fetchNotifications, fetchUnreadCount, toast])
 
   // Refresh notifications when module changes (with debounce to prevent infinite loops)
   useEffect(() => {

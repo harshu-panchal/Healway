@@ -2840,12 +2840,18 @@ const CallPopup = () => {
   };
 
   const handleMuteToggle = () => {
+    const newMutedState = !isMuted;
+
     // Handle P2P mute
     if (p2pManagerRef.current) {
-      const newMutedState = !isMuted;
       p2pManagerRef.current.setMuted(newMutedState);
       if (localStreamRef.current && !isMuted) {
         localStreamRef.current.getAudioTracks().forEach((track) => {
+          track.enabled = !newMutedState;
+        });
+      }
+      if (p2pManagerRef.current.localStream) {
+        p2pManagerRef.current.localStream.getAudioTracks().forEach((track) => {
           track.enabled = !newMutedState;
         });
       }
@@ -2861,7 +2867,6 @@ const CallPopup = () => {
 
     // Handle SFU mute
     if (producerRef.current) {
-      const newMutedState = !isMuted;
       if (newMutedState) {
         producerRef.current.pause();
       } else {
@@ -2882,7 +2887,26 @@ const CallPopup = () => {
         detail: { muted: newMutedState },
       });
       window.dispatchEvent(event);
+      return;
     }
+
+    // Fallback: update local tracks even if manager/producer isn't ready
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach((track) => {
+        track.enabled = !newMutedState;
+      });
+    }
+    if (p2pManagerRef.current?.localStream) {
+      p2pManagerRef.current.localStream.getAudioTracks().forEach((track) => {
+        track.enabled = !newMutedState;
+      });
+    }
+    setIsMuted(newMutedState);
+    window.dispatchEvent(
+      new CustomEvent("call:muteStateUpdate", {
+        detail: { muted: newMutedState },
+      })
+    );
   };
 
   // Handle video toggle
@@ -2901,6 +2925,11 @@ const CallPopup = () => {
     }
     if (p2pManagerRef.current?.localStream) {
       p2pManagerRef.current.localStream.getVideoTracks().forEach((track) => {
+        track.enabled = newVideoState;
+      });
+    }
+    if (mediaStreams?.local) {
+      mediaStreams.local.getVideoTracks().forEach((track) => {
         track.enabled = newVideoState;
       });
     }

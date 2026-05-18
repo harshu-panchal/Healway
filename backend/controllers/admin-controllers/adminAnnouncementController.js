@@ -1,5 +1,69 @@
 const Announcement = require('../../models/Announcement');
+const Doctor = require('../../models/Doctor');
+const Patient = require('../../models/Patient');
 const asyncHandler = require('../../middleware/asyncHandler');
+const { getIO } = require('../../config/socket');
+const { sendPushNotification } = require('../../services/firebaseAdminService');
+
+const CHUNK_SIZE = 500;
+
+const chunkArray = (arr, size) => {
+  const chunks = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+};
+
+const collectUserTokens = (users = []) => {
+  const allTokens = users.flatMap((user) => [
+    ...(Array.isArray(user.fcmTokens) ? user.fcmTokens : []),
+    ...(Array.isArray(user.fcmTokenMobile) ? user.fcmTokenMobile : []),
+  ]);
+  return [...new Set(allTokens.filter(Boolean))];
+};
+
+const sendAnnouncementPushNotifications = async (announcement) => {
+  try {
+    const normalizedTargetType = announcement.targetType || 'all';
+    let tokens = [];
+
+    if (normalizedTargetType === 'doctors') {
+      const doctors = await Doctor.find({ isActive: { $ne: false } }).select('fcmTokens fcmTokenMobile');
+      tokens = collectUserTokens(doctors);
+    } else if (normalizedTargetType === 'patients') {
+      const patients = await Patient.find({ isActive: { $ne: false } }).select('fcmTokens fcmTokenMobile');
+      tokens = collectUserTokens(patients);
+    } else if (normalizedTargetType === 'specific_patients' && Array.isArray(announcement.targetPatients) && announcement.targetPatients.length > 0) {
+      const patients = await Patient.find({ _id: { $in: announcement.targetPatients }, isActive: { $ne: false } }).select('fcmTokens fcmTokenMobile');
+      tokens = collectUserTokens(patients);
+    } else {
+      const [doctors, patients] = await Promise.all([
+        Doctor.find({ isActive: { $ne: false } }).select('fcmTokens fcmTokenMobile'),
+        Patient.find({ isActive: { $ne: false } }).select('fcmTokens fcmTokenMobile'),
+      ]);
+      tokens = collectUserTokens([...doctors, ...patients]);
+    }
+
+    if (!tokens.length) return;
+
+    const payload = {
+      title: announcement.title || 'New Announcement',
+      body: announcement.content || 'You have a new announcement.',
+      data: {
+        type: 'announcement',
+        announcementId: announcement._id?.toString() || '',
+        targetType: announcement.targetType || 'all',
+      },
+      priority: announcement.priority || 'high',
+    };
+
+    const tokenChunks = chunkArray(tokens, CHUNK_SIZE);
+    await Promise.allSettled(tokenChunks.map((tokenChunk) => sendPushNotification(tokenChunk, payload)));
+  } catch (error) {
+    console.error('Failed to send announcement push notifications:', error.message);
+  }
+};
 
 // @desc    Get all announcements (for admin moderation)
 // @route   GET /api/admin/announcements
@@ -34,6 +98,46 @@ exports.createAdminAnnouncement = asyncHandler(async (req, res) => {
     expiryDate,
     image,
     approvalStatus: 'approved', // Admin announcements are auto-approved
+  });
+
+  // Real-time targeted announcement event
+  try {
+    const io = getIO();
+    const payload = {
+      announcement: {
+        _id: announcement._id,
+        title: announcement.title,
+        content: announcement.content,
+        senderRole: announcement.senderRole,
+        targetType: announcement.targetType,
+        priority: announcement.priority,
+        image: announcement.image || '',
+        createdAt: announcement.createdAt,
+      },
+    };
+
+    const normalizedTargetType = announcement.targetType || 'all';
+
+    if (normalizedTargetType === 'doctors') {
+      io.to('doctors').emit('announcement:new', payload);
+    } else if (normalizedTargetType === 'patients') {
+      io.to('patients').emit('announcement:new', payload);
+    } else if (normalizedTargetType === 'specific_patients' && Array.isArray(announcement.targetPatients)) {
+      announcement.targetPatients.forEach((patientId) => {
+        io.to(`patient-${patientId.toString()}`).emit('announcement:new', payload);
+      });
+    } else {
+      // both / all (and any fallback)
+      io.to('doctors').emit('announcement:new', payload);
+      io.to('patients').emit('announcement:new', payload);
+    }
+  } catch (socketError) {
+    console.error('Failed to emit announcement:new socket event:', socketError.message);
+  }
+
+  // Fire-and-forget push notifications to target audience
+  sendAnnouncementPushNotifications(announcement).catch((pushError) => {
+    console.error('Announcement push notification error (non-critical):', pushError.message);
   });
 
   res.status(201).json({

@@ -509,15 +509,6 @@ const PatientDashboard = () => {
               </button>
             </div>
           </div>
-          {/* Location Row */}
-          <div className="flex items-center gap-1.5">
-            <IoLocationOutline className="h-4 w-4 text-white" strokeWidth={2} />
-            <span className="text-xs font-normal text-white">
-              {profile?.address?.city && profile?.address?.state
-                ? `${profile.address.city}, ${profile.address.state}`
-                : profile?.address?.city || profile?.address?.state || profile?.address?.line1 || 'Location not set'}
-            </span>
-          </div>
         </div>
       </header>
 

@@ -109,7 +109,11 @@ const NotificationsPage = () => {
 
     // Only navigate if it's not the patient module or if the URL is not for appointments
     if (notification.actionUrl && (currentModule !== 'patient' || !notification.actionUrl.includes('appointment'))) {
-      navigate(notification.actionUrl)
+      let targetUrl = notification.actionUrl
+      if (currentModule === 'admin' && targetUrl.startsWith('/admin/support')) {
+        targetUrl = '/admin/support'
+      }
+      navigate(targetUrl)
     }
   }
 

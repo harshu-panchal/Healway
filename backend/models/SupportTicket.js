@@ -23,6 +23,18 @@ const supportTicketSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    contactNumber: {
+      type: String,
+      trim: true,
+    },
+    email: {
+      type: String,
+      trim: true,
+    },
+    clinicName: {
+      type: String,
+      trim: true,
+    },
     status: {
       type: String,
       enum: ['open', 'in_progress', 'resolved', 'closed'],

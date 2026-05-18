@@ -157,6 +157,7 @@ const DoctorAllConsultations = () => {
   // Get today's date for filtering
   const today = new Date()
   today.setHours(0, 0, 0, 0)
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   const tomorrow = new Date(today)
   tomorrow.setDate(tomorrow.getDate() + 1)
 
@@ -404,7 +405,14 @@ const DoctorAllConsultations = () => {
             <input
               type="date"
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              max={todayStr}
+              onChange={(e) => {
+                const pickedDate = e.target.value
+                if (pickedDate && pickedDate > todayStr) {
+                  return
+                }
+                setSelectedDate(pickedDate)
+              }}
               className="w-36 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-[rgba(0,119,194,0.3)]"
             />
           </div>

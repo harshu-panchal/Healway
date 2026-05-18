@@ -14,6 +14,7 @@ import { useToast } from '../../../contexts/ToastContext'
 import Pagination from '../../../components/Pagination'
 import { openDoctorBooking } from '../patient-utils/bookingNavigation'
 import { canBookDoctor, canShowDoctorProfile } from '../patient-utils/doctorAccess'
+import { getFileUrl } from '../../../utils/apiClient'
 
 const specialtyLabels = {
   'dentist': 'Dentist',
@@ -174,7 +175,9 @@ const PatientSpecialtyDoctors = () => {
             const consultationFee = doctor.consultationFee || 0
             const originalFees = doctor.original_fees || 0
             const discountAmount = doctor.discount_amount || 0
-            const profileImage = doctor.profileImage || doctor.image || ''
+            const placeholderImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(doctorName)}&background=0077C2&color=fff&size=200&bold=true`
+            const rawProfileImage = doctor.profileImage || doctor.image || ''
+            const profileImage = rawProfileImage ? getFileUrl(rawProfileImage) : placeholderImage
 
             return (
               <div
@@ -193,7 +196,7 @@ const PatientSpecialtyDoctors = () => {
                         loading="lazy"
                         onError={(e) => {
                           e.target.onerror = null
-                          e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(doctorName)}&background=0077C2&color=fff&size=200&bold=true`
+                          e.target.src = placeholderImage
                         }}
                       />
                       {doctor.isFeatured && (
