@@ -51,19 +51,39 @@ const mapBackendStatusToDisplay = (status, paymentStatus, paymentMethod) => {
   }
 };
 
-// Helper function to convert time to 12-hour format
-const convertTimeTo12Hour = (timeStr) => {
-  if (!timeStr) return "";
-  // If already in 12-hour format (contains AM/PM), return as is
-  if (timeStr.includes("AM") || timeStr.includes("PM")) {
-    return timeStr;
+// Helper function to convert time to 12-hour format (supports HH:mm, HH:mm:ss, and ISO date-time)
+const convertTimeTo12Hour = (value) => {
+  if (!value) return "";
+  const timeStr = String(value).trim();
+
+  // Already in 12-hour format
+  if (/am|pm/i.test(timeStr)) return timeStr.toUpperCase();
+
+  // If ISO/date-time string, parse via Date first
+  if (timeStr.includes("T") || timeStr.includes("-")) {
+    const dateObj = new Date(timeStr);
+    if (!Number.isNaN(dateObj.getTime())) {
+      return dateObj.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+    }
   }
-  // Convert 24-hour format to 12-hour format
-  const [hours, minutes] = timeStr.split(":").map(Number);
-  if (isNaN(hours) || isNaN(minutes)) return timeStr;
-  const period = hours >= 12 ? "PM" : "AM";
-  const hours12 = hours % 12 || 12;
-  return `${hours12}:${minutes.toString().padStart(2, "0")} ${period}`;
+
+  // Parse HH:mm or HH:mm:ss
+  const parts = timeStr.split(":");
+  if (parts.length >= 2) {
+    const hours = Number(parts[0]);
+    const minutes = Number(parts[1]);
+    if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
+      const period = hours >= 12 ? "PM" : "AM";
+      const hours12 = hours % 12 || 12;
+      return `${hours12}:${String(minutes).padStart(2, "0")} ${period}`;
+    }
+  }
+
+  return timeStr;
 };
 
 
@@ -444,6 +464,23 @@ const PatientAppointments = () => {
 
   const formatDate = (dateString) => {
     try {
+      if (!dateString) return "";
+
+      // Handle YYYY-MM-DD safely (without timezone shift)
+      const dateOnlyMatch = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (dateOnlyMatch) {
+        const year = Number(dateOnlyMatch[1]);
+        const month = Number(dateOnlyMatch[2]) - 1;
+        const day = Number(dateOnlyMatch[3]);
+        const date = new Date(year, month, day);
+        return date.toLocaleDateString("en-US", {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        });
+      }
+
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return dateString;
       return date.toLocaleDateString("en-US", {

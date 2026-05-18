@@ -4,6 +4,7 @@ const Doctor = require("../../models/Doctor");
 const WalletTransaction = require("../../models/WalletTransaction");
 const { getIO } = require("../../config/socket");
 const { calculateProviderEarning } = require("../../utils/commissionConfig");
+const { createAppointmentNotification } = require("../../services/notificationService");
 
 // GET /api/doctors/queue
 exports.getQueue = asyncHandler(async (req, res) => {
@@ -168,6 +169,23 @@ exports.updateQueueStatus = asyncHandler(async (req, res) => {
   }
 
   await appointment.save();
+
+  // Create patient notification when doctor confirms appointment
+  if (status === "confirmed" && previousStatus !== "confirmed") {
+    try {
+      const doctor = await Doctor.findById(id).select("firstName lastName");
+      await createAppointmentNotification({
+        userId: appointment.patientId,
+        userType: "patient",
+        appointment,
+        eventType: "confirmed",
+        doctor,
+        sendEmail: true,
+      });
+    } catch (error) {
+      console.error("Error creating appointment confirmed notification:", error);
+    }
+  }
 
   // Cache invalidation removed (Redis removed)
 

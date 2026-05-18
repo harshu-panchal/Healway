@@ -40,7 +40,7 @@ exports.getConsultations = asyncHandler(async (req, res) => {
         path: 'patientId',
         select: 'firstName lastName phone email profileImage dateOfBirth gender',
       })
-      .populate('appointmentId', 'appointmentDate time')
+      .populate('appointmentId', 'appointmentDate time reason patientType patientName patientEmail patientPhone patientAge patientGender')
       .sort({ consultationDate: -1 })
       .skip(skip)
       .limit(limit),
@@ -307,7 +307,7 @@ exports.getConsultationById = asyncHandler(async (req, res) => {
       path: 'patientId',
       select: 'firstName lastName phone email profileImage dateOfBirth gender bloodGroup',
     })
-    .populate('appointmentId', 'appointmentDate time reason')
+    .populate('appointmentId', 'appointmentDate time reason patientType patientName patientEmail patientPhone patientAge patientGender')
     .populate('prescriptionId');
 
   if (!consultation) {
@@ -357,7 +357,7 @@ exports.getAllConsultations = asyncHandler(async (req, res) => {
         path: 'patientId',
         select: 'firstName lastName phone email profileImage dateOfBirth gender',
       })
-      .populate('appointmentId', 'appointmentDate time')
+      .populate('appointmentId', 'appointmentDate time reason patientType patientName patientEmail patientPhone patientAge patientGender')
       .sort({ consultationDate: -1 })
       .skip(skip)
       .limit(limit),

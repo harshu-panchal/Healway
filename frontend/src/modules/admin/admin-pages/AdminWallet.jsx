@@ -73,6 +73,21 @@ const formatDate = (dateString) => {
   })
 }
 
+const shortenId = (value) => {
+  if (!value) return ''
+  const id = String(value)
+  if (id.length <= 12) return id
+  return `${id.slice(0, 6)}...${id.slice(-4)}`
+}
+
+const minimizeAppointmentIdText = (text, appointmentId) => {
+  if (!text) return 'Transaction'
+  if (!appointmentId) return text
+  const fullId = String(appointmentId)
+  const shortId = shortenId(fullId)
+  return text.replaceAll(fullId, shortId)
+}
+
 const getStatusBadge = (status) => {
   switch (status) {
     case 'pending':
@@ -338,13 +353,17 @@ const AdminWallet = () => {
           setTransactions(list.map(txn => ({
             id: txn._id || txn.id,
             transactionId: txn.transactionId || txn._id || txn.id,
+            appointmentId: txn.appointmentId?._id || txn.appointmentId?.id || txn.appointmentId || null,
             type: txn.type || 'payment',
             category: txn.category || '',
             providerName: txn.providerId?.name || txn.providerName || txn.patientName || (txn.patient?.firstName && txn.patient?.lastName ? `${txn.patient.firstName} ${txn.patient.lastName}` : '') || 'Provider',
             providerType: txn.providerType || txn.userType || 'patient',
             amount: Number(txn.amount || 0),
             status: txn.status || 'completed',
-            description: txn.description || txn.notes || 'Transaction',
+            description: minimizeAppointmentIdText(
+              txn.description || txn.notes || 'Transaction',
+              txn.appointmentId?._id || txn.appointmentId?.id || txn.appointmentId
+            ),
             createdAt: txn.createdAt || new Date().toISOString(),
             orderId: txn.orderId || txn.orderId?._id || null,
             patientName: txn.patientName || (txn.patient?.firstName && txn.patient?.lastName ? `${txn.patient.firstName} ${txn.patient.lastName}` : '') || (txn.userId?.firstName && txn.userId?.lastName ? `${txn.userId.firstName} ${txn.userId.lastName}` : '') || '',
@@ -1196,10 +1215,16 @@ const AdminWallet = () => {
                                     <IoReceiptOutline className="h-3.5 w-3.5" />
                                     <span>{transaction.transactionId}</span>
                                   </div>
+                                  {transaction.appointmentId && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="font-semibold">Apt:</span>
+                                      <span>{shortenId(transaction.appointmentId)}</span>
+                                    </div>
+                                  )}
                                   {transaction.orderId && (
                                     <div className="flex items-center gap-1">
                                       <span className="font-semibold">Order:</span>
-                                      <span>{transaction.orderId}</span>
+                                      <span>{shortenId(transaction.orderId)}</span>
                                     </div>
                                   )}
                                 </div>

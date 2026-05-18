@@ -5,6 +5,7 @@ const Appointment = require('../models/Appointment');
 const { buildAllowedOrigins, createCorsOriginChecker } = require('./cors');
 
 let io;
+const activeCalls = new Map();
 
 const initializeSocket = (server) => {
   const allowedOrigins = buildAllowedOrigins();
@@ -178,8 +179,18 @@ const initializeSocket = (server) => {
       // data: { callId, patientId, doctorName, ... }
       console.log('📞 Call Initiated:', data);
 
+      const normalizedCallId = data?.callId ? String(data.callId) : null;
       const normalizedPatientId = data?.patientId ? String(data.patientId) : null;
       const normalizedCallType = data?.callType === 'video' ? 'video' : 'audio';
+      const normalizedDoctorId = id ? String(id) : null;
+
+      if (normalizedCallId) {
+        activeCalls.set(normalizedCallId, {
+          patientId: normalizedPatientId,
+          doctorId: normalizedDoctorId,
+          initiatedAt: Date.now(),
+        });
+      }
 
       // Notify the patient
       if (normalizedPatientId) {
@@ -212,19 +223,52 @@ const initializeSocket = (server) => {
     socket.on('call:decline', ({ callId }) => {
       console.log('📞 Call Declined:', callId);
       io.to(`call-${callId}`).emit('call:declined', { callId });
+
+      const normalizedCallId = callId ? String(callId) : null;
+      if (normalizedCallId && activeCalls.has(normalizedCallId)) {
+        const callMeta = activeCalls.get(normalizedCallId);
+        if (callMeta?.doctorId) {
+          io.to(`doctor-${callMeta.doctorId}`).emit('call:declined', { callId });
+        }
+        if (callMeta?.patientId) {
+          io.to(`patient-${callMeta.patientId}`).emit('call:declined', { callId });
+        }
+        activeCalls.delete(normalizedCallId);
+      }
     });
 
     // 5. End Call
     socket.on('call:end', ({ callId }, callback) => {
       console.log('📞 Call Ended:', callId);
+      const normalizedCallId = callId ? String(callId) : null;
+      const callMeta = normalizedCallId ? activeCalls.get(normalizedCallId) : null;
+
       io.to(`call-${callId}`).emit('call:ended', {
         callId,
         endedById: id,
         endedByRole: role,
       });
 
+      if (callMeta?.patientId) {
+        io.to(`patient-${callMeta.patientId}`).emit('call:ended', {
+          callId,
+          endedById: id,
+          endedByRole: role,
+        });
+      }
+      if (callMeta?.doctorId) {
+        io.to(`doctor-${callMeta.doctorId}`).emit('call:ended', {
+          callId,
+          endedById: id,
+          endedByRole: role,
+        });
+      }
+
       // Leave room
       socket.leave(`call-${callId}`);
+      if (normalizedCallId) {
+        activeCalls.delete(normalizedCallId);
+      }
 
       if (callback) callback({ success: true });
     });
@@ -451,3 +495,4 @@ module.exports = {
   emitToRoom,
   emitToAll,
 };
+

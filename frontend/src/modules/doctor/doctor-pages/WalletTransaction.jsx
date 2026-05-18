@@ -43,6 +43,21 @@ const formatDateTime = (dateString) => {
   }
 }
 
+const shortenId = (value) => {
+  if (!value) return ''
+  const id = String(value)
+  if (id.length <= 12) return id
+  return `${id.slice(0, 6)}...${id.slice(-4)}`
+}
+
+const minimizeAppointmentIdText = (text, appointmentId) => {
+  if (!text) return 'Transaction'
+  if (!appointmentId) return text
+  const fullId = String(appointmentId)
+  const shortId = shortenId(fullId)
+  return text.replaceAll(fullId, shortId)
+}
+
 const WalletTransaction = () => {
   const navigate = useNavigate()
   const toast = useToast()
@@ -94,10 +109,14 @@ const WalletTransaction = () => {
           }) // Debug log
 
           const transformed = transactionsData.map(txn => ({
+            appointmentId: txn.appointmentId?._id || txn.appointmentId?.id || txn.appointmentId || null,
             id: txn._id || txn.id,
             type: txn.type || 'earning',
             amount: Number(txn.amount || 0),
-            description: txn.description || txn.notes || 'Transaction',
+            description: minimizeAppointmentIdText(
+              txn.description || txn.notes || 'Transaction',
+              txn.appointmentId?._id || txn.appointmentId?.id || txn.appointmentId
+            ),
             date: txn.createdAt || txn.date || new Date().toISOString(),
             status: txn.status || 'completed',
             category: txn.category || 'Transaction',
@@ -243,6 +262,11 @@ const WalletTransaction = () => {
                             <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 font-medium border border-slate-200">
                               {transaction.category}
                             </span>
+                            {transaction.appointmentId && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 font-medium border border-slate-200">
+                                Apt: {shortenId(transaction.appointmentId)}
+                              </span>
+                            )}
                             <span className="flex items-center gap-1">
                               <IoCalendarOutline className="h-3.5 w-3.5" />
                               {formatDateTime(transaction.date)}

@@ -36,6 +36,13 @@ const formatDate = (dateString) => {
   }).format(date)
 }
 
+const calculateAgeFromDOB = (dateOfBirth) => {
+  if (!dateOfBirth) return null
+  const dob = new Date(dateOfBirth)
+  if (Number.isNaN(dob.getTime())) return null
+  return Math.floor((new Date() - dob) / (365.25 * 24 * 60 * 60 * 1000))
+}
+
 const PatientPrescriptions = () => {
   const navigate = useNavigate()
   const toast = useToast()
@@ -66,6 +73,13 @@ const PatientPrescriptions = () => {
           const prescriptionsData = Array.isArray(response.data)
             ? response.data
             : response.data.items || response.data.prescriptions || []
+          const patientProfileRaw = localStorage.getItem('patientProfile') || sessionStorage.getItem('patientProfile') || '{}'
+          let profileFallback = {}
+          try {
+            profileFallback = JSON.parse(patientProfileRaw)
+          } catch (error) {
+            profileFallback = {}
+          }
 
           // Transform API data to match component structure
           const transformed = prescriptionsData.map(presc => ({
@@ -102,19 +116,22 @@ const PatientPrescriptions = () => {
                 return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0077C2&color=fff&size=128&bold=true`
               })(),
             } : (presc.doctor || {}),
-            patient: presc.patientId ? {
-              name: presc.patientId.firstName && presc.patientId.lastName
-                ? `${presc.patientId.firstName} ${presc.patientId.lastName}`
-                : presc.patientId.name || 'N/A',
-              dateOfBirth: presc.patientId.dateOfBirth || null,
-              age: presc.patientId.dateOfBirth
-                ? Math.floor((new Date() - new Date(presc.patientId.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000))
-                : null,
-              gender: presc.patientId.gender || 'N/A',
-              phone: presc.patientId.phone || 'N/A',
-              email: presc.patientId.email || '',
-              address: presc.patientId.address || null,
-            } : null,
+            patient: (() => {
+              const patientSource = presc.patientId || profileFallback
+              if (!patientSource || Object.keys(patientSource).length === 0) return null
+
+              return {
+                name: patientSource.firstName && patientSource.lastName
+                  ? `${patientSource.firstName} ${patientSource.lastName}`
+                  : patientSource.name || 'N/A',
+                dateOfBirth: patientSource.dateOfBirth || null,
+                age: patientSource.age || calculateAgeFromDOB(patientSource.dateOfBirth),
+                gender: patientSource.gender || 'N/A',
+                phone: patientSource.phone || 'N/A',
+                email: patientSource.email || '',
+                address: patientSource.address || null,
+              }
+            })(),
             issuedAt: presc.createdAt ? new Date(presc.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
             status: presc.status || 'active',
             // Get diagnosis, symptoms, investigations from consultationId if available
@@ -309,22 +326,29 @@ const PatientPrescriptions = () => {
     const issuedDate = formatDate(prescriptionData.issuedAt)
     doc.text(`Date: ${issuedDate}`, margin, yPos + 6)
 
-    // Patient Info (Right) - Get from prescriptionData.patient first, then originalData
+    // Patient Info (Right) - Get from prescriptionData.patient first, then originalData, then logged-in profile
     let patientYPos = yPos
-    const patient = prescriptionData.patient || prescriptionData.originalData?.patientId
+    const patientProfileRaw = localStorage.getItem('patientProfile') || sessionStorage.getItem('patientProfile') || '{}'
+    let patientProfile = {}
+    try {
+      patientProfile = JSON.parse(patientProfileRaw)
+    } catch (error) {
+      patientProfile = {}
+    }
+    const patient = prescriptionData.patient || prescriptionData.originalData?.patientId || patientProfile
     const patientName = patient?.name || (patient?.firstName && patient?.lastName
       ? `${patient.firstName} ${patient.lastName}`
       : 'N/A')
     doc.text(`Name: ${patientName}`, pageWidth - margin, patientYPos, { align: 'right' })
     patientYPos += 3
 
-    const patientAge = patient?.age || (patient?.dateOfBirth
-      ? Math.floor((new Date() - new Date(patient.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000))
-      : null)
+    const patientAge = patient?.age || calculateAgeFromDOB(patient?.dateOfBirth)
     doc.text(`Age: ${patientAge ? `${patientAge} years` : 'N/A'}`, pageWidth - margin, patientYPos, { align: 'right' })
     patientYPos += 3
 
-    const patientGender = patient?.gender || 'N/A'
+    const patientGender = patient?.gender
+      ? `${patient.gender}`.charAt(0).toUpperCase() + `${patient.gender}`.slice(1).toLowerCase()
+      : 'N/A'
     doc.text(`Gender: ${patientGender}`, pageWidth - margin, patientYPos, { align: 'right' })
     patientYPos += 3
 

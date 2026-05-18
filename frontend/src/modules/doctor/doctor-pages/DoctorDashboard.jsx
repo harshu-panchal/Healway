@@ -246,9 +246,11 @@ const DoctorDashboard = () => {
             isRescheduled: !!apt.rescheduledAt,
             id: apt._id || apt.id,
             patientId: apt.patientId?._id || apt.patientId || 'pat-unknown',
-            patientName: apt.patientId?.firstName && apt.patientId?.lastName
-              ? `${apt.patientId.firstName} ${apt.patientId.lastName}`
-              : apt.patientId?.name || apt.patientName || 'Unknown Patient',
+            patientName: apt.patientType === 'Else' && apt.patientName
+              ? apt.patientName
+              : apt.patientId?.firstName && apt.patientId?.lastName
+                ? `${apt.patientId.firstName} ${apt.patientId.lastName}`
+                : apt.patientId?.name || apt.patientName || 'Unknown Patient',
             patientImage: apt.patientId?.profileImage ? getFileUrl(apt.patientId.profileImage) : (apt.patientImage ? getFileUrl(apt.patientImage) : `https://ui-avatars.com/api/?name=${encodeURIComponent(apt.patientId?.firstName || apt.patientName || 'Patient')}&background=0077C2&color=fff&size=160`),
             date: apt.appointmentDate || apt.date || getTodayDateString(),
             time: apt.time || apt.slotTime || '10:00 AM',
@@ -270,8 +272,12 @@ const DoctorDashboard = () => {
             duration: apt.duration || '30 min',
             reason: apt.reason || apt.consultationReason || 'Consultation',
             appointmentType: apt.appointmentType || 'New',
-            patientPhone: apt.patientId?.phone || apt.patientPhone || '',
-            patientEmail: apt.patientId?.email || apt.patientEmail || '',
+            patientPhone: apt.patientType === 'Else'
+              ? (apt.patientPhone || apt.patientId?.phone || '')
+              : (apt.patientId?.phone || apt.patientPhone || ''),
+            patientEmail: apt.patientType === 'Else'
+              ? (apt.patientEmail || apt.patientId?.email || '')
+              : (apt.patientId?.email || apt.patientEmail || ''),
             patientAddress: apt.patientId?.address
               ? [
                 apt.patientId.address.line1,
@@ -297,7 +303,9 @@ const DoctorDashboard = () => {
               }
               return apt.patientId?.age || apt.age || null
             })(),
-            gender: apt.patientId?.gender || apt.gender || '',
+            gender: apt.patientType === 'Else'
+              ? (apt.patientGender || apt.gender || apt.patientId?.gender || '')
+              : (apt.patientId?.gender || apt.patientGender || apt.gender || ''),
             originalData: apt,
           }))
 

@@ -87,7 +87,7 @@ const CallPopup = () => {
         localVideoRef.current.play().catch(e => console.warn("Local Video auto-play prevented:", e));
       }
     }
-  }, [mediaStreams, isVideoCall, status]); // Re-run when streams, mode or status changes
+  }, [mediaStreams, isVideoCall, isVideoEnabled, status]); // Re-run when streams, mode, local video state, or status changes
 
   // Determine active module with stable priority:
   // 1) Route path
@@ -392,7 +392,7 @@ const CallPopup = () => {
       }
 
       // Keep local microphone enabled (P2P)
-      if (p2pManagerRef.current && p2pManagerRef.current.localStream) {
+      if (p2pManagerRef.current && p2pManagerRef.current.localStream && !isMuted) {
         p2pManagerRef.current.localStream.getAudioTracks().forEach((track) => {
           if (!track.enabled) {
             console.log("📞 [CallPopup] Re-enabling local audio track");
@@ -412,7 +412,7 @@ const CallPopup = () => {
       }
 
       // Keep producer track enabled (SFU)
-      if (producerRef.current && producerRef.current.track) {
+      if (producerRef.current && producerRef.current.track && !isMuted) {
         if (!producerRef.current.track.enabled) {
           console.log("📞 [CallPopup] Re-enabling producer track");
           producerRef.current.track.enabled = true;
@@ -429,7 +429,7 @@ const CallPopup = () => {
     return () => {
       clearInterval(interval);
     };
-  }, [isMinimized, status]);
+  }, [isMinimized, status, isMuted]);
 
   // Function to switch from P2P to SFU when P2P fails
   const switchToSFU = async () => {
@@ -2844,6 +2844,11 @@ const CallPopup = () => {
     if (p2pManagerRef.current) {
       const newMutedState = !isMuted;
       p2pManagerRef.current.setMuted(newMutedState);
+      if (localStreamRef.current && !isMuted) {
+        localStreamRef.current.getAudioTracks().forEach((track) => {
+          track.enabled = !newMutedState;
+        });
+      }
       setIsMuted(newMutedState);
 
       // Notify DoctorCallStatus of mute state change
@@ -2861,6 +2866,14 @@ const CallPopup = () => {
         producerRef.current.pause();
       } else {
         producerRef.current.resume();
+      }
+      if (producerRef.current.track) {
+        producerRef.current.track.enabled = !newMutedState;
+      }
+      if (localStreamRef.current) {
+        localStreamRef.current.getAudioTracks().forEach((track) => {
+          track.enabled = !newMutedState;
+        });
       }
       setIsMuted(newMutedState);
 
@@ -2881,28 +2894,48 @@ const CallPopup = () => {
     if (p2pManagerRef.current) {
       p2pManagerRef.current.setVideoEnabled(newVideoState);
     }
-    // Note: SFU video toggle would go here if implemented
+    if (localStreamRef.current) {
+      localStreamRef.current.getVideoTracks().forEach((track) => {
+        track.enabled = newVideoState;
+      });
+    }
+    if (p2pManagerRef.current?.localStream) {
+      p2pManagerRef.current.localStream.getVideoTracks().forEach((track) => {
+        track.enabled = newVideoState;
+      });
+    }
   };
 
   // Listen for mute toggle events from DoctorCallStatus
   useEffect(() => {
     const handleMuteToggleEvent = (event) => {
       const { muted } = event.detail;
+      if (p2pManagerRef.current) {
+        p2pManagerRef.current.setMuted(muted);
+      }
       if (producerRef.current) {
         if (muted) {
           producerRef.current.pause();
         } else {
           producerRef.current.resume();
         }
-        setIsMuted(muted);
+        if (producerRef.current.track) {
+          producerRef.current.track.enabled = !muted;
+        }
       }
+      if (localStreamRef.current) {
+        localStreamRef.current.getAudioTracks().forEach((track) => {
+          track.enabled = !muted;
+        });
+      }
+      setIsMuted(muted);
     };
 
     window.addEventListener("call:muteToggle", handleMuteToggleEvent);
     return () => {
       window.removeEventListener("call:muteToggle", handleMuteToggleEvent);
     };
-  }, [isMuted]);
+  }, []);
 
   // Backup mechanism: Ensure audio element has srcObject when consumer is ready
   // This runs periodically to catch cases where the initial setup might have failed
@@ -3491,3 +3524,4 @@ const CallPopup = () => {
 };
 
 export default CallPopup;
+

@@ -235,6 +235,7 @@ const DoctorAppointments = () => {
             }
 
             return {
+              isBookingForElse: apt.patientType === "Else",
               id: apt._id || apt.id,
               _id: apt._id || apt.id,
               patientId:
@@ -243,9 +244,11 @@ const DoctorAppointments = () => {
                 apt.patientId ||
                 "pat-unknown",
               patientName:
-                apt.patientId?.firstName && apt.patientId?.lastName
-                  ? `${apt.patientId.firstName} ${apt.patientId.lastName}`
-                  : apt.patientId?.name || apt.patientName || "Unknown Patient",
+                apt.patientType === "Else" && apt.patientName
+                  ? apt.patientName
+                  : apt.patientId?.firstName && apt.patientId?.lastName
+                    ? `${apt.patientId.firstName} ${apt.patientId.lastName}`
+                    : apt.patientId?.name || apt.patientName || "Unknown Patient",
               patientImage:
                 apt.patientId?.profileImage ||
                 apt.patientId?.image ||
@@ -271,8 +274,14 @@ const DoctorAppointments = () => {
               duration: apt.duration || "30 min",
               reason: apt.reason || apt.chiefComplaint || "Consultation",
               appointmentType: apt.appointmentType || "New",
-              patientPhone: apt.patientId?.phone || apt.patientPhone || "",
-              patientEmail: apt.patientId?.email || apt.patientEmail || "",
+              patientPhone:
+                apt.patientType === "Else"
+                  ? (apt.patientPhone || apt.patientId?.phone || "")
+                  : (apt.patientId?.phone || apt.patientPhone || ""),
+              patientEmail:
+                apt.patientType === "Else"
+                  ? (apt.patientEmail || apt.patientId?.email || "")
+                  : (apt.patientId?.email || apt.patientEmail || ""),
               patientAddress: apt.patientId?.address
                 ? [
                   apt.patientId.address.line1,
@@ -286,8 +295,14 @@ const DoctorAppointments = () => {
                   .join(", ")
                   .trim() || "Not provided"
                 : apt.patientAddress || "Not provided",
-              age: apt.patientId?.age || apt.age || 30,
-              gender: apt.patientId?.gender || apt.gender || "male",
+              age:
+                apt.patientType === "Else"
+                  ? (apt.patientAge || apt.age || apt.patientId?.age || 30)
+                  : (apt.patientId?.age || apt.patientAge || apt.age || 30),
+              gender:
+                apt.patientType === "Else"
+                  ? (apt.patientGender || apt.gender || apt.patientId?.gender || "male")
+                  : (apt.patientId?.gender || apt.patientGender || apt.gender || "male"),
               rescheduledAt: apt.rescheduledAt,
               rescheduledBy: apt.rescheduledBy,
               rescheduleReason: apt.rescheduleReason,
@@ -831,17 +846,8 @@ const DoctorAppointments = () => {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-[rgba(0,119,194,0.3)]"
+              className="w-36 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-[rgba(0,119,194,0.3)]"
             />
-            {selectedDate && (
-              <button
-                type="button"
-                onClick={() => setSelectedDate("")}
-                className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Clear
-              </button>
-            )}
           </div>
         </div>
 

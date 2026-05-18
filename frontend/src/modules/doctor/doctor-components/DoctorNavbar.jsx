@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   IoHomeOutline,
@@ -32,6 +32,7 @@ const navbarItems = allNavItems.filter((item) => item.id !== 'support' && item.i
 
 const DoctorNavbar = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false)
   const toggleButtonRef = useRef(null)
   const navigate = useNavigate()
   const location = useLocation()
@@ -111,6 +112,35 @@ const DoctorNavbar = () => {
     }, 500)
   }
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const MIN_KEYBOARD_HEIGHT = 150
+    let baselineHeight = window.visualViewport?.height || window.innerHeight
+
+    const updateKeyboardState = () => {
+      const currentHeight = window.visualViewport?.height || window.innerHeight
+      const heightDiff = baselineHeight - currentHeight
+      const keyboardVisible = heightDiff > MIN_KEYBOARD_HEIGHT && currentHeight < baselineHeight * 0.85
+
+      setIsKeyboardOpen(keyboardVisible)
+
+      if (!keyboardVisible) {
+        baselineHeight = currentHeight
+      }
+    }
+
+    window.addEventListener('resize', updateKeyboardState)
+    window.visualViewport?.addEventListener('resize', updateKeyboardState)
+    window.addEventListener('orientationchange', updateKeyboardState)
+
+    return () => {
+      window.removeEventListener('resize', updateKeyboardState)
+      window.visualViewport?.removeEventListener('resize', updateKeyboardState)
+      window.removeEventListener('orientationchange', updateKeyboardState)
+    }
+  }, [])
+
   return (
     <>
       {!isDashboardPage && !isLoginPage && (
@@ -171,7 +201,7 @@ const DoctorNavbar = () => {
         onLogout={handleLogout}
       />
 
-      {!isLoginPage && (
+      {!isLoginPage && !isKeyboardOpen && (
         <nav className="fixed inset-x-0 bottom-0 z-50 flex items-center justify-around gap-1 border-t border-slate-200 bg-white/95 px-3 pt-2 pb-[calc(0.5rem+var(--app-safe-bottom))] backdrop-blur md:hidden">
           {bottomNavbarItems.map(({ id, label, to, Icon }) => (
             <NavLink

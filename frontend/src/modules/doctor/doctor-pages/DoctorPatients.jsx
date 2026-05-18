@@ -6,6 +6,7 @@ import {
   getPatientById,
   getPatientHistory,
   updateQueueStatus,
+  markAppointmentAsPaid,
 } from '../doctor-services/doctorService'
 import { useToast } from '../../../contexts/ToastContext'
 import { getSocket } from '../../../utils/socketClient'
@@ -94,6 +95,10 @@ const DoctorPatients = () => {
           appointmentDate: appt.appointmentDate || appt.date,
           appointmentType: appt.appointmentType || appt.type || 'New',
           consultationMode: appt.consultationMode || 'in_person',
+          paymentStatus: appt.paymentStatus || 'pending',
+          paidAmount: appt.paidAmount || 0,
+          remainingAmount: appt.remainingAmount ?? appt.fee ?? 0,
+          fee: appt.fee || 0,
           status: appt.status || 'waiting',
           queueStatus: appt.queueStatus || appt.status || 'waiting',
           queueNumber: appt.tokenNumber || appt.queueNumber || 0,
@@ -227,6 +232,22 @@ const DoctorPatients = () => {
   const handleViewHistory = (appointment) => {
     setSelectedPatient(appointment)
     setShowHistoryModal(true)
+  }
+
+  const handleMarkPaid = async (appointmentId) => {
+    try {
+      const response = await markAppointmentAsPaid(appointmentId)
+      if (response) {
+        toast.success('Payment marked as paid')
+        fetchAppointments()
+      } else {
+        toast.error(response?.message || 'Failed to update payment status')
+      }
+    } catch (error) {
+      console.error('Error marking payment as paid:', error)
+      const message = error?.response?.data?.message || error?.message || 'Failed to update payment status'
+      toast.error(message)
+    }
   }
 
   // Load patient history when patient is selected
@@ -384,6 +405,16 @@ const DoctorPatients = () => {
                         Cancelled
                       </span>
                     )}
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${appointment.paymentStatus === 'paid' || appointment.paymentStatus === 'free'
+                        ? 'border-emerald-300 bg-emerald-100 text-emerald-700'
+                        : 'border-amber-300 bg-amber-100 text-amber-700'
+                        }`}
+                    >
+                      {appointment.paymentStatus === 'paid' || appointment.paymentStatus === 'free'
+                        ? 'Payment: Paid'
+                        : 'Payment: Not Paid'}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-1.5 flex-wrap mt-2">
@@ -415,6 +446,18 @@ const DoctorPatients = () => {
                       <IoDocumentTextOutline className="h-3.5 w-3.5" />
                       History
                     </button>
+                    {appointment.consultationMode?.toLowerCase() === 'in_person' &&
+                      appointment.paymentStatus === 'pending' &&
+                      appointment.status !== 'cancelled' &&
+                      (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkPaid(appointment.id)}
+                          className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 active:scale-95"
+                        >
+                          Mark Paid (Clinic)
+                        </button>
+                      )}
                   </div>
                 </div>
               </div>

@@ -12,6 +12,36 @@ const { uploadFromBuffer } = require('./fileUploadService');
 const generatePrescriptionPDF = async (prescriptionData, doctorData, patientData) => {
   return new Promise(async (resolve, reject) => {
     try {
+      const getPatientDisplayName = () => {
+        if (patientData?.name && String(patientData.name).trim()) {
+          return String(patientData.name).trim();
+        }
+        const first = patientData?.firstName ? String(patientData.firstName).trim() : '';
+        const last = patientData?.lastName ? String(patientData.lastName).trim() : '';
+        const full = `${first} ${last}`.trim();
+        return full || 'Patient';
+      };
+
+      const getPatientAge = () => {
+        if (patientData?.age !== undefined && patientData?.age !== null && String(patientData.age).trim() !== '') {
+          return Number(patientData.age);
+        }
+        if (patientData?.dateOfBirth) {
+          const age = Math.floor((new Date() - new Date(patientData.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000));
+          if (!Number.isNaN(age) && age >= 0) return age;
+        }
+        return null;
+      };
+
+      const getPatientGender = () => {
+        if (!patientData?.gender) return 'N/A';
+        return String(patientData.gender);
+      };
+
+      const patientDisplayName = getPatientDisplayName();
+      const patientAge = getPatientAge();
+      const patientGender = getPatientGender();
+
       // Enable bufferPages to support total page count
       const doc = new PDFDocument({ margin: 50, bufferPages: true });
       const chunks = [];
@@ -29,7 +59,7 @@ const generatePrescriptionPDF = async (prescriptionData, doctorData, patientData
           // Add simplified header on new pages
           let newY = 50;
           doc.fontSize(10).font('Helvetica-Bold').fillColor(150, 150, 150).text('Prescription Continuation', 50, newY, { align: 'center' });
-          doc.fontSize(8).font('Helvetica').text(`Patient: ${patientData.firstName} ${patientData.lastName}`, 50, newY + 15, { align: 'center' });
+          doc.fontSize(8).font('Helvetica').text(`Patient: ${patientDisplayName}`, 50, newY + 15, { align: 'center' });
 
           // Reset stroke/fill colors
           doc.strokeColor(0, 0, 0).fillColor(0, 0, 0);
@@ -89,14 +119,11 @@ const generatePrescriptionPDF = async (prescriptionData, doctorData, patientData
       const patientYPos = startInfoY; // Align tops
       doc.fontSize(12).font('Helvetica-Bold').text('Patient Information', 400, patientYPos);
       let currentPatientY = patientYPos + 15;
-      doc.fontSize(10).font('Helvetica').text(`Name: ${patientData.firstName} ${patientData.lastName}`, 400, currentPatientY);
+      doc.fontSize(10).font('Helvetica').text(`Name: ${patientDisplayName}`, 400, currentPatientY);
       currentPatientY += 12;
-      if (patientData.dateOfBirth) {
-        const age = Math.floor((new Date() - new Date(patientData.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000));
-        doc.text(`Age: ${age} years`, 400, currentPatientY);
-        currentPatientY += 12;
-      }
-      doc.text(`Gender: ${patientData.gender || 'N/A'}`, 400, currentPatientY);
+      doc.text(`Age: ${patientAge !== null ? `${patientAge} years` : 'N/A'}`, 400, currentPatientY);
+      currentPatientY += 12;
+      doc.text(`Gender: ${patientGender}`, 400, currentPatientY);
       currentPatientY += 12;
       if (patientData.phone) {
         doc.text(`Phone: ${patientData.phone}`, 400, currentPatientY);

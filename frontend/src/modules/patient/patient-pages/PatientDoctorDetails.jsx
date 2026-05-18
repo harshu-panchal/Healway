@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -376,6 +376,26 @@ const calculateApproxTime = (startTime, tokenNumber, avgMinutes = 20) => {
 };
 
 const PatientDoctorDetails = () => {
+  const bookingModalScrollRef = useRef(null);
+
+  const handleBookingFieldFocus = useCallback((event) => {
+    const scrollContainer = bookingModalScrollRef.current;
+    if (!scrollContainer) return;
+
+    const targetElement =
+      event?.target?.closest?.(".booking-scroll-target") || event?.target;
+    if (!targetElement || typeof targetElement.scrollIntoView !== "function") return;
+
+    // Delay ensures viewport has resized after mobile keyboard open.
+    setTimeout(() => {
+      targetElement.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+    }, 140);
+  }, []);
+
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -3297,7 +3317,10 @@ const PatientDoctorDetails = () => {
             </div>
           </div>
 
-          <div className="px-4 sm:px-6 py-4 overflow-y-auto">
+          <div
+            ref={bookingModalScrollRef}
+            className="px-4 sm:px-6 py-4 overflow-y-auto"
+          >
             <div className="mb-6 px-0 sm:px-4">
               <style>
                 {`
@@ -3411,7 +3434,7 @@ const PatientDoctorDetails = () => {
                         </h4>
                       </div>
 
-                      <div>
+                      <div className="booking-scroll-target">
                         <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide">
                           Full Name <span className="text-rose-500">*</span>
                         </label>
@@ -3420,11 +3443,12 @@ const PatientDoctorDetails = () => {
                           name="name"
                           value={guestDetails.name}
                           onChange={handleGuestDetailsChange}
+                          onFocus={handleBookingFieldFocus}
                           className="rounded-lg py-2"
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
-                        <div>
+                        <div className="booking-scroll-target">
                           <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide">
                             Age <span className="text-rose-500">*</span>
                           </label>
@@ -3434,10 +3458,11 @@ const PatientDoctorDetails = () => {
                             name="age"
                             value={guestDetails.age}
                             onChange={handleGuestDetailsChange}
+                            onFocus={handleBookingFieldFocus}
                             className="rounded-lg py-2"
                           />
                         </div>
-                        <div>
+                        <div className="booking-scroll-target">
                           <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide">
                             Gender
                           </label>
@@ -3450,6 +3475,7 @@ const PatientDoctorDetails = () => {
                                 gender: e.target.value,
                               }))
                             }
+                            onFocus={handleBookingFieldFocus}
                             className="flex gap-2 text-xs h-[38px] items-center"
                           >
                             <Radio value="Male">Male</Radio>
@@ -3457,7 +3483,7 @@ const PatientDoctorDetails = () => {
                           </Radio.Group>
                         </div>
                       </div>
-                      <div>
+                      <div className="booking-scroll-target">
                         <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide">
                           Phone Number <span className="text-rose-500">*</span>
                         </label>
@@ -3466,10 +3492,11 @@ const PatientDoctorDetails = () => {
                           name="phone"
                           value={guestDetails.phone}
                           onChange={handleGuestDetailsChange}
+                          onFocus={handleBookingFieldFocus}
                           className="rounded-lg py-2"
                         />
                       </div>
-                      <div>
+                      <div className="booking-scroll-target">
                         <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide">
                           Email
                           <span className="text-slate-400 font-normal ml-1 lowercase tracking-normal">
@@ -3481,6 +3508,7 @@ const PatientDoctorDetails = () => {
                           name="email"
                           value={guestDetails.email}
                           onChange={handleGuestDetailsChange}
+                          onFocus={handleBookingFieldFocus}
                           className="rounded-lg py-2"
                         />
                       </div>

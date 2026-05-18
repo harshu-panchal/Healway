@@ -177,16 +177,27 @@ const DoctorConsultations = () => {
       formattedAddress = cons.patientAddress
     }
 
+    const isElseBooking = cons.patientType === 'Else' || cons.appointmentId?.patientType === 'Else'
+    const elseName = cons.patientName || cons.appointmentId?.patientName
+    const elsePhone = cons.patientPhone || cons.appointmentId?.patientPhone
+    const elseEmail = cons.patientEmail || cons.appointmentId?.patientEmail
+    const elseAge = cons.patientAge || cons.appointmentId?.patientAge
+    const elseGender = cons.patientGender || cons.appointmentId?.patientGender
+
     return {
       id: cons._id || cons.id,
       _id: cons._id || cons.id,
       appointmentId: cons.appointmentId?._id || cons.appointmentId?.id || cons.appointmentId, // Ensure appointmentId is passed
       patientId: cons.patientId?._id || cons.patientId?.id || cons.patientId || 'pat-unknown',
-      patientName: cons.patientId?.firstName && cons.patientId?.lastName
-        ? `${cons.patientId.firstName} ${cons.patientId.lastName}`
-        : cons.patientId?.name || cons.patientName || 'Unknown Patient',
-      age: calculatedAge,
-      gender: cons.patientId?.gender || cons.gender || 'male',
+      patientName: isElseBooking && elseName
+        ? elseName
+        : cons.patientId?.firstName && cons.patientId?.lastName
+          ? `${cons.patientId.firstName} ${cons.patientId.lastName}`
+          : cons.patientId?.name || cons.patientName || 'Unknown Patient',
+      age: isElseBooking ? (elseAge || calculatedAge) : calculatedAge,
+      gender: isElseBooking
+        ? (elseGender || cons.gender || cons.patientId?.gender || 'male')
+        : (cons.patientId?.gender || elseGender || cons.gender || 'male'),
       appointmentTime: (() => {
         if (cons.appointmentId?.appointmentDate) {
           const dateStr = typeof cons.appointmentId.appointmentDate === 'string'
@@ -234,8 +245,12 @@ const DoctorConsultations = () => {
       status: cons.status || 'pending',
       reason: cons.chiefComplaint || cons.reason || 'Consultation',
       patientImage: cons.patientId?.profileImage || cons.patientId?.image || cons.patientImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(cons.patientId?.firstName || 'Patient')}&background=0077C2&color=fff&size=160`,
-      patientPhone: cons.patientId?.phone || cons.patientPhone || '',
-      patientEmail: cons.patientId?.email || cons.patientEmail || '',
+      patientPhone: isElseBooking
+        ? (elsePhone || cons.patientId?.phone || '')
+        : (cons.patientId?.phone || elsePhone || ''),
+      patientEmail: isElseBooking
+        ? (elseEmail || cons.patientId?.email || '')
+        : (cons.patientId?.email || elseEmail || ''),
       patientAddress: formattedAddress,
       diagnosis: cons.diagnosis || '',
       vitals: cons.vitals || {},
@@ -868,20 +883,30 @@ const DoctorConsultations = () => {
                 // IMPORTANT: Store appointmentId so it can be used later for saving vitals
                 appointmentId: calledAppointment._id || calledAppointment.id,
                 appointmentIdObj: { _id: calledAppointment._id || calledAppointment.id },
-                patientName: fullPatientData?.firstName && fullPatientData?.lastName
-                  ? `${fullPatientData.firstName} ${fullPatientData.lastName}`
-                  : (calledAppointment.patientId?.firstName && calledAppointment.patientId?.lastName
-                    ? `${calledAppointment.patientId.firstName} ${calledAppointment.patientId.lastName}`
-                    : calledAppointment.patientName || 'Patient'),
-                age: patientAge,
-                gender: fullPatientData?.gender || calledAppointment.patientId?.gender || calledAppointment.gender || 'M',
+                patientName: calledAppointment.patientType === 'Else' && calledAppointment.patientName
+                  ? calledAppointment.patientName
+                  : fullPatientData?.firstName && fullPatientData?.lastName
+                    ? `${fullPatientData.firstName} ${fullPatientData.lastName}`
+                    : (calledAppointment.patientId?.firstName && calledAppointment.patientId?.lastName
+                      ? `${calledAppointment.patientId.firstName} ${calledAppointment.patientId.lastName}`
+                      : calledAppointment.patientName || 'Patient'),
+                age: calledAppointment.patientType === 'Else'
+                  ? (calledAppointment.patientAge || patientAge)
+                  : patientAge,
+                gender: calledAppointment.patientType === 'Else'
+                  ? (calledAppointment.patientGender || calledAppointment.gender || fullPatientData?.gender || calledAppointment.patientId?.gender || 'M')
+                  : (fullPatientData?.gender || calledAppointment.patientId?.gender || calledAppointment.gender || 'M'),
                 appointmentTime: calledAppointment.appointmentDate || new Date().toISOString(),
                 appointmentType: calledAppointment.appointmentType || 'Follow-up',
                 status: 'in-progress',
                 reason: calledAppointment.reason || 'Consultation',
                 patientImage: fullPatientData?.profileImage || calledAppointment.patientId?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(calledAppointment.patientName || 'Patient')}&background=0077C2&color=fff&size=160`,
-                patientPhone: fullPatientData?.phone || calledAppointment.patientId?.phone || '',
-                patientEmail: fullPatientData?.email || calledAppointment.patientId?.email || '',
+                patientPhone: calledAppointment.patientType === 'Else'
+                  ? (calledAppointment.patientPhone || fullPatientData?.phone || calledAppointment.patientId?.phone || '')
+                  : (fullPatientData?.phone || calledAppointment.patientId?.phone || ''),
+                patientEmail: calledAppointment.patientType === 'Else'
+                  ? (calledAppointment.patientEmail || fullPatientData?.email || calledAppointment.patientId?.email || '')
+                  : (fullPatientData?.email || calledAppointment.patientId?.email || ''),
                 patientAddress: formattedAddress,
                 diagnosis: selectedConsultation?.diagnosis || '',
                 symptoms: selectedConsultation?.symptoms || '',
@@ -1108,20 +1133,30 @@ const DoctorConsultations = () => {
             // IMPORTANT: Store appointmentId so it can be used later for saving vitals
             appointmentId: appointment._id || appointment.id,
             appointmentIdObj: { _id: appointment._id || appointment.id },
-            patientName: fullPatientData?.firstName && fullPatientData?.lastName
-              ? `${fullPatientData.firstName} ${fullPatientData.lastName}`
-              : (appointment.patientId?.firstName && appointment.patientId?.lastName
-                ? `${appointment.patientId.firstName} ${appointment.patientId.lastName}`
-                : appointment.patientName || 'Patient'),
-            age: patientAge,
-            gender: fullPatientData?.gender || appointment.patientId?.gender || appointment.gender || 'M',
+            patientName: appointment.patientType === 'Else' && appointment.patientName
+              ? appointment.patientName
+              : fullPatientData?.firstName && fullPatientData?.lastName
+                ? `${fullPatientData.firstName} ${fullPatientData.lastName}`
+                : (appointment.patientId?.firstName && appointment.patientId?.lastName
+                  ? `${appointment.patientId.firstName} ${appointment.patientId.lastName}`
+                  : appointment.patientName || 'Patient'),
+            age: appointment.patientType === 'Else'
+              ? (appointment.patientAge || patientAge)
+              : patientAge,
+            gender: appointment.patientType === 'Else'
+              ? (appointment.patientGender || appointment.gender || fullPatientData?.gender || appointment.patientId?.gender || 'M')
+              : (fullPatientData?.gender || appointment.patientId?.gender || appointment.gender || 'M'),
             appointmentTime: appointment.appointmentDate || new Date().toISOString(),
             appointmentType: appointment.appointmentType || 'Follow-up',
             status: 'in-progress',
             reason: appointment.reason || 'Consultation',
             patientImage: fullPatientData?.profileImage || appointment.patientId?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(appointment.patientName || 'Patient')}&background=0077C2&color=fff&size=160`,
-            patientPhone: fullPatientData?.phone || appointment.patientId?.phone || '',
-            patientEmail: fullPatientData?.email || appointment.patientId?.email || '',
+            patientPhone: appointment.patientType === 'Else'
+              ? (appointment.patientPhone || fullPatientData?.phone || appointment.patientId?.phone || '')
+              : (fullPatientData?.phone || appointment.patientId?.phone || ''),
+            patientEmail: appointment.patientType === 'Else'
+              ? (appointment.patientEmail || fullPatientData?.email || appointment.patientId?.email || '')
+              : (fullPatientData?.email || appointment.patientId?.email || ''),
             patientAddress: formattedAddress,
             diagnosis: (isSamePatient ? selectedConsultation?.diagnosis : '') || '',
             symptoms: (isSamePatient ? selectedConsultation?.symptoms : '') || '',
@@ -1413,6 +1448,13 @@ const DoctorConsultations = () => {
   const [investigations, setInvestigations] = useState([])
   const [advice, setAdvice] = useState('')
   const [followUpDate, setFollowUpDate] = useState('')
+  const investigationsText = useMemo(
+    () => (investigations || [])
+      .map((inv) => inv?.testName || inv?.name || '')
+      .filter(Boolean)
+      .join('\n'),
+    [investigations]
+  )
 
   // Track if consultation form is being actively edited (any field)
   // IMPORTANT: This runs on every field change to mark consultation as active
@@ -3424,6 +3466,26 @@ const DoctorConsultations = () => {
                       </div>
                     </div>
 
+                    <div className="mt-4 sm:mt-5 rounded-xl border border-slate-200/80 bg-white p-3 sm:p-4 shadow-sm">
+                      <label className="mb-2 block text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wide">
+                        Examination Details
+                      </label>
+                      <textarea
+                        value={investigationsText}
+                        onChange={(e) => {
+                          isConsultationActiveRef.current = true
+                          const lines = e.target.value
+                            .split('\n')
+                            .map((line) => line.trim())
+                            .filter(Boolean)
+                          setInvestigations(lines.map((line) => ({ testName: line, name: line, notes: '' })))
+                        }}
+                        placeholder="Enter examination/investigation points (one per line)..."
+                        rows="4"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
                     {/* Add Vitals Button */}
                     <div className="mt-4 sm:mt-5">
                       <button
@@ -3446,6 +3508,10 @@ const DoctorConsultations = () => {
                           }
 
                           try {
+                            // Existing consultation can be updated directly without appointmentId
+                            let consultationId = selectedConsultation.id || selectedConsultation._id
+                            const hasValidConsultationId = consultationId && consultationId.match(/^[0-9a-fA-F]{24}$/)
+
                             // Get appointment ID from consultation - check multiple possible locations
                             let appointmentId = selectedConsultation.appointmentId?._id ||
                               selectedConsultation.appointmentId ||
@@ -3492,7 +3558,7 @@ const DoctorConsultations = () => {
                               }
                             }
 
-                            if (!appointmentId) {
+                            if (!appointmentId && !hasValidConsultationId) {
                               toast.error('Appointment ID not found. Cannot save vitals.')
                               console.error('❌ Appointment ID not found in consultation:', {
                                 consultationId: selectedConsultation.id,
@@ -3503,7 +3569,9 @@ const DoctorConsultations = () => {
                               return
                             }
 
-                            console.log('✅ Using appointmentId for saving vitals:', appointmentId)
+                            if (appointmentId) {
+                              console.log('✅ Using appointmentId for saving vitals:', appointmentId)
+                            }
 
                             // Prepare vitals data with timestamp
                             const vitalsData = {
@@ -3517,9 +3585,6 @@ const DoctorConsultations = () => {
                                 minute: '2-digit',
                               }),
                             }
-
-                            // Check if consultation exists, if not create it, otherwise update it
-                            let consultationId = selectedConsultation.id || selectedConsultation._id
 
                             // If consultation ID doesn't look like a MongoDB ID, we need to create/update via appointment
                             if (!consultationId || !consultationId.match(/^[0-9a-fA-F]{24}$/)) {

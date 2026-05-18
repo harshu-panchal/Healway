@@ -16,6 +16,26 @@ const buildPagination = (req) => {
   return { page, limit, skip };
 };
 
+const buildPrescriptionPatientData = (patientDoc, consultationDocLike) => {
+  const patientObj = patientDoc?.toObject ? patientDoc.toObject() : (patientDoc || {});
+  const appointment = consultationDocLike?.appointmentId;
+
+  // For "Someone Else" bookings, use details captured on appointment.
+  if (appointment && appointment.patientType === 'Else') {
+    return {
+      ...patientObj,
+      name: appointment.patientName || `${patientObj.firstName || ''} ${patientObj.lastName || ''}`.trim() || 'Patient',
+      age: appointment.patientAge ?? null,
+      gender: appointment.patientGender || patientObj.gender || 'N/A',
+      phone: appointment.patientPhone || patientObj.phone || '',
+      email: appointment.patientEmail || patientObj.email || '',
+    };
+  }
+
+  // Default/self booking: use patient profile details.
+  return patientObj;
+};
+
 // POST /api/doctors/prescriptions
 exports.createPrescription = asyncHandler(async (req, res) => {
   const { id } = req.auth;
@@ -41,7 +61,7 @@ exports.createPrescription = asyncHandler(async (req, res) => {
   const consultationDoc = await Consultation.findOne({
     _id: consultationId,
     doctorId: id,
-  }).populate('patientId').populate('doctorId');
+  }).populate('patientId').populate('doctorId').populate('appointmentId');
 
   if (!consultationDoc) {
     return res.status(404).json({
@@ -122,7 +142,7 @@ exports.createPrescription = asyncHandler(async (req, res) => {
         consultationId: consultationObj // Pass full consultation object for fallback
       },
       doctor.toObject(),
-      patient.toObject()
+      buildPrescriptionPatientData(patient, consultationDoc)
     );
     const pdfUrl = await uploadPrescriptionPDF(pdfBuffer, 'healway/prescriptions', `prescription_${prescription._id}`);
     prescription.pdfFileUrl = pdfUrl;
@@ -237,7 +257,7 @@ exports.updatePrescription = asyncHandler(async (req, res) => {
   const populatedPrescription = await Prescription.findById(prescription._id)
     .populate({
       path: 'consultationId',
-      populate: { path: 'patientId' } // Deep populate if needed, though usually patientId is on prescription too
+      populate: [{ path: 'patientId' }, { path: 'appointmentId' }] // Include appointment for "Someone Else" details
     })
     .populate('patientId')
     .populate('doctorId');
@@ -280,7 +300,7 @@ exports.updatePrescription = asyncHandler(async (req, res) => {
           consultationId: consultationObj // Pass full object for fallback
         },
         doctor.toObject(),
-        patient.toObject()
+        buildPrescriptionPatientData(patient, consultationObj)
       );
 
       const pdfUrl = await uploadPrescriptionPDF(pdfBuffer, 'healway/prescriptions', `prescription_${prescription._id}_v${Date.now()}`);

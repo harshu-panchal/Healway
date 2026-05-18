@@ -51,12 +51,26 @@ exports.getPatientQueue = asyncHandler(async (req, res) => {
     Appointment.find({
       doctorId: id,
       appointmentDate: { $gte: sessionDate, $lt: sessionEndDate },
-      $or: [
-        { status: { $in: ['scheduled', 'confirmed', 'called', 'in-consultation', 'in_progress', 'waiting', 'completed'] } },
-        { status: 'cancelled', queueStatus: 'no-show' },
-        { status: 'cancelled', queueStatus: 'cancelled' }
+      $and: [
+        {
+          $or: [
+            { status: { $in: ['scheduled', 'confirmed', 'called', 'in-consultation', 'in_progress', 'waiting', 'completed'] } },
+            { status: 'cancelled', queueStatus: 'no-show' },
+            { status: 'cancelled', queueStatus: 'cancelled' }
+          ],
+        },
+        {
+          $or: [
+            // Normal rule: show all non-pending payment appointments
+            { paymentStatus: { $ne: 'pending' } },
+            // Exception: allow pending appointments for in-person/home-visit so clinic can mark payment manually
+            {
+              paymentStatus: 'pending',
+              consultationMode: { $in: ['in_person', 'IN_PERSON', 'home_visit', 'HOME_VISIT'] },
+            },
+          ],
+        },
       ],
-      paymentStatus: { $ne: 'pending' },
     })
       .populate('patientId', 'firstName lastName phone profileImage dateOfBirth gender')
       .select('-__v -updatedAt')

@@ -259,6 +259,16 @@ const createAppointmentNotification = async ({ userId, userType, appointment, ev
       message = `Payment of ₹${appointment.fee || 0} confirmed for your appointment`;
       actionUrl = '/patient/appointments';
       break;
+    case 'confirmed':
+      if (userType === 'doctor') {
+        return null;
+      }
+      title = 'Appointment Confirmed';
+      message = doctor
+        ? `Dr. ${doctor.firstName} ${doctor.lastName || ''} has confirmed your appointment`
+        : 'Your appointment has been confirmed by doctor';
+      actionUrl = '/patient/appointments';
+      break;
     case 'token_called':
       if (userType === 'doctor') {
         return null;
