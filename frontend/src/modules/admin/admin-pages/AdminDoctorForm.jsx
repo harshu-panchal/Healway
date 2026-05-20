@@ -258,9 +258,12 @@ const AdminDoctorForm = () => {
 
     let finalValue = value;
 
-    if (field === 'firstName' || field === 'lastName') {
+    if (field === 'firstName' || field === 'lastName' || field === 'referenceName') {
+      // Restrict to alphabets and spaces
+      finalValue = value.replace(/[^a-zA-Z\s]/g, '');
+
       // Capitalize first letter of each word
-      finalValue = value
+      finalValue = finalValue
         .split(' ')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
