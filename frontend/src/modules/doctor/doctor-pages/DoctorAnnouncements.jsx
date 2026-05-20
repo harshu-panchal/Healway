@@ -1,17 +1,33 @@
 import React, { useState, useEffect } from 'react'
-import { IoMegaphoneOutline, IoTimeOutline, IoPeopleOutline } from 'react-icons/io5'
+import { IoMegaphoneOutline, IoTimeOutline, IoPeopleOutline, IoCallOutline, IoLogoWhatsapp } from 'react-icons/io5'
 import { useToast } from '../../../contexts/ToastContext'
 import { getMyAnnouncements } from '../doctor-services/doctorService'
+import { getPublicFooterSettings } from '../../../services/publicSettingsService'
 import PageLoader from '../../../components/PageLoader'
 
 const DoctorAnnouncements = () => {
   const [announcements, setAnnouncements] = useState([])
   const [loading, setLoading] = useState(true)
+  const [supportPhone, setSupportPhone] = useState('')
+  const [whatsappNumber, setWhatsappNumber] = useState('')
   const toast = useToast()
 
   useEffect(() => {
     fetchAnnouncements()
+    fetchSupportSettings()
   }, [])
+
+  const fetchSupportSettings = async () => {
+    try {
+      const response = await getPublicFooterSettings()
+      if (response) {
+        setSupportPhone(response.supportPhone || '')
+        setWhatsappNumber(response.whatsappNumber || '')
+      }
+    } catch (error) {
+      console.error('Failed to fetch support settings:', error)
+    }
+  }
 
   const fetchAnnouncements = async () => {
     try {
@@ -91,10 +107,35 @@ const DoctorAnnouncements = () => {
 
                   <p className="text-slate-600 text-sm leading-relaxed mb-4 whitespace-pre-wrap">{ann.content}</p>
 
-                  <div className="flex items-center flex-wrap gap-3 pt-3 border-t border-slate-50">
+                  <div className="flex items-center justify-between flex-wrap gap-3 pt-3 border-t border-slate-100 mt-2">
                     <span className="text-xs font-medium text-slate-500">
                       {ann.senderRole === 'Admin' ? 'From: Healway Admin' : `Posted by Dr. ${ann.senderId?.firstName || 'Staff'}`}
                     </span>
+
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {supportPhone && (
+                        <a
+                          href={`tel:${supportPhone.replace(/[^\d+]/g, '')}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 text-xs font-semibold transition-all active:scale-95"
+                        >
+                          <IoCallOutline className="h-3.5 w-3.5" />
+                          <span>Call Support</span>
+                        </a>
+                      )}
+                      {whatsappNumber && (
+                        <a
+                          href={`https://wa.me/${whatsappNumber.replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 text-xs font-semibold transition-all active:scale-95"
+                        >
+                          <IoLogoWhatsapp className="h-3.5 w-3.5 text-emerald-500" />
+                          <span>WhatsApp</span>
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
