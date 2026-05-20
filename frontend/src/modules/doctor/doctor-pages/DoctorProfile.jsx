@@ -8,6 +8,7 @@ import {
   getServices,
   uploadProfileImage,
   uploadSignature,
+  testPushNotification,
 } from "../doctor-services/doctorService";
 import { useToast } from "../../../contexts/ToastContext";
 import { getAuthToken, getFileUrl } from "../../../utils/apiClient";
@@ -41,6 +42,7 @@ import {
   IoPowerOutline,
   IoVideocamOutline,
   IoCopyOutline,
+  IoNotificationsOutline,
 } from "react-icons/io5";
 
 // Mock data removed - using real backend data now
@@ -240,6 +242,7 @@ const DoctorProfile = () => {
   const [activeSection, setActiveSection] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTestingPush, setIsTestingPush] = useState(false);
   const languageInputRef = useRef(null);
   const servicesDropdownRef = useRef(null);
   const [availableServices, setAvailableServices] = useState([]);
@@ -4769,6 +4772,109 @@ const DoctorProfile = () => {
               {activeSection === "support" && (
                 <div className="px-3 sm:px-5 pb-4 sm:pb-5 border-t border-slate-100 space-y-3 sm:space-y-4 pt-4 sm:pt-5">
                   <SupportHistory role="doctor" />
+                </div>
+              )}
+            </div>
+
+            {/* Test Push Notifications */}
+            <div className="rounded-xl sm:rounded-2xl lg:rounded-2xl border border-slate-200/80 bg-white shadow-md shadow-slate-200/50 overflow-hidden hover:shadow-lg hover:shadow-slate-200/60 transition-shadow duration-200 lg:shadow-xl lg:hover:shadow-2xl">
+              <button
+                type="button"
+                onClick={() =>
+                  setActiveSection(
+                    activeSection === "push_test" ? null : "push_test",
+                  )
+                }
+                className="w-full flex items-center justify-between px-3 sm:px-5 lg:px-4 py-3 sm:py-4 lg:py-3 hover:bg-slate-50/50 transition-colors"
+              >
+                <h2 className="text-sm sm:text-base lg:text-base font-bold text-slate-900 flex items-center gap-2">
+                  <IoNotificationsOutline className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+                  Test Push Notifications
+                </h2>
+                {activeSection === "push_test" ? (
+                  <IoChevronUpOutline className="h-4 w-4 sm:h-5 sm:w-5 text-slate-500 shrink-0" />
+                ) : (
+                  <IoChevronDownOutline className="h-4 w-4 sm:h-5 sm:w-5 text-slate-500 shrink-0" />
+                )}
+              </button>
+
+              {activeSection === "push_test" && (
+                <div className="px-3 sm:px-5 pb-4 sm:pb-5 border-t border-slate-100 space-y-4 pt-4 sm:pt-5">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-4">
+                    <p className="text-xs text-slate-600">
+                      Use this utility to test if push notifications are configured correctly on your device. Clicking the button will trigger a secure test notification from our Firebase servers.
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Permission Status */}
+                      <div className="bg-white p-3 rounded-lg border border-slate-200 flex flex-col justify-between shadow-sm">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Permission Status</span>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            Notification.permission === 'granted'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                              : Notification.permission === 'denied'
+                                ? 'bg-red-50 text-red-700 border border-red-100'
+                                : 'bg-amber-50 text-amber-700 border border-amber-100'
+                          }`}>
+                            {Notification.permission.charAt(0).toUpperCase() + Notification.permission.slice(1)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* FCM Token Registration */}
+                      <div className="bg-white p-3 rounded-lg border border-slate-200 flex flex-col justify-between shadow-sm">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Device Token Status</span>
+                        <div className="mt-1">
+                          {localStorage.getItem('fcm_token_doctor') ? (
+                            <span className="inline-flex items-center rounded-full bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 text-xs font-semibold">
+                              Token Registered
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-full bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 text-xs font-semibold">
+                              No Active Token
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            setIsTestingPush(true);
+                            const response = await testPushNotification();
+                            if (response.success) {
+                              toast.success(response.message || "Test notification triggered successfully!");
+                            } else {
+                              toast.error(response.message || "Failed to trigger test notification.");
+                            }
+                          } catch (err) {
+                            console.error("Test notification trigger error:", err);
+                            toast.error(err.message || "An unexpected error occurred while sending test notification.");
+                          } finally {
+                            setIsTestingPush(false);
+                          }
+                        }}
+                        disabled={isTestingPush}
+                        className="w-full flex items-center justify-center gap-2 rounded-lg border-0 bg-primary text-white px-4 py-2.5 text-xs sm:text-sm font-semibold hover:bg-primary/95 transition-all shadow-md active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isTestingPush ? (
+                          <>
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                            Sending Test Notification...
+                          </>
+                        ) : (
+                          <>
+                            <IoNotificationsOutline className="h-4 w-4" />
+                            Send Test Push Notification
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

@@ -1088,3 +1088,18 @@ export const getCitiesByState = async (stateId) => {
     throw error
   }
 }
+
+/**
+ * Test doctor push notifications
+ * @returns {Promise<object>}
+ */
+export const testPushNotification = async () => {
+  try {
+    const response = await apiClient.post('/doctors/fcm-tokens/test')
+    return response
+  } catch (error) {
+    console.error('Error testing push notification:', error)
+    throw error
+  }
+}
+
