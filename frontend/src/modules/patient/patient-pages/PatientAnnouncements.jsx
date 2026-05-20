@@ -6,6 +6,17 @@ import { getPublicFooterSettings } from '../../../services/publicSettingsService
 import { useToast } from '../../../contexts/ToastContext'
 import PageLoader from '../../../components/PageLoader'
 
+const formatWhatsappNumber = (number) => {
+  const cleaned = String(number || '').replace(/\D/g, '')
+  if (cleaned.length === 10) {
+    return `91${cleaned}`
+  }
+  if (cleaned.length === 11 && cleaned.startsWith('0')) {
+    return `91${cleaned.substring(1)}`
+  }
+  return cleaned
+}
+
 const PatientAnnouncements = () => {
   const navigate = useNavigate()
   const [announcements, setAnnouncements] = useState([])
@@ -129,7 +140,7 @@ const PatientAnnouncements = () => {
                       )}
                       {whatsappNumber && (
                         <a
-                          href={`https://wa.me/${whatsappNumber.replace(/\D/g, '')}`}
+                          href={`https://wa.me/${formatWhatsappNumber(whatsappNumber)}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
