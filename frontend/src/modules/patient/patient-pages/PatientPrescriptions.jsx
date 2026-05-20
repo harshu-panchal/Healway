@@ -17,8 +17,8 @@ import {
   IoDocumentTextOutline,
   IoCalendarOutline,
   IoDownloadOutline,
-  IoShareSocialOutline,
   IoEyeOutline,
+  IoShareSocialOutline,
   IoArrowBackOutline,
   IoCloseOutline,
   IoPeopleOutline,
@@ -682,8 +682,16 @@ const PatientPrescriptions = () => {
         .trim()
         .replace(/\s+/g, '_')
       const safeIssuedAt = String(prescription?.issuedAt || new Date().toISOString().split('T')[0]).replace(/[^\d-]/g, '')
-      const fileName = `Prescription_${safeDoctorName || 'Doctor'}_${safeIssuedAt || new Date().toISOString().split('T')[0]}.pdf`
+      const fileName = `Rx_${safeDoctorName || 'Doc'}_${safeIssuedAt || new Date().toISOString().split('T')[0]}.pdf`
       doc.save(fileName)
+
+      const pdfBlob = doc.output('blob')
+      const pdfUrl = URL.createObjectURL(pdfBlob)
+      const opened = window.open(pdfUrl, '_blank')
+      if (!opened) {
+        toast.error('Popup blocked by browser. File is downloaded.')
+      }
+      setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000)
     } catch (error) {
       console.error('Error generating PDF:', error)
       toast.error('Error generating PDF. Please try again.')
@@ -692,53 +700,13 @@ const PatientPrescriptions = () => {
 
   const handleViewPDF = async (prescription) => {
     try {
-      // If signature is a URL (not base64), convert it to base64 first
-      const digitalSignatureRaw = prescription.doctor?.digitalSignature || prescription.originalData?.doctorId?.digitalSignature
-      let signatureImageUrl = ''
-
-      if (digitalSignatureRaw) {
-        if (typeof digitalSignatureRaw === 'string') {
-          signatureImageUrl = digitalSignatureRaw.trim()
-        } else if (typeof digitalSignatureRaw === 'object' && digitalSignatureRaw !== null) {
-          signatureImageUrl = digitalSignatureRaw.imageUrl || digitalSignatureRaw.url || ''
-        }
-      }
-
-      // If signature is a URL (not base64), convert to base64
-      if (signatureImageUrl && !signatureImageUrl.startsWith('data:image/')) {
-        try {
-          const base64Signature = await urlToBase64(signatureImageUrl)
-          // Update prescription data with base64 signature
-          prescription = {
-            ...prescription,
-            doctor: {
-              ...prescription.doctor,
-              digitalSignature: base64Signature
-            }
-          }
-        } catch (error) {
-          console.warn('Could not convert signature URL to base64, will try direct URL:', error)
-        }
-      }
-
       const doc = await generatePDF(prescription)
-      // Generate PDF blob and open in new window
       const pdfBlob = doc.output('blob')
       const pdfUrl = URL.createObjectURL(pdfBlob)
-      const opened = window.open(pdfUrl, '_blank')
-      if (!opened) {
-        // Popup blocked: fallback to download so user still gets the file
-        const fallbackName = `Prescription_${String(prescription?.doctor?.name || 'Doctor').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_')}_${String(prescription?.issuedAt || new Date().toISOString().split('T')[0]).replace(/[^\d-]/g, '')}.pdf`
-        doc.save(fallbackName)
-        toast.error('Popup blocked by browser. PDF downloaded instead.')
-      }
-      // Clean up the URL after a delay
-      setTimeout(() => {
-        URL.revokeObjectURL(pdfUrl)
-      }, 100)
+      window.location.assign(pdfUrl)
     } catch (error) {
       console.error('Error viewing PDF:', error)
-      toast.error('Error generating PDF. Please try again.')
+      toast.error('Error opening PDF. Please try again.')
     }
   }
 

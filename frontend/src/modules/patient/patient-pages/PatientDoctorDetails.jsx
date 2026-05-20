@@ -869,6 +869,7 @@ const PatientDoctorDetails = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRescheduling, setIsRescheduling] = useState(false); // Track if rescheduling
   const [rescheduleAppointmentId, setRescheduleAppointmentId] = useState(null); // Appointment ID to reschedule
+  const [patientProfile, setPatientProfile] = useState(null);
 
   // New State for "Someone Else" booking
   const [bookingFor, setBookingFor] = useState("Self"); // "Self" or "Else"
@@ -905,11 +906,18 @@ const PatientDoctorDetails = () => {
   // Reset selected details when consultation mode changes
   useEffect(() => {
     setSelectedTime("");
-    // Clear selection if mode changed
-    if (appointmentType !== "in_person") {
+  }, [selectedDate, appointmentType]);
+
+  // Wallet option should be selectable whenever patient has wallet balance.
+  useEffect(() => {
+    if (!showBookingModal) return;
+    const walletBalance = patientProfile?.walletBalance || 0;
+    const hasWalletBalance = walletBalance > 0;
+
+    if (paymentType === "wallet" && !hasWalletBalance) {
       setPaymentType("full");
     }
-  }, [selectedDate, appointmentType]);
+  }, [showBookingModal, appointmentType, selectedDate, patientProfile?.walletBalance, paymentType]);
 
   // Dynamic available dates based on doctor and consultation mode
   const availableDates = useMemo(() => {
@@ -993,7 +1001,6 @@ const PatientDoctorDetails = () => {
   const [hasDoctorCancelledAppointment, setHasDoctorCancelledAppointment] = useState(false);
   const [doctorCancelledDates, setDoctorCancelledDates] = useState([]); // Dates where doctor cancelled
   const [lastVisitData, setLastVisitData] = useState(null);
-  const [patientProfile, setPatientProfile] = useState(null);
 
   // State to store patient-related data for this doctor
   const [appointmentsData, setAppointmentsData] = useState([]);
@@ -1025,29 +1032,35 @@ const PatientDoctorDetails = () => {
       if (!doctor?.id && !doctor?._id) return;
 
       try {
+        // Fetch patient profile independently so wallet option is always evaluated.
+        try {
+          const profileResponse = await getPatientProfile();
+          if (profileResponse?.success && profileResponse?.data) {
+            const normalizedProfile = profileResponse.data.patient || profileResponse.data;
+            setPatientProfile(normalizedProfile);
+          }
+        } catch (profileError) {
+          console.error("Error fetching patient profile:", profileError);
+        }
+
         const response = await getPatientAppointments({
           doctor: doctor.id || doctor._id,
         });
 
-        if (response.success && response.data) {
+        if (response?.success && response?.data) {
           const appointments = Array.isArray(response.data)
             ? response.data
             : response.data.items || [];
           setAppointmentsData(appointments);
           setIsDataLoaded(true);
-
-          // Fetch patient profile to get wallet balance
-          try {
-            const profileResponse = await getPatientProfile();
-            if (profileResponse.success) {
-              setPatientProfile(profileResponse.data);
-            }
-          } catch (profileError) {
-            console.error("Error fetching patient profile:", profileError);
-          }
+        } else {
+          setAppointmentsData([]);
+          setIsDataLoaded(true);
         }
       } catch (error) {
         console.error("Error fetching data:", error);
+        setAppointmentsData([]);
+        setIsDataLoaded(true);
       }
     };
 
@@ -4264,8 +4277,7 @@ const PatientDoctorDetails = () => {
                       />
                     )}
 
-                    {appointmentType === "in_person" &&
-                      !hasDoctorCancelledAppointment &&
+                    {!hasDoctorCancelledAppointment &&
                       getFeeForDay(selectedDate, appointmentType) > 0 && (
                         <div className="pt-4 border-t space-y-3">
                           <span className="text-sm font-semibold">
@@ -4284,7 +4296,7 @@ const PatientDoctorDetails = () => {
                               styles={{ body: { padding: "16px" } }}
                             >
                               <div className="text-center">
-                                <div className="text-xs sm:text-sm font-bold text-slate-700 mb-1">Full Payment</div>
+                                <div className="text-xs sm:text-sm font-bold text-slate-700 mb-1">Pay Online</div>
                                 <div className={`text-xl sm:text-2xl font-black ${isFreeConsultation(getFeeForDay(selectedDate, appointmentType)) ? 'text-emerald-600' : 'text-primary'}`}>
                                   {formatPrice(getFeeForDay(selectedDate, appointmentType))}
                                 </div>
@@ -4293,7 +4305,7 @@ const PatientDoctorDetails = () => {
                             </Card>
 
                             {/* CONFIRM SLOT - Only if enabled by doctor */}
-                            {doctor.fees?.inPerson?.confirmSlotAmount > 0 && (
+                            {appointmentType === "in_person" && doctor.fees?.inPerson?.confirmSlotAmount > 0 && (
                               <Card
                                 hoverable
                                 className={`border-2 rounded-xl cursor-pointer transition-all ${paymentType === "confirmSlot"
@@ -4318,7 +4330,7 @@ const PatientDoctorDetails = () => {
                             )}
 
                             {/* PAY AT CLINIC (COD) - Only if enabled by doctor */}
-                            {doctor.fees?.inPerson?.codEnabled && (
+                            {appointmentType === "in_person" && doctor.fees?.inPerson?.codEnabled && (
                               <Card
                                 hoverable
                                 className={`border-2 rounded-xl cursor-pointer transition-all ${paymentType === "cod"
@@ -4338,7 +4350,7 @@ const PatientDoctorDetails = () => {
                               </Card>
                             )}
 
-                            {/* PAY WITH WALLET - Only if balance exists */}
+                            {/* PAY WITH WALLET - Show when wallet has any balance */}
                             {(patientProfile?.walletBalance || 0) > 0 && (
                               <Card
                                 hoverable
@@ -4442,4 +4454,3 @@ const PatientDoctorDetails = () => {
   );
 };
 export default PatientDoctorDetails;
-

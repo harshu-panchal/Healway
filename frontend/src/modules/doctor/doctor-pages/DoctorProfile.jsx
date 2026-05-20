@@ -15,6 +15,7 @@ import { getAuthToken, getFileUrl } from "../../../utils/apiClient";
 
 import {
   IoPersonOutline,
+  IoArrowBackOutline,
   IoMailOutline,
   IoCallOutline,
   IoLocationOutline,
@@ -106,17 +107,9 @@ const DoctorProfile = () => {
   const toast = useToast();
 
   const handleViewDocument = async (fileUrl, fileName) => {
-    // Open the tab immediately to prevent popup blockers
-    const newTab = window.open("about:blank", "_blank");
-    if (!newTab) {
-      toast.error("Popup blocked! Please allow popups for this site.");
-      return;
-    }
-
     try {
       const normalizedUrl = normalizeImageUrl(fileUrl);
       if (!normalizedUrl) {
-        newTab.close();
         return;
       }
 
@@ -155,7 +148,8 @@ const DoctorProfile = () => {
             const viewUrl = window.URL.createObjectURL(
               new Blob([blob], { type: finalMimeType })
             );
-            newTab.location.href = viewUrl;
+            // Open in same tab (APK/webview-friendly)
+            window.location.assign(viewUrl);
             return;
           }
         }
@@ -181,14 +175,13 @@ const DoctorProfile = () => {
       // If we are opening a raw upload that is NOT an image/pdf, or if the fetch failed, 
       // check if finalUrl will force download. If it does, we close the new blank tab and download via main window.
       if (finalUrl.includes("/raw/upload/")) {
-        newTab.close();
         window.location.href = finalUrl;
       } else {
-        newTab.location.href = finalUrl;
+        // Open in same tab
+        window.location.assign(finalUrl);
       }
     } catch (error) {
       console.error("View error:", error);
-      if (newTab) newTab.close();
       toast.error("Failed to open document");
     }
   };
@@ -4687,6 +4680,16 @@ const DoctorProfile = () => {
 
               {activeSection === "documents" && (
                 <div className="px-3 sm:px-5 pb-4 sm:pb-5 border-t border-slate-100 space-y-3 sm:space-y-4 pt-4 sm:pt-5">
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => window.history.back()}
+                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      <IoArrowBackOutline className="h-3.5 w-3.5" />
+                      Back
+                    </button>
+                  </div>
                   {formData.documents &&
                     Array.isArray(formData.documents) &&
                     formData.documents.length > 0 ? (

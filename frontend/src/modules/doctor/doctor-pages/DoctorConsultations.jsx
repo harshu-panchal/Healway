@@ -1899,13 +1899,21 @@ const DoctorConsultations = () => {
     const safePatientName = String(
       prescriptionData?.patientName || selectedConsultation?.patientName || 'Patient'
     ).replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_')
-    const fileName = `Prescription_${safePatientName || 'Patient'}_${new Date().toISOString().split('T')[0]}.pdf`
+    const fileName = `Rx_${safePatientName || 'Pt'}_${new Date().toISOString().split('T')[0]}.pdf`
     doc.save(fileName)
+    return doc
   }
 
   const handleDownloadPrescription = async (prescription) => {
     try {
-      await generatePDF(prescription)
+      const doc = await generatePDF(prescription)
+      const pdfBlob = doc.output('blob')
+      const pdfUrl = URL.createObjectURL(pdfBlob)
+      const opened = window.open(pdfUrl, '_blank')
+      if (!opened) {
+        toast.error('Popup blocked by browser. File is downloaded.')
+      }
+      setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000)
     } catch (error) {
       console.error('Error downloading prescription PDF:', error)
       toast.error('Unable to download prescription PDF. Please try again.')
@@ -2336,10 +2344,10 @@ const DoctorConsultations = () => {
     doc.setTextColor(100, 100, 100)
     doc.text('This is a digitally generated prescription. For any queries, please contact the clinic.', pageWidth / 2, disclaimerY, { align: 'center' })
 
-    // Open PDF in new window for viewing
+    // Open PDF in same tab for APK/webview-friendly viewing
     const pdfBlob = doc.output('blob')
     const pdfUrl = URL.createObjectURL(pdfBlob)
-    window.open(pdfUrl, '_blank')
+    window.location.assign(pdfUrl)
 
     // Clean up the URL after a delay
     setTimeout(() => {
