@@ -86,6 +86,7 @@ const AdminDoctorForm = () => {
     documents: [],
     clinicImages: [],
     isDoctor: true,
+    profileImage: null,
     fees: {
       inPerson: { original: '', discount: 0, final: 0 },
       videoCall: { original: '', discount: 0, final: 0 },
@@ -172,6 +173,7 @@ const AdminDoctorForm = () => {
           documents: doctor.documents || [],
           clinicImages: doctor.clinicDetails?.images || [],
           isDoctor: doctor.isDoctor !== false,
+          profileImage: doctor.profileImage || null,
           fees: {
             inPerson: { 
               original: doctor.fees?.inPerson?.original ?? doctor.consultationFee ?? '', 
@@ -367,6 +369,35 @@ const AdminDoctorForm = () => {
     }))
   }
 
+  const handleProfileImageChange = async (event) => {
+    const files = Array.from(event.target.files)
+    if (files.length === 0) return
+    const file = files[0]
+
+    const convertToBase64 = (file) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.readAsDataURL(file)
+        reader.onload = () => resolve({
+          name: file.name,
+          data: reader.result,
+          type: file.type
+        })
+        reader.onerror = error => reject(error)
+      })
+    }
+
+    try {
+      const base64File = await convertToBase64(file)
+      setFormData(prev => ({
+        ...prev,
+        profileImage: base64File
+      }))
+    } catch (error) {
+      toast.error('Failed to process profile image')
+    }
+  }
+
   const handleModeToggle = (mode) => {
     setFormData(prev => {
       const modes = prev.consultationModes || []
@@ -526,6 +557,7 @@ const AdminDoctorForm = () => {
         clinicImages: formData.clinicImages.length > 0 ? formData.clinicImages : undefined,
         documents: formData.documents.length > 0 ? formData.documents : undefined,
         isDoctor: formData.isDoctor,
+        profileImage: formData.profileImage || null,
         fees: {
           inPerson: {
             original: formData.fees.inPerson.original ? Number(formData.fees.inPerson.original) : 0,
@@ -1206,6 +1238,36 @@ const AdminDoctorForm = () => {
                         className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-primary focus:outline-none transition-all"
                       />
                     </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <IoPersonOutline className="h-5 w-5 text-primary" /> Profile Image (Optional)
+                  </h3>
+                  <div className="space-y-3">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProfileImageChange}
+                      className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer"
+                    />
+                    {formData.profileImage && (
+                      <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-slate-200 group">
+                        <img 
+                          src={formData.profileImage.data || formData.profileImage} 
+                          className="w-full h-full object-cover" 
+                          alt="Profile Preview"
+                        />
+                        <button 
+                          type="button" 
+                          onClick={() => setFormData(prev => ({ ...prev, profileImage: null }))} 
+                          className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity animate-fadeIn"
+                        >
+                          <IoCloseOutline className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 

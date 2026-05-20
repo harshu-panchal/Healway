@@ -134,6 +134,36 @@ const processClinicImageInputs = async (clinicImages = []) => {
   return processedImages;
 };
 
+const processProfileImageInput = async (profileImage) => {
+  if (!profileImage) return undefined;
+
+  // If it's already a URL
+  if (typeof profileImage === 'string') {
+    if (profileImage.startsWith('http://') || profileImage.startsWith('https://')) {
+      return profileImage;
+    }
+    if (profileImage.startsWith('data:')) {
+      const base64Data = profileImage.includes(',') ? profileImage.split(',')[1] : profileImage;
+      const buffer = Buffer.from(base64Data, 'base64');
+      const uploadResult = await cloudinaryUpload(buffer, 'healway/doctors');
+      return uploadResult.secure_url;
+    }
+  }
+
+  // If it's an object containing base64 data
+  if (typeof profileImage === 'object') {
+    if (profileImage.url) return profileImage.url;
+    if (profileImage.data) {
+      const base64Data = profileImage.data.includes(',') ? profileImage.data.split(',')[1] : profileImage.data;
+      const buffer = Buffer.from(base64Data, 'base64');
+      const uploadResult = await cloudinaryUpload(buffer, 'healway/doctors');
+      return uploadResult.secure_url;
+    }
+  }
+
+  return undefined;
+};
+
 /**
  * Helper to build basic pagination options
  */
@@ -262,6 +292,7 @@ exports.createDoctor = asyncHandler(async (req, res) => {
     discount_amount,
     fees,
     isDoctor = true,
+    profileImage,
   } = req.body;
 
   const resolvedName = parseName({ name, firstName, lastName });
@@ -314,6 +345,7 @@ exports.createDoctor = asyncHandler(async (req, res) => {
   const processedDocuments = await processDocumentInputs(documents);
   const processedClinicImages = await processClinicImageInputs(clinicImages);
   if (processedClinicImages.length > 0) clinicPayload.images = processedClinicImages;
+  const processedProfileImage = await processProfileImageInput(profileImage);
 
   const originalFee = toOptionalNumber(original_fees);
   const discountAmount = toOptionalNumber(discount_amount) || 0;
@@ -323,6 +355,7 @@ exports.createDoctor = asyncHandler(async (req, res) => {
 
   const doctor = await Doctor.create({
     firstName: resolvedName.firstName,
+    profileImage: processedProfileImage,
     lastName: resolvedName.lastName || '',
     email: normalizedEmail,
     phone: normalizedPhone,
@@ -714,6 +747,7 @@ exports.updateDoctor = asyncHandler(async (req, res) => {
     fees,
     isActive,
     isDoctor,
+    profileImage,
   } = req.body;
 
   const doctor = await Doctor.findById(id);
@@ -745,6 +779,14 @@ exports.updateDoctor = asyncHandler(async (req, res) => {
   if (bio !== undefined) doctor.bio = bio;
   if (isActive !== undefined) doctor.isActive = Boolean(isActive);
   if (isDoctor !== undefined) doctor.isDoctor = Boolean(isDoctor);
+
+  if (profileImage !== undefined) {
+    if (profileImage === null || profileImage === '') {
+      doctor.profileImage = undefined;
+    } else {
+      doctor.profileImage = await processProfileImageInput(profileImage);
+    }
+  }
 
   if (Array.isArray(languages)) doctor.languages = languages.filter(Boolean);
   if (Array.isArray(services)) doctor.services = services.filter(Boolean);
