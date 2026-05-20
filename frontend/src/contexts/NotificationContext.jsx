@@ -467,14 +467,25 @@ export const NotificationProvider = ({ children, module = 'patient' }) => {
         sessionStorage.getItem(`${currentModule}AccessToken`)
 
       if (token) {
-        import('../services/pushNotificationService')
-          .then(({ registerFCMToken }) => {
-            registerFCMToken(currentModule, false).catch(() => {})
-          })
-          .catch((err) => console.error('FCM register import error:', err))
+        const sessionKey = `fcm_synced_${currentModule}`;
+        const alreadySynced = sessionStorage.getItem(sessionKey);
+
+        if (!alreadySynced) {
+          import('../services/pushNotificationService')
+            .then(({ registerFCMToken }) => {
+              registerFCMToken(currentModule, true)
+                .then((registeredToken) => {
+                  if (registeredToken) {
+                    sessionStorage.setItem(sessionKey, 'true');
+                  }
+                })
+                .catch(() => {})
+            })
+            .catch((err) => console.error('FCM register import error:', err))
+        }
       }
     }
-  }, [currentModule, location.pathname])
+  }, [currentModule])
 
   const value = {
     notifications,

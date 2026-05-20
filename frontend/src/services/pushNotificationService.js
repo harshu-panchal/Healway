@@ -192,16 +192,30 @@ function setupForegroundNotificationHandler(customHandler) {
 
         // Show browser notification if permission is granted
         if ('Notification' in window && Notification.permission === 'granted') {
-            try {
-                new Notification(title, {
+            const showNotification = async () => {
+                const options = {
                     body,
                     icon: payload.notification?.icon || '/favicon.ico',
                     data,
-                });
-            } catch (error) {
-                // Some browsers block new Notification() in service worker context
-                console.warn('Could not show foreground notification:', error.message);
-            }
+                };
+                
+                try {
+                    // Try standard window Notification first
+                    new Notification(title, options);
+                } catch (e) {
+                    console.warn('Window Notification failed, falling back to service worker:', e.message);
+                    // Fallback to service worker registration
+                    if ('serviceWorker' in navigator) {
+                        try {
+                            const reg = await navigator.serviceWorker.ready;
+                            await reg.showNotification(title, options);
+                        } catch (swError) {
+                            console.error('Service worker showNotification failed:', swError);
+                        }
+                    }
+                }
+            };
+            showNotification();
         }
 
         // Call custom handler if provided
