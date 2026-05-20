@@ -747,9 +747,13 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
       const field = parts[2]
       setDoctorSignupData((prev) => {
         const newEducation = [...prev.education]
+        let finalValue = value
+        if (field === 'year') {
+          finalValue = String(value || '').replace(/\D/g, '').slice(0, 4)
+        }
         newEducation[index] = {
           ...newEducation[index],
-          [field]: value,
+          [field]: finalValue,
         }
         return {
           ...prev,
@@ -2298,9 +2302,16 @@ const DoctorLogin = ({ embedded = false, initialMode, initialRole = 'patient' })
                               <div className="flex gap-2">
                                 <input
                                   name={`education.${index}.year`}
-                                  type="number"
+                                  type="text"
+                                  pattern="\d*"
+                                  maxLength={4}
                                   value={edu.year}
                                   onChange={handleDoctorSignupChange}
+                                  onKeyPress={(e) => {
+                                    if (!/\d/.test(e.key)) {
+                                      e.preventDefault()
+                                    }
+                                  }}
                                   placeholder="Year"
                                   className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                                   style={{ '--tw-ring-color': 'var(--color-primary-border)' }}

@@ -242,10 +242,34 @@ exports.getAllPatients = asyncHandler(async (req, res) => {
     Patient.countDocuments(filter),
   ]);
 
+  const patientsWithAptData = await Promise.all(
+    patients.map(async (patient) => {
+      const lastAppointment = await Appointment.findOne({
+        doctorId: id,
+        patientId: patient._id
+      })
+      .sort({ appointmentDate: -1 })
+      .select('appointmentDate')
+      .lean();
+
+      const completedCount = await Appointment.countDocuments({
+        doctorId: id,
+        patientId: patient._id,
+        status: 'completed'
+      });
+
+      return {
+        ...patient,
+        lastAppointmentDate: lastAppointment ? lastAppointment.appointmentDate : null,
+        totalVisits: completedCount
+      };
+    })
+  );
+
   return res.status(200).json({
     success: true,
     data: {
-      items: patients,
+      items: patientsWithAptData,
       pagination: {
         page,
         limit,

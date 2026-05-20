@@ -307,7 +307,11 @@ const AdminDoctorForm = () => {
 
   const handleEducationChange = (index, field, value) => {
     const newEducation = [...formData.education]
-    newEducation[index] = { ...newEducation[index], [field]: value }
+    let finalValue = value
+    if (field === 'year') {
+      finalValue = value.replace(/\D/g, '').slice(0, 4)
+    }
+    newEducation[index] = { ...newEducation[index], [field]: finalValue }
     setFormData(prev => ({ ...prev, education: newEducation }))
   }
 
@@ -968,9 +972,16 @@ const AdminDoctorForm = () => {
                       <div className="flex gap-2">
                         <input
                           placeholder="Year"
-                          type="number"
+                          type="text"
+                          pattern="\d*"
+                          maxLength={4}
                           value={edu.year}
                           onChange={(e) => handleEducationChange(index, 'year', e.target.value)}
+                          onKeyPress={(e) => {
+                            if (!/\d/.test(e.key)) {
+                              e.preventDefault()
+                            }
+                          }}
                           className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary focus:outline-none"
                         />
                         <button type="button" onClick={() => removeEducation(index)} className="text-red-500 hover:text-red-700">

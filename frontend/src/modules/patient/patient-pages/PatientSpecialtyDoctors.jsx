@@ -1,5 +1,9 @@
-import { useState, useEffect, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import {
+  useState,
+  useEffect,
+  useMemo } from 'react'
+import { useParams,
+  useNavigate } from 'react-router-dom'
 import {
   IoArrowBackOutline,
   IoLocationOutline,
@@ -8,6 +12,7 @@ import {
   IoCheckmarkCircleOutline,
   IoStar,
   IoEyeOutline,
+  IoPerson,
 } from 'react-icons/io5'
 import { getSpecialtyDoctors, getDoctors } from '../patient-services/patientService'
 import { useToast } from '../../../contexts/ToastContext'
@@ -175,9 +180,9 @@ const PatientSpecialtyDoctors = () => {
             const consultationFee = doctor.consultationFee || 0
             const originalFees = doctor.original_fees || 0
             const discountAmount = doctor.discount_amount || 0
-            const placeholderImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(doctorName)}&background=0077C2&color=fff&size=200&bold=true`
+            const hasProfileImage = !!(doctor.profileImage || doctor.image)
             const rawProfileImage = doctor.profileImage || doctor.image || ''
-            const profileImage = rawProfileImage ? getFileUrl(rawProfileImage) : placeholderImage
+            const profileImage = rawProfileImage ? getFileUrl(rawProfileImage) : ''
 
             return (
               <div
@@ -189,16 +194,26 @@ const PatientSpecialtyDoctors = () => {
                   <div className="flex gap-5 mb-5 items-center sm:items-start">
                     <div className="relative shrink-0">
                       <div className="absolute inset-0 bg-primary/20 rounded-[22px] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                      <img
-                        src={profileImage}
-                        alt={doctorName}
-                        className="relative h-20 w-20 sm:h-24 sm:w-24 rounded-[22px] object-cover ring-4 ring-white shadow-sm transition-transform duration-500 group-hover:scale-110"
-                        loading="lazy"
-                        onError={(e) => {
-                          e.target.onerror = null
-                          e.target.src = placeholderImage
-                        }}
-                      />
+                      {hasProfileImage ? (
+                        <img
+                          src={profileImage}
+                          alt={doctorName}
+                          className="relative h-20 w-20 sm:h-24 sm:w-24 rounded-[22px] object-cover ring-4 ring-white shadow-sm transition-transform duration-500 group-hover:scale-110"
+                          loading="lazy"
+                          onError={(e) => {
+                            e.target.onerror = null
+                            e.target.style.display = 'none'
+                            if (e.target.nextSibling) {
+                              e.target.nextSibling.style.display = 'flex'
+                            }
+                          }}
+                        />
+                      ) : null}
+                      <div 
+                        className={`relative h-20 w-20 sm:h-24 sm:w-24 rounded-[22px] ring-4 ring-white shadow-sm bg-slate-100 text-slate-400 items-center justify-center transition-transform duration-500 group-hover:scale-110 ${hasProfileImage ? 'hidden' : 'flex'}`}
+                      >
+                        <IoPerson className="h-8 w-8 sm:h-10 sm:w-10 text-slate-400" />
+                      </div>
                       {doctor.isFeatured && (
                         <div className="absolute -top-3 -left-3 bg-gradient-to-br from-amber-400 to-orange-500 text-white p-2 rounded-xl shadow-lg transform -rotate-12 group-hover:rotate-0 transition-transform duration-300">
                           <IoStar className="h-4 w-4" />

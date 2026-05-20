@@ -192,10 +192,11 @@ const createAppointmentNotification = async ({ userId, userType, appointment, ev
         }
         actionUrl = '/doctor/patients';
       } else {
-        title = 'New Appointment';
-        message = patient
-          ? `Appointment booked with ${patient.firstName} ${patient.lastName || ''}`
-          : 'New appointment has been booked';
+        title = 'Appointment Booked Successfully';
+        const doctorName = doctor
+          ? `Dr. ${doctor.firstName} ${doctor.lastName || ''}`.trim()
+          : 'Doctor';
+        message = `Your appointment has been successfully booked with ${doctorName}`;
         actionUrl = '/patient/appointments';
       }
       break;
@@ -611,6 +612,70 @@ const isEmailNotificationsEnabled = async () => {
     console.error('Error checking email notification settings:', error);
     return true;
   }
+};
+
+/**
+ * Send appointment booking received email to patient
+ */
+const sendAppointmentBookingEmail = async ({ patient, doctor, appointment }) => {
+  if (!(await isEmailNotificationsEnabled())) return null;
+  if (!patient?.email) return null;
+
+  const appointmentDate = appointment.appointmentDate
+    ? new Date(appointment.appointmentDate).toLocaleDateString('en-IN', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+    : '';
+  const appointmentTime = appointment.time || '';
+
+  const patientName = patient.firstName
+    ? `${patient.firstName} ${patient.lastName || ''}`.trim()
+    : 'Patient';
+  const doctorName = doctor.firstName
+    ? `Dr. ${doctor.firstName} ${doctor.lastName || ''}`.trim()
+    : 'Doctor';
+
+  return sendEmail({
+    to: patient.email,
+    subject: `Appointment Booking Received - ${doctorName} | Healway`,
+    text: `Hello ${patientName},\n\nYour appointment booking request with ${doctorName} has been successfully received and is pending doctor confirmation:\n\nDoctor: ${doctorName}\nDate: ${appointmentDate}\nTime: ${appointmentTime}\n\nYou will receive a confirmation once the doctor accepts the booking.\n\nThank you,\nTeam Healway`,
+    html: `<p>Hello ${patientName},</p><p>Your appointment booking request with <strong>${doctorName}</strong> has been successfully received and is pending doctor confirmation:</p><ul><li><strong>Doctor:</strong> ${doctorName}</li><li><strong>Date:</strong> ${appointmentDate}</li><li><strong>Time:</strong> ${appointmentTime}</li></ul><p>You will receive a confirmation once the doctor accepts the booking.</p><p>Thank you,<br/>Team Healway</p>`,
+  });
+};
+
+/**
+ * Send appointment rescheduled notification email to patient
+ */
+const sendAppointmentRescheduledEmail = async ({ patient, doctor, appointment }) => {
+  if (!(await isEmailNotificationsEnabled())) return null;
+  if (!patient?.email) return null;
+
+  const appointmentDate = appointment.appointmentDate
+    ? new Date(appointment.appointmentDate).toLocaleDateString('en-IN', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+    : '';
+  const appointmentTime = appointment.time || '';
+
+  const patientName = patient.firstName
+    ? `${patient.firstName} ${patient.lastName || ''}`.trim()
+    : 'Patient';
+  const doctorName = doctor.firstName
+    ? `Dr. ${doctor.firstName} ${doctor.lastName || ''}`.trim()
+    : 'Doctor';
+
+  return sendEmail({
+    to: patient.email,
+    subject: `Appointment Rescheduled (Pending Confirmation) - ${doctorName} | Healway`,
+    text: `Hello ${patientName},\n\nYour appointment with ${doctorName} has been rescheduled to the new slot and is pending doctor confirmation:\n\nDoctor: ${doctorName}\nNew Date: ${appointmentDate}\nNew Time: ${appointmentTime}\n\nYou will receive a confirmation once the doctor accepts the rescheduled booking.\n\nThank you,\nTeam Healway`,
+    html: `<p>Hello ${patientName},</p><p>Your appointment with <strong>${doctorName}</strong> has been rescheduled to the new slot and is pending doctor confirmation:</p><ul><li><strong>Doctor:</strong> ${doctorName}</li><li><strong>New Date:</strong> ${appointmentDate}</li><li><strong>New Time:</strong> ${appointmentTime}</li></ul><p>You will receive a confirmation once the doctor accepts the rescheduled booking.</p><p>Thank you,<br/>Team Healway</p>`,
+  });
 };
 
 /**
@@ -1034,6 +1099,8 @@ module.exports = {
   createAdminNotification,
   createSessionNotification,
   sendNotificationEmail,
+  sendAppointmentBookingEmail,
+  sendAppointmentRescheduledEmail,
   sendAppointmentConfirmationEmail,
   sendDoctorAppointmentNotification,
   sendAppointmentCancellationEmail,

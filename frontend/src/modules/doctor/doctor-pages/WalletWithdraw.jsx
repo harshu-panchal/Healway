@@ -171,18 +171,42 @@ const WalletWithdraw = () => {
 
   const validatePaymentMethod = () => {
     if (selectedPaymentMethod === 'bank') {
-      if (!bankDetails.accountNumber || !bankDetails.ifscCode || !bankDetails.accountHolderName) {
-        alert('Please fill all bank account details')
+      if (!bankDetails.accountHolderName) {
+        toast.error('Please enter account holder name')
+        return false
+      }
+      if (!/^[a-zA-Z\s]+$/.test(bankDetails.accountHolderName)) {
+        toast.error('Account holder name should contain alphabets and spaces only')
+        return false
+      }
+      if (!bankDetails.accountNumber) {
+        toast.error('Please enter account number')
+        return false
+      }
+      if (!/^\d{9,18}$/.test(bankDetails.accountNumber)) {
+        toast.error('Account number must be 9 to 18 digits long')
+        return false
+      }
+      if (!bankDetails.ifscCode) {
+        toast.error('Please enter IFSC code')
+        return false
+      }
+      if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankDetails.ifscCode)) {
+        toast.error('IFSC code should be in format (e.g., SBIN0001234)')
         return false
       }
     } else if (selectedPaymentMethod === 'upi') {
       if (!upiId || !upiId.includes('@')) {
-        alert('Please enter a valid UPI ID')
+        toast.error('Please enter a valid UPI ID')
         return false
       }
     } else if (selectedPaymentMethod === 'cash') {
       if (!bankDetails.accountHolderName) {
-        alert('Please enter receiver name for cash collection')
+        toast.error('Please enter receiver name for cash collection')
+        return false
+      }
+      if (!/^[a-zA-Z\s]+$/.test(bankDetails.accountHolderName)) {
+        toast.error('Receiver name should contain alphabets and spaces only')
         return false
       }
     }
@@ -191,7 +215,7 @@ const WalletWithdraw = () => {
 
   const handleWithdraw = async () => {
     if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
-      alert('Please enter a valid amount')
+      toast.error('Please enter a valid amount')
       return
     }
 
@@ -671,7 +695,12 @@ const WalletWithdraw = () => {
                       <input
                         type="text"
                         value={bankDetails.accountHolderName}
-                        onChange={(e) => setBankDetails({ ...bankDetails, accountHolderName: e.target.value })}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          if (val === '' || /^[a-zA-Z\s]*$/.test(val)) {
+                            setBankDetails({ ...bankDetails, accountHolderName: val })
+                          }
+                        }}
                         placeholder="Enter account holder name"
                         className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                       />
@@ -681,7 +710,12 @@ const WalletWithdraw = () => {
                       <input
                         type="text"
                         value={bankDetails.accountNumber}
-                        onChange={(e) => setBankDetails({ ...bankDetails, accountNumber: e.target.value })}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          if (val === '' || /^\d*$/.test(val)) {
+                            setBankDetails({ ...bankDetails, accountNumber: val })
+                          }
+                        }}
                         placeholder="Enter account number"
                         className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                       />
@@ -721,7 +755,12 @@ const WalletWithdraw = () => {
                       <input
                         type="text"
                         value={bankDetails.accountHolderName}
-                        onChange={(e) => setBankDetails({ ...bankDetails, accountHolderName: e.target.value })}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          if (val === '' || /^[a-zA-Z\s]*$/.test(val)) {
+                            setBankDetails({ ...bankDetails, accountHolderName: val })
+                          }
+                        }}
                         placeholder="Name of person collecting cash"
                         className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                       />

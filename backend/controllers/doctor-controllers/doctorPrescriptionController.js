@@ -74,13 +74,8 @@ exports.createPrescription = asyncHandler(async (req, res) => {
   const consultationObj = consultationDoc.toObject ? consultationDoc.toObject() : consultationDoc;
 
   // Check if prescription already exists
-  const existingPrescription = await Prescription.findOne({ consultationId });
-  if (existingPrescription) {
-    return res.status(400).json({
-      success: false,
-      message: 'Prescription already exists for this consultation',
-    });
-  }
+  let prescription = await Prescription.findOne({ consultationId });
+  let isUpdate = false;
 
   // Get doctor data for PDF
   const doctor = await Doctor.findById(id);
@@ -113,17 +108,29 @@ exports.createPrescription = asyncHandler(async (req, res) => {
 
   const advice = consultationObj.advice || notes || '';
 
-  // Create prescription
+  // Prepare prescription data
   const prescriptionData = {
     consultationId,
-    patientId: consultationObj.patientId?._id || consultationObj.patientId || consultationDoc?.patientId,
+    patientId: patientId,
     doctorId: id,
     notes: advice,
     expiryDate: expiryDate ? new Date(expiryDate) : null,
     status: 'active',
   };
 
-  const prescription = await Prescription.create(prescriptionData);
+  if (prescription) {
+    // Update existing prescription
+    prescription.notes = advice;
+    prescription.expiryDate = expiryDate ? new Date(expiryDate) : null;
+    prescription.status = 'active';
+    await prescription.save();
+    isUpdate = true;
+    console.log('✏️ Prescription already exists. Updating existing prescription ID:', prescription._id);
+  } else {
+    // Create new prescription
+    prescription = await Prescription.create(prescriptionData);
+    console.log('🆕 Created new prescription ID:', prescription._id);
+  }
 
   // Generate and upload PDF with all consultation data
   try {
@@ -132,8 +139,7 @@ exports.createPrescription = asyncHandler(async (req, res) => {
 
     const pdfBuffer = await generatePrescriptionPDF(
       {
-        ...prescriptionData,
-        createdAt: prescription.createdAt,
+        ...prescription.toObject(),
         diagnosis: diagnosis,
         symptoms: symptoms,
         investigations: investigationsArray, // Ensure it's an array
@@ -144,7 +150,8 @@ exports.createPrescription = asyncHandler(async (req, res) => {
       doctor.toObject(),
       buildPrescriptionPatientData(patient, consultationDoc)
     );
-    const pdfUrl = await uploadPrescriptionPDF(pdfBuffer, 'healway/prescriptions', `prescription_${prescription._id}`);
+    // Use unique timestamp to prevent caching issues in frontend
+    const pdfUrl = await uploadPrescriptionPDF(pdfBuffer, 'healway/prescriptions', `prescription_${prescription._id}_v${Date.now()}`);
     prescription.pdfFileUrl = pdfUrl;
     await prescription.save();
   } catch (error) {
@@ -160,14 +167,12 @@ exports.createPrescription = asyncHandler(async (req, res) => {
     // Keep existing status - don't change to 'completed'
     // consultationDoc.status = 'completed'; // REMOVED - status should only change via Complete button
     await consultationDoc.save();
-
-    // Cache invalidation removed (Redis removed)
   }
 
   // Emit real-time event
   try {
     const io = getIO();
-    io.to(`patient-${consultation.patientId}`).emit('prescription:created', {
+    io.to(`patient-${patientId}`).emit(isUpdate ? 'prescription:updated' : 'prescription:created', {
       prescription: await Prescription.findById(prescription._id)
         .populate('doctorId', 'firstName lastName'),
     });
@@ -189,7 +194,7 @@ exports.createPrescription = asyncHandler(async (req, res) => {
       patientName,
       doctorName,
       prescriptionId: prescription._id,
-      pdfPath: prescription.pdfFileUrl ? null : null, // PDF is in cloud, not local path
+      pdfPath: null, // PDF is in cloud, not local path
       prescriptionDate: prescription.createdAt,
     }).catch((error) => console.error('Error sending prescription email:', error));
   } catch (error) {
@@ -205,7 +210,7 @@ exports.createPrescription = asyncHandler(async (req, res) => {
 
     // Notify patient
     await createPrescriptionNotification({
-      userId: consultation.patientId,
+      userId: patientId,
       userType: 'patient',
       prescription: populatedPrescription,
       doctor: populatedPrescription.doctorId,
@@ -215,13 +220,19 @@ exports.createPrescription = asyncHandler(async (req, res) => {
     console.error('Error creating notifications:', error);
   }
 
-
-  return res.status(201).json({
+  return res.status(isUpdate ? 200 : 201).json({
     success: true,
-    message: 'Prescription created successfully',
+    message: isUpdate ? 'Prescription updated successfully' : 'Prescription created successfully',
     data: await Prescription.findById(prescription._id)
       .populate('patientId', 'firstName lastName phone email profileImage dateOfBirth gender address')
-      .populate('consultationId', 'diagnosis symptoms investigations advice followUpDate consultationDate'),
+      .populate({
+        path: 'consultationId',
+        select: 'diagnosis symptoms investigations advice followUpDate consultationDate appointmentId',
+        populate: {
+          path: 'appointmentId',
+          select: 'patientType patientName patientAge patientGender patientPhone patientEmail'
+        }
+      }),
   });
 });
 
@@ -334,7 +345,14 @@ exports.updatePrescription = asyncHandler(async (req, res) => {
     message: 'Prescription updated successfully',
     data: await Prescription.findById(prescription._id)
       .populate('patientId', 'firstName lastName phone email profileImage dateOfBirth gender address')
-      .populate('consultationId', 'diagnosis symptoms investigations advice followUpDate consultationDate'),
+      .populate({
+        path: 'consultationId',
+        select: 'diagnosis symptoms investigations advice followUpDate consultationDate appointmentId',
+        populate: {
+          path: 'appointmentId',
+          select: 'patientType patientName patientAge patientGender patientPhone patientEmail'
+        }
+      }),
   });
 });
 
@@ -350,7 +368,14 @@ exports.getPrescriptions = asyncHandler(async (req, res) => {
   const [prescriptions, total] = await Promise.all([
     Prescription.find(filter)
       .populate('patientId', 'firstName lastName phone profileImage')
-      .populate('consultationId', 'consultationDate diagnosis symptoms investigations advice followUpDate')
+      .populate({
+        path: 'consultationId',
+        select: 'consultationDate diagnosis symptoms investigations advice followUpDate appointmentId',
+        populate: {
+          path: 'appointmentId',
+          select: 'patientType patientName patientAge patientGender patientPhone patientEmail'
+        }
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit),
@@ -381,7 +406,14 @@ exports.getPrescriptionById = asyncHandler(async (req, res) => {
     doctorId: id,
   })
     .populate('patientId', 'firstName lastName phone profileImage dateOfBirth')
-    .populate('consultationId', 'consultationDate diagnosis vitals')
+    .populate({
+      path: 'consultationId',
+      select: 'consultationDate diagnosis vitals appointmentId',
+      populate: {
+        path: 'appointmentId',
+        select: 'patientType patientName patientAge patientGender patientPhone patientEmail'
+      }
+    })
     .populate('doctorId', 'firstName lastName specialization licenseNumber');
 
   if (!prescription) {

@@ -236,24 +236,53 @@ const AdminVerification = () => {
   }
 
   const handleViewDocument = async (fileUrl, fileName) => {
+    // Open the tab immediately to prevent popup blockers
+    const newTab = window.open('about:blank', '_blank')
+    if (!newTab) {
+      toast.error('Popup blocked! Please allow popups for this site.')
+      return
+    }
+
     try {
       const normalizedUrl = normalizeDocumentUrl(fileUrl)
-      // Check for PDF by extension in either URL or original filename
-      const isPdf = fileUrl?.toLowerCase().endsWith('.pdf') || fileName?.toLowerCase().endsWith('.pdf')
 
-      // Use the fetch strategy whenever possible for PDFs as it's the most reliable way to force inline viewing
-      if (isPdf) {
-        try {
-          const response = await fetch(normalizedUrl, { mode: 'cors' })
-          if (response.ok) {
-            const blob = await response.blob()
-            const viewUrl = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
-            window.open(viewUrl, '_blank')
+      const getExtension = (path) => {
+        if (!path) return '';
+        const cleanPath = path.split('?')[0];
+        return cleanPath.split('.').pop()?.toLowerCase() || '';
+      };
+
+      const ext = getExtension(fileUrl) || getExtension(fileName);
+      let viewableMimeType = '';
+      if (ext === 'pdf') {
+        viewableMimeType = 'application/pdf';
+      } else if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)) {
+        viewableMimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+      }
+
+      // Use the fetch strategy whenever possible for inline viewing
+      try {
+        // Cache bust to avoid browser cache returning non-CORS headers
+        const separator = normalizedUrl.includes('?') ? '&' : '?';
+        const fetchUrl = `${normalizedUrl}${separator}cb=${Date.now()}`;
+
+        const response = await fetch(fetchUrl, { mode: 'cors' })
+        if (response.ok) {
+          const blob = await response.blob()
+          const contentType = response.headers.get('Content-Type') || ''
+          
+          // Use our detected viewable type to override generic octet-stream
+          const finalMimeType = viewableMimeType || contentType;
+          const isViewable = finalMimeType.startsWith('image/') || finalMimeType === 'application/pdf'
+          
+          if (isViewable) {
+            const viewUrl = window.URL.createObjectURL(new Blob([blob], { type: finalMimeType }))
+            newTab.location.href = viewUrl
             return
           }
-        } catch (err) {
-          console.warn('PDF blob view failed (CORS), trying URL-based display', err)
         }
+      } catch (err) {
+        console.warn('Document blob view failed (CORS), trying URL-based display', err)
       }
 
       // Fallback for Cloudinary inline display
@@ -264,9 +293,18 @@ const AdminVerification = () => {
           finalUrl = finalUrl.replace('/upload/', '/upload/fl_inline/')
         }
       }
-      window.open(finalUrl, '_blank')
+
+      // If we are opening a raw upload that is NOT an image/pdf, or if the fetch failed, 
+      // check if finalUrl will force download. If it does, we close the new blank tab and download via main window.
+      if (finalUrl.includes('/raw/upload/')) {
+        newTab.close()
+        window.location.href = finalUrl
+      } else {
+        newTab.location.href = finalUrl
+      }
     } catch (error) {
       console.error('View error:', error)
+      if (newTab) newTab.close()
       toast.error('Failed to open document')
     }
   }

@@ -1,10 +1,14 @@
-import { useState, useEffect, useMemo } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import {
+  useState,
+  useEffect,
+  useMemo } from 'react'
+import { useNavigate,
+  useSearchParams } from 'react-router-dom'
 import { useToast } from '../../../contexts/ToastContext'
 import {
   getPatientPrescriptions,
   getDoctors,
-} from '../patient-services/patientService'
+  } from '../patient-services/patientService'
 import { getFileUrl } from '../../../utils/apiClient'
 import Pagination from '../../../components/Pagination'
 import { openDoctorBooking } from '../patient-utils/bookingNavigation'
@@ -19,6 +23,7 @@ import {
   IoCloseOutline,
   IoPeopleOutline,
   IoSearchOutline,
+  IoPerson,
 } from 'react-icons/io5'
 
 // Default prescriptions (will be replaced by API data)
@@ -117,6 +122,19 @@ const PatientPrescriptions = () => {
               })(),
             } : (presc.doctor || {}),
             patient: (() => {
+              const appointment = presc.consultationId?.appointmentId
+              if (appointment && appointment.patientType === 'Else') {
+                return {
+                  name: appointment.patientName || 'N/A',
+                  dateOfBirth: null,
+                  age: appointment.patientAge || 'N/A',
+                  gender: appointment.patientGender || 'N/A',
+                  phone: appointment.patientPhone || 'N/A',
+                  email: appointment.patientEmail || '',
+                  address: null,
+                }
+              }
+
               const patientSource = presc.patientId || profileFallback
               if (!patientSource || Object.keys(patientSource).length === 0) return null
 
@@ -864,15 +882,23 @@ const PatientPrescriptions = () => {
                 <div className="relative">
                   {/* Doctor Info */}
                   <div className="flex items-start gap-4">
-                    <img
-                      src={prescription.doctor.image}
-                      alt={prescription.doctor.name}
-                      className="h-16 w-16 rounded-2xl object-cover ring-2 ring-slate-100 bg-slate-100"
-                      onError={(e) => {
-                        e.target.onerror = null
-                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(prescription.doctor.name)}&background=0077C2&color=fff&size=128&bold=true`
-                      }}
-                    />
+                    {prescription.doctor.image && !prescription.doctor.image.includes('ui-avatars') ? (
+                      <img
+                        src={prescription.doctor.image}
+                        alt={prescription.doctor.name}
+                        className="h-16 w-16 rounded-2xl object-cover ring-2 ring-slate-100 bg-slate-100"
+                        onError={(e) => {
+                          e.target.onerror = null
+                          e.target.style.display = 'none'
+                          if (e.target.nextSibling) {
+                            e.target.nextSibling.style.display = 'flex'
+                          }
+                        }}
+                      />
+                    ) : null}
+                    <div className={`h-16 w-16 rounded-2xl ring-2 ring-slate-100 bg-slate-100 text-slate-400 items-center justify-center ${prescription.doctor.image && !prescription.doctor.image.includes('ui-avatars') ? 'hidden' : 'flex'}`}>
+                      <IoPerson className="h-8 w-8 text-slate-400" />
+                    </div>
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-slate-900">{prescription.doctor.name}</h3>
                       <p className="text-sm text-primary">{prescription.doctor.specialty}</p>
@@ -1022,11 +1048,23 @@ const PatientPrescriptions = () => {
                           : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                           }`}
                       >
-                        <img
-                          src={doctor.profileImage ? getFileUrl(doctor.profileImage) : `https://ui-avatars.com/api/?name=${encodeURIComponent(doctorName)}&background=0077C2&color=fff&size=128&bold=true`}
-                          alt={doctorName}
-                          className="h-12 w-12 rounded-full object-cover border border-slate-100"
-                        />
+                        {doctor.profileImage ? (
+                          <img
+                            src={getFileUrl(doctor.profileImage)}
+                            alt={doctorName}
+                            className="h-12 w-12 rounded-full object-cover border border-slate-100"
+                            onError={(e) => {
+                              e.target.onerror = null
+                              e.target.style.display = 'none'
+                              if (e.target.nextSibling) {
+                                e.target.nextSibling.style.display = 'flex'
+                              }
+                            }}
+                          />
+                        ) : null}
+                        <div className={`h-12 w-12 rounded-full border border-slate-100 bg-slate-100 text-slate-400 items-center justify-center ${doctor.profileImage ? 'hidden' : 'flex'}`}>
+                          <IoPerson className="h-6 w-6 text-slate-400" />
+                        </div>
                         <div className="flex-1 min-w-0">
                           <p className="truncate text-sm font-bold text-slate-900">{doctorName}</p>
                           <p className="truncate text-xs text-slate-500">{doctor.specialization || doctor.specialty || 'General Physician'}</p>

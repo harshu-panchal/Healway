@@ -1,6 +1,15 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef } from "react";
+import { useParams,
+  useNavigate,
+  useSearchParams,
+  useLocation } from "react-router-dom";
+import { motion,
+  AnimatePresence } from "framer-motion";
 import {
   IoArrowBackOutline,
   IoLocationOutline,
@@ -21,7 +30,8 @@ import {
   IoSchoolOutline,
   IoHeart,
   IoHeartOutline,
-} from "react-icons/io5";
+  IoPerson,
+} from 'react-icons/io5';
 import {
   Modal,
   Steps,
@@ -2528,21 +2538,32 @@ const PatientDoctorDetails = () => {
     );
   }
 
+  const hasDoctorImg = !!((doctor.image && !doctor.image.includes('ui-avatars')) || (doctor.profileImage && !doctor.profileImage.includes('ui-avatars')));
+  const doctorImgUrl = hasDoctorImg ? getFileUrl(doctor.image || doctor.profileImage, { width: 320, height: 320 }) : '';
+
   return (
     <section className="flex flex-col gap-6 pb-4">
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row gap-6">
           <div className="relative shrink-0">
-            <img
-              src={getFileUrl(doctor.image || doctor.profileImage, { width: 320, height: 320 })}
-              alt={doctor.name}
-              className="h-32 w-32 sm:h-40 sm:w-40 rounded-3xl object-cover ring-2 ring-slate-100 bg-slate-100"
-              loading="lazy"
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor.name)}&background=0077C2&color=fff&size=160&bold=true`;
-              }}
-            />
+            {hasDoctorImg ? (
+              <img
+                src={doctorImgUrl}
+                alt={doctor.name}
+                className="h-32 w-32 sm:h-40 sm:w-40 rounded-3xl object-cover ring-2 ring-slate-100 bg-slate-100"
+                loading="lazy"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.style.display = 'none';
+                  if (e.target.nextSibling) {
+                    e.target.nextSibling.style.display = 'flex';
+                  }
+                }}
+              />
+            ) : null}
+            <div className={`h-32 w-32 sm:h-40 sm:w-40 rounded-3xl ring-2 ring-slate-100 bg-slate-100 text-slate-400 items-center justify-center ${hasDoctorImg ? 'hidden' : 'flex'}`}>
+              <IoPerson className="h-16 w-16 text-slate-400" />
+            </div>
             {doctor.availability.includes("today") && (
               <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-white">
                 <IoCheckmarkCircleOutline

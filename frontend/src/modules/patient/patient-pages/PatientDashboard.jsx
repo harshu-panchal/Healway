@@ -1,4 +1,9 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import {
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   IoSearchOutline,
@@ -27,6 +32,7 @@ import {
   IoEyeOutline,
   IoChevronDownOutline,
   IoCloseOutline,
+  IoPerson,
 } from 'react-icons/io5'
 import PatientNavbar from '../patient-components/PatientNavbar'
 import PatientSidebar from '../patient-components/PatientSidebar'
@@ -639,15 +645,23 @@ const PatientDashboard = () => {
                   }}
                   className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 bg-white hover:border-primary hover:shadow-md transition-all cursor-pointer active:scale-[0.98]"
                 >
-                  <img
-                    src={appointment.doctorId?.profileImage ? getFileUrl(appointment.doctorId.profileImage) : (appointment.doctorImage ? getFileUrl(appointment.doctorImage) : `https://ui-avatars.com/api/?name=${encodeURIComponent(doctorName)}&background=0077C2&color=fff&size=128&bold=true`)}
-                    alt={doctorName}
-                    className="h-12 w-12 rounded-full object-cover border-2 border-slate-200 flex-shrink-0"
-                    onError={(e) => {
-                      e.target.onerror = null
-                      e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(doctorName)}&background=0077C2&color=fff&size=128&bold=true`
-                    }}
-                  />
+                  {((appointment.doctorId?.profileImage && !appointment.doctorId.profileImage.includes('ui-avatars')) || (appointment.doctorImage && !appointment.doctorImage.includes('ui-avatars'))) ? (
+                    <img
+                      src={appointment.doctorId?.profileImage ? getFileUrl(appointment.doctorId.profileImage) : getFileUrl(appointment.doctorImage)}
+                      alt={doctorName}
+                      className="h-12 w-12 rounded-full object-cover border-2 border-slate-200 flex-shrink-0"
+                      onError={(e) => {
+                        e.target.onerror = null
+                        e.target.style.display = 'none'
+                        if (e.target.nextSibling) {
+                          e.target.nextSibling.style.display = 'flex'
+                        }
+                      }}
+                    />
+                  ) : null}
+                  <div className={`h-12 w-12 rounded-full border-2 border-slate-200 bg-slate-100 text-slate-400 items-center justify-center flex-shrink-0 ${((appointment.doctorId?.profileImage && !appointment.doctorId.profileImage.includes('ui-avatars')) || (appointment.doctorImage && !appointment.doctorImage.includes('ui-avatars'))) ? 'hidden' : 'flex'}`}>
+                    <IoPerson className="h-6 w-6 text-slate-400" />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-bold text-slate-900 mb-0.5 leading-tight">
                       <span>{doctorName}</span>
@@ -731,16 +745,24 @@ const PatientDashboard = () => {
                   <div className="p-5 flex flex-col h-full bg-gradient-to-b from-white to-slate-50/30">
                     <div className="flex gap-4 mb-4">
                       <div className="relative shrink-0">
-                        <img
-                          src={(doctor.image || doctor.profileImage) ? getFileUrl(doctor.image || doctor.profileImage) : `https://ui-avatars.com/api/?name=${encodeURIComponent(doctorName)}&background=0077C2&color=fff&size=200&bold=true`}
-                          alt={doctorName}
-                          className="h-16 w-16 rounded-2xl object-cover ring-4 ring-white shadow-sm transition-transform duration-500 group-hover:scale-110"
-                          loading="lazy"
-                          onError={(e) => {
-                            e.target.onerror = null
-                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(doctorName)}&background=0077C2&color=fff&size=200&bold=true`
-                          }}
-                        />
+                        {((doctor.image && !doctor.image.includes('ui-avatars')) || (doctor.profileImage && !doctor.profileImage.includes('ui-avatars'))) ? (
+                          <img
+                            src={getFileUrl(doctor.image || doctor.profileImage)}
+                            alt={doctorName}
+                            className="h-16 w-16 rounded-2xl object-cover ring-4 ring-white shadow-sm transition-transform duration-500 group-hover:scale-110"
+                            loading="lazy"
+                            onError={(e) => {
+                              e.target.onerror = null
+                              e.target.style.display = 'none'
+                              if (e.target.nextSibling) {
+                                e.target.nextSibling.style.display = 'flex'
+                              }
+                            }}
+                          />
+                        ) : null}
+                        <div className={`h-16 w-16 rounded-2xl ring-4 ring-white shadow-sm bg-slate-100 text-slate-400 items-center justify-center transition-transform duration-500 group-hover:scale-110 ${((doctor.image && !doctor.image.includes('ui-avatars')) || (doctor.profileImage && !doctor.profileImage.includes('ui-avatars'))) ? 'hidden' : 'flex'}`}>
+                          <IoPerson className="h-8 w-8 text-slate-400" />
+                        </div>
                         <div className="absolute -top-2 -right-2 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg p-1 shadow-md">
                           <IoStar className="h-2.5 w-2.5 text-white" />
                         </div>
@@ -1055,16 +1077,24 @@ const PatientDashboard = () => {
                     {/* Doctor Info Row */}
                     <div className="flex items-start gap-3 mb-3">
                       <div className="relative flex-shrink-0">
-                        <img
-                          src={(doctor.image || doctor.profileImage) ? getFileUrl(doctor.image || doctor.profileImage, { width: 128, height: 128 }) : `https://ui-avatars.com/api/?name=${encodeURIComponent(doctorName)}&background=0077C2&color=fff&size=128&bold=true`}
-                          alt={doctorName}
-                          className="h-16 w-16 rounded-lg object-cover border border-slate-200"
-                          loading="lazy"
-                          onError={(e) => {
-                            e.target.onerror = null
-                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(doctorName)}&background=0077C2&color=fff&size=128&bold=true`
-                          }}
-                        />
+                        {((doctor.image && !doctor.image.includes('ui-avatars')) || (doctor.profileImage && !doctor.profileImage.includes('ui-avatars'))) ? (
+                          <img
+                            src={getFileUrl(doctor.image || doctor.profileImage, { width: 128, height: 128 })}
+                            alt={doctorName}
+                            className="h-16 w-16 rounded-lg object-cover border border-slate-200"
+                            loading="lazy"
+                            onError={(e) => {
+                              e.target.onerror = null
+                              e.target.style.display = 'none'
+                              if (e.target.nextSibling) {
+                                e.target.nextSibling.style.display = 'flex'
+                              }
+                            }}
+                          />
+                        ) : null}
+                        <div className={`h-16 w-16 rounded-lg border border-slate-200 bg-slate-100 text-slate-400 items-center justify-center ${((doctor.image && !doctor.image.includes('ui-avatars')) || (doctor.profileImage && !doctor.profileImage.includes('ui-avatars'))) ? 'hidden' : 'flex'}`}>
+                          <IoPerson className="h-8 w-8 text-slate-400" />
+                        </div>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start mb-0.5">

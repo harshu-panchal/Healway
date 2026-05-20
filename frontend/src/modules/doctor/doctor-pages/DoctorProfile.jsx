@@ -102,6 +102,136 @@ const convert12HourTo24Hour = (time12) => {
 const DoctorProfile = () => {
   const location = useLocation();
   const toast = useToast();
+
+  const handleViewDocument = async (fileUrl, fileName) => {
+    // Open the tab immediately to prevent popup blockers
+    const newTab = window.open("about:blank", "_blank");
+    if (!newTab) {
+      toast.error("Popup blocked! Please allow popups for this site.");
+      return;
+    }
+
+    try {
+      const normalizedUrl = normalizeImageUrl(fileUrl);
+      if (!normalizedUrl) {
+        newTab.close();
+        return;
+      }
+
+      const getExtension = (path) => {
+        if (!path) return "";
+        const cleanPath = path.split("?")[0];
+        return cleanPath.split(".").pop()?.toLowerCase() || "";
+      };
+
+      const ext = getExtension(fileUrl) || getExtension(fileName);
+      let viewableMimeType = "";
+      if (ext === "pdf") {
+        viewableMimeType = "application/pdf";
+      } else if (["jpg", "jpeg", "png", "webp", "gif"].includes(ext)) {
+        viewableMimeType = `image/${ext === "jpg" ? "jpeg" : ext}`;
+      }
+
+      // Use the fetch strategy whenever possible for inline viewing
+      try {
+        // Cache bust to avoid browser cache returning non-CORS headers
+        const separator = normalizedUrl.includes("?") ? "&" : "?";
+        const fetchUrl = `${normalizedUrl}${separator}cb=${Date.now()}`;
+
+        const response = await fetch(fetchUrl, { mode: "cors" });
+        if (response.ok) {
+          const blob = await response.blob();
+          const contentType = response.headers.get("Content-Type") || "";
+          
+          // Use our detected viewable type to override generic octet-stream
+          const finalMimeType = viewableMimeType || contentType;
+          const isViewable =
+            finalMimeType.startsWith("image/") ||
+            finalMimeType === "application/pdf";
+
+          if (isViewable) {
+            const viewUrl = window.URL.createObjectURL(
+              new Blob([blob], { type: finalMimeType })
+            );
+            newTab.location.href = viewUrl;
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Blob view failed (CORS), trying URL-based display", err);
+      }
+
+      // Fallback for Cloudinary inline display
+      let finalUrl = normalizedUrl;
+      if (
+        normalizedUrl.includes("res.cloudinary.com") &&
+        !normalizedUrl.includes("/raw/upload/")
+      ) {
+        finalUrl = normalizedUrl.replace(
+          "/upload/fl_attachment/",
+          "/upload/fl_inline/"
+        );
+        if (!finalUrl.includes("fl_inline")) {
+          finalUrl = finalUrl.replace("/upload/", "/upload/fl_inline/");
+        }
+      }
+
+      // If we are opening a raw upload that is NOT an image/pdf, or if the fetch failed, 
+      // check if finalUrl will force download. If it does, we close the new blank tab and download via main window.
+      if (finalUrl.includes("/raw/upload/")) {
+        newTab.close();
+        window.location.href = finalUrl;
+      } else {
+        newTab.location.href = finalUrl;
+      }
+    } catch (error) {
+      console.error("View error:", error);
+      if (newTab) newTab.close();
+      toast.error("Failed to open document");
+    }
+  };
+
+  const handleDownload = async (fileUrl, fileName) => {
+    try {
+      const normalizedUrl = normalizeImageUrl(fileUrl);
+      if (!normalizedUrl) return;
+
+      let downloadUrl = normalizedUrl;
+      if (
+        normalizedUrl.includes("res.cloudinary.com") &&
+        !normalizedUrl.includes("/raw/upload/")
+      ) {
+        downloadUrl = normalizedUrl.replace(
+          "/upload/",
+          "/upload/fl_attachment/"
+        );
+      }
+
+      try {
+        const response = await fetch(downloadUrl, { mode: "cors" });
+        if (response.ok) {
+          const blob = await response.blob();
+          const blobUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = blobUrl;
+          a.download = fileName || "document.pdf";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(blobUrl);
+          return;
+        }
+      } catch (err) {
+        console.warn("Blob download failed (CORS), falling back to open", err);
+      }
+
+      window.open(downloadUrl, "_blank");
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Failed to download document");
+    }
+  };
+
   const isDashboardPage =
     location.pathname === "/doctor/dashboard" ||
     location.pathname === "/doctor/";
@@ -1323,7 +1453,11 @@ const DoctorProfile = () => {
   const handleArrayItemChange = (field, index, subField, value) => {
     setFormData((prev) => {
       const updated = [...(prev[field] || [])];
-      updated[index] = { ...updated[index], [subField]: value };
+      let finalValue = value;
+      if (field === "education" && subField === "year") {
+        finalValue = String(value || "").replace(/\D/g, "").slice(0, 4);
+      }
+      updated[index] = { ...updated[index], [subField]: finalValue };
       return { ...prev, [field]: updated };
     });
   };
@@ -3526,7 +3660,9 @@ const DoctorProfile = () => {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <input
-                                    type="number"
+                                    type="text"
+                                    pattern="\d*"
+                                    maxLength={4}
                                     placeholder="Year"
                                     value={edu.year || ""}
                                     onChange={(e) =>
@@ -3534,9 +3670,14 @@ const DoctorProfile = () => {
                                         "education",
                                         index,
                                         "year",
-                                        parseInt(e.target.value) || "",
+                                        e.target.value.replace(/\D/g, "")
                                       )
                                     }
+                                    onKeyPress={(e) => {
+                                      if (!/\d/.test(e.key)) {
+                                        e.preventDefault()
+                                      }
+                                    }}
                                     className="flex-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-900 transition hover:border-slate-300 focus:outline-none focus:ring-2"
                                   />
                                   <button
@@ -4572,23 +4713,22 @@ const DoctorProfile = () => {
                             <div className="flex items-center gap-2 flex-shrink-0">
                               {normalizedUrl && (
                                 <>
-                                  <a
-                                    href={normalizedUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
+                                  <button
+                                    type="button"
+                                    onClick={() => handleViewDocument(doc.fileUrl, doc.name)}
+                                    className="text-xs font-medium text-primary hover:underline flex items-center gap-1 bg-transparent border-0 cursor-pointer p-0"
                                   >
                                     <IoEyeOutline className="h-4 w-4" />
                                     View
-                                  </a>
-                                  <a
-                                    href={normalizedUrl}
-                                    download
-                                    className="text-xs font-medium text-emerald-600 hover:underline flex items-center gap-1"
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDownload(doc.fileUrl, doc.name)}
+                                    className="text-xs font-medium text-emerald-600 hover:underline flex items-center gap-1 bg-transparent border-0 cursor-pointer p-0"
                                   >
                                     <IoDownloadOutline className="h-4 w-4" />
                                     Download
-                                  </a>
+                                  </button>
                                 </>
                               )}
                             </div>

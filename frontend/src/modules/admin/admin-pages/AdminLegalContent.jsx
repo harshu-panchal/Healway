@@ -62,9 +62,12 @@ const AdminLegalContent = () => {
           ...defaultLegalContent,
           ...(response?.data?.legalContent || {}),
         })
+        const loadedFooter = response?.data?.footerSettings || {}
         setFooterSettings({
           ...defaultFooterSettings,
-          ...(response?.data?.footerSettings || {}),
+          ...loadedFooter,
+          supportPhone: (loadedFooter.supportPhone || '').replace(/\D/g, '').slice(0, 10),
+          whatsappNumber: (loadedFooter.whatsappNumber || '').replace(/\D/g, '').slice(0, 10),
         })
       } catch (error) {
         console.error('Error loading admin settings:', error)
@@ -84,10 +87,17 @@ const AdminLegalContent = () => {
     }))
   }
 
+  const handlePhoneKeyPress = (event) => {
+    // Prevent typing non-digit characters
+    if (!/\d/.test(event.key)) {
+      event.preventDefault()
+    }
+  }
+
   const handleFooterChange = (key, value) => {
-    // For phone and whatsapp, only allow digits and a leading +
+    // For phone and whatsapp, only allow digits and limit to 10 digits
     if (key === 'supportPhone' || key === 'whatsappNumber') {
-      const filtered = value.replace(/[^\d+]/g, '')
+      const filtered = value.replace(/\D/g, '').slice(0, 10)
       setFooterSettings((prev) => ({
         ...prev,
         [key]: filtered,
@@ -141,13 +151,13 @@ const AdminLegalContent = () => {
     }
 
     // Phone number validation
-    if (footerSettings.supportPhone && footerSettings.supportPhone.replace(/\+/g, '').length < 10) {
-      toast.warning('Support phone number should be at least 10 digits')
+    if (footerSettings.supportPhone && !/^\d{10}$/.test(footerSettings.supportPhone)) {
+      toast.warning('Support phone number must be exactly 10 digits')
       return false
     }
 
-    if (footerSettings.whatsappNumber && footerSettings.whatsappNumber.replace(/\+/g, '').length < 10) {
-      toast.warning('WhatsApp number should be at least 10 digits')
+    if (footerSettings.whatsappNumber && !/^\d{10}$/.test(footerSettings.whatsappNumber)) {
+      toast.warning('WhatsApp number must be exactly 10 digits')
       return false
     }
 
@@ -387,10 +397,12 @@ const AdminLegalContent = () => {
                   </label>
                   <input
                     id="supportPhone"
-                    type="text"
+                    type="tel"
                     value={footerSettings.supportPhone}
                     onChange={(event) => handleFooterChange('supportPhone', event.target.value)}
-                    placeholder="+91 1234567890"
+                    onKeyPress={handlePhoneKeyPress}
+                    maxLength={10}
+                    placeholder="1234567890"
                     className={inputClassName}
                   />
                 </div>
@@ -415,9 +427,11 @@ const AdminLegalContent = () => {
                   </label>
                   <input
                     id="whatsappNumber"
-                    type="text"
+                    type="tel"
                     value={footerSettings.whatsappNumber}
                     onChange={(event) => handleFooterChange('whatsappNumber', event.target.value)}
+                    onKeyPress={handlePhoneKeyPress}
+                    maxLength={10}
                     placeholder="919876543210"
                     className={inputClassName}
                   />

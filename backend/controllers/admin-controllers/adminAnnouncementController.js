@@ -34,6 +34,12 @@ const sendAnnouncementPushNotifications = async (announcement) => {
     } else if (normalizedTargetType === 'patients') {
       const patients = await Patient.find({ isActive: { $ne: false } }).select('fcmTokens fcmTokenMobile');
       tokens = collectUserTokens(patients);
+    } else if (normalizedTargetType === 'my_patients' && announcement.senderId) {
+      const Appointment = require('../../models/Appointment');
+      const appointments = await Appointment.find({ doctorId: announcement.senderId }).select('patientId');
+      const patientIds = [...new Set(appointments.map(app => app.patientId.toString()))];
+      const patients = await Patient.find({ _id: { $in: patientIds }, isActive: { $ne: false } }).select('fcmTokens fcmTokenMobile');
+      tokens = collectUserTokens(patients);
     } else if (normalizedTargetType === 'specific_patients' && Array.isArray(announcement.targetPatients) && announcement.targetPatients.length > 0) {
       const patients = await Patient.find({ _id: { $in: announcement.targetPatients }, isActive: { $ne: false } }).select('fcmTokens fcmTokenMobile');
       tokens = collectUserTokens(patients);
@@ -62,6 +68,62 @@ const sendAnnouncementPushNotifications = async (announcement) => {
     await Promise.allSettled(tokenChunks.map((tokenChunk) => sendPushNotification(tokenChunk, payload)));
   } catch (error) {
     console.error('Failed to send announcement push notifications:', error.message);
+  }
+};
+
+const createAnnouncementInAppNotifications = async (announcement) => {
+  try {
+    const Notification = require('../../models/Notification');
+    const normalizedTargetType = announcement.targetType || 'all';
+    let userIds = [];
+
+    if (normalizedTargetType === 'doctors') {
+      const doctors = await Doctor.find({ isActive: { $ne: false } }).select('_id');
+      userIds = doctors.map(d => ({ userId: d._id, userType: 'doctor' }));
+    } else if (normalizedTargetType === 'patients') {
+      const patients = await Patient.find({ isActive: { $ne: false } }).select('_id');
+      userIds = patients.map(p => ({ userId: p._id, userType: 'patient' }));
+    } else if (normalizedTargetType === 'my_patients' && announcement.senderId) {
+      const Appointment = require('../../models/Appointment');
+      const appointments = await Appointment.find({ doctorId: announcement.senderId }).select('patientId');
+      const patientIds = [...new Set(appointments.map(app => app.patientId.toString()))];
+      const patients = await Patient.find({ _id: { $in: patientIds }, isActive: { $ne: false } }).select('_id');
+      userIds = patients.map(p => ({ userId: p._id, userType: 'patient' }));
+    } else if (normalizedTargetType === 'specific_patients' && Array.isArray(announcement.targetPatients) && announcement.targetPatients.length > 0) {
+      userIds = announcement.targetPatients.map(id => ({ userId: id, userType: 'patient' }));
+    } else {
+      const [doctors, patients] = await Promise.all([
+        Doctor.find({ isActive: { $ne: false } }).select('_id'),
+        Patient.find({ isActive: { $ne: false } }).select('_id'),
+      ]);
+      userIds = [
+        ...doctors.map(d => ({ userId: d._id, userType: 'doctor' })),
+        ...patients.map(p => ({ userId: p._id, userType: 'patient' })),
+      ];
+    }
+
+    if (userIds.length === 0) return;
+
+    // Build notification documents
+    const notificationDocs = userIds.map(({ userId, userType }) => ({
+      userId,
+      userType,
+      type: 'announcement',
+      title: announcement.title || 'New Announcement',
+      message: announcement.content || 'You have a new announcement.',
+      data: {
+        announcementId: announcement._id.toString(),
+        priority: announcement.priority || 'medium',
+      },
+      priority: announcement.priority === 'high' ? 'high' : 'medium',
+      icon: announcement.image || null,
+    }));
+
+    // Perform bulk write for performance
+    await Notification.insertMany(notificationDocs);
+    console.log(`✅ Created ${notificationDocs.length} in-app announcement notifications in database`);
+  } catch (error) {
+    console.error('Failed to create in-app announcement notifications:', error.message);
   }
 };
 
@@ -140,6 +202,11 @@ exports.createAdminAnnouncement = asyncHandler(async (req, res) => {
     console.error('Announcement push notification error (non-critical):', pushError.message);
   });
 
+  // Create persisted in-app notifications so they show up in user's bell icon/notification list
+  createAnnouncementInAppNotifications(announcement).catch((inAppError) => {
+    console.error('Announcement in-app notification error (non-critical):', inAppError.message);
+  });
+
   res.status(201).json({
     success: true,
     data: announcement,
@@ -170,6 +237,50 @@ exports.updateAnnouncementStatus = asyncHandler(async (req, res) => {
     return res.status(404).json({
       success: false,
       message: 'Announcement not found',
+    });
+  }
+
+  if (status === 'approved') {
+    // Emit real-time socket event
+    try {
+      const io = getIO();
+      const payload = {
+        announcement: {
+          _id: announcement._id,
+          title: announcement.title,
+          content: announcement.content,
+          senderRole: announcement.senderRole,
+          targetType: announcement.targetType,
+          priority: announcement.priority,
+          image: announcement.image || '',
+          createdAt: announcement.createdAt,
+        },
+      };
+
+      const normalizedTargetType = announcement.targetType || 'all';
+
+      if (normalizedTargetType === 'doctors') {
+        io.to('doctors').emit('announcement:new', payload);
+      } else if (normalizedTargetType === 'patients') {
+        io.to('patients').emit('announcement:new', payload);
+      } else if (normalizedTargetType === 'specific_patients' && Array.isArray(announcement.targetPatients)) {
+        announcement.targetPatients.forEach((patientId) => {
+          io.to(`patient-${patientId.toString()}`).emit('announcement:new', payload);
+        });
+      } else {
+        io.to('doctors').emit('announcement:new', payload);
+        io.to('patients').emit('announcement:new', payload);
+      }
+    } catch (socketError) {
+      console.error('Failed to emit announcement:new socket event on status update:', socketError.message);
+    }
+
+    sendAnnouncementPushNotifications(announcement).catch((pushError) => {
+      console.error('Announcement push notification error on status update:', pushError.message);
+    });
+
+    createAnnouncementInAppNotifications(announcement).catch((inAppError) => {
+      console.error('Announcement in-app notification error on status update:', inAppError.message);
     });
   }
 

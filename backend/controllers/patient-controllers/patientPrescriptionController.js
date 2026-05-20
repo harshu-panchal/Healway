@@ -29,7 +29,14 @@ exports.getPrescriptions = asyncHandler(async (req, res) => {
         path: 'patientId',
         select: 'firstName lastName dateOfBirth gender phone email address',
       })
-      .populate('consultationId', 'consultationDate diagnosis symptoms investigations advice followUpDate')
+      .populate({
+        path: 'consultationId',
+        select: 'consultationDate diagnosis symptoms investigations advice followUpDate appointmentId',
+        populate: {
+          path: 'appointmentId',
+          select: 'patientType patientName patientAge patientGender patientPhone patientEmail'
+        }
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit),
@@ -60,7 +67,14 @@ exports.getPrescriptionById = asyncHandler(async (req, res) => {
     patientId: id,
   })
     .populate('doctorId', 'firstName lastName specialization profileImage licenseNumber')
-    .populate('consultationId', 'consultationDate diagnosis vitals');
+    .populate({
+      path: 'consultationId',
+      select: 'consultationDate diagnosis vitals appointmentId',
+      populate: {
+        path: 'appointmentId',
+        select: 'patientType patientName patientAge patientGender patientPhone patientEmail'
+      }
+    });
 
   if (!prescription) {
     return res.status(404).json({

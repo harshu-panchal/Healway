@@ -5,7 +5,9 @@ import { getAllAnnouncements, getAnnouncementMetrics, createAdminAnnouncement, u
 import PageLoader from '../../../components/PageLoader'
 
 const AdminAnnouncements = () => {
-  const today = new Date().toISOString().split('T')[0]
+  const tomorrowDate = new Date()
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+  const tomorrow = tomorrowDate.toISOString().split('T')[0]
   const [announcements, setAnnouncements] = useState([])
   const [metrics, setMetrics] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -61,8 +63,8 @@ const AdminAnnouncements = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      if (formData.expiryDate && formData.expiryDate < today) {
-        toast.error('Expiry date cannot be in the past')
+      if (formData.expiryDate && formData.expiryDate < tomorrow) {
+        toast.error('Expiry date must be tomorrow or a later date')
         return
       }
       setSubmitting(true)
@@ -337,11 +339,11 @@ const AdminAnnouncements = () => {
                 <input
                   type="date"
                   value={formData.expiryDate}
-                  min={today}
+                  min={tomorrow}
                   onChange={(e) => {
                     const selectedDate = e.target.value
-                    if (selectedDate && selectedDate < today) {
-                      toast.error('Expiry date cannot be in the past')
+                    if (selectedDate && selectedDate < tomorrow) {
+                      toast.error('Expiry date must be tomorrow or a later date')
                       return
                     }
                     setFormData({ ...formData, expiryDate: selectedDate })

@@ -196,6 +196,8 @@ const DoctorDashboard = () => {
     const handleUpdate = () => {
       console.log('🔄 Doctor Dashboard refreshing due to real-time update...')
       fetchDashboardData(false)
+      window.dispatchEvent(new Event('appointmentBooked'))
+      window.dispatchEvent(new Event('consultationUpdated'))
     }
 
     // Attach listeners for doctor-relevant events
@@ -343,7 +345,7 @@ const DoctorDashboard = () => {
         if (response) {
           const consultationsData = Array.isArray(response)
             ? response
-            : response.consultations || []
+            : response.items || response.consultations || []
 
           // Transform API data to match component structure
           const transformed = consultationsData.map(cons => ({
@@ -376,6 +378,14 @@ const DoctorDashboard = () => {
     }
 
     fetchConsultations()
+    const handleConsultationUpdated = () => {
+      fetchConsultations()
+    }
+    window.addEventListener('consultationUpdated', handleConsultationUpdated)
+
+    return () => {
+      window.removeEventListener('consultationUpdated', handleConsultationUpdated)
+    }
   }, [])
 
   // Helper function to normalize date to YYYY-MM-DD format

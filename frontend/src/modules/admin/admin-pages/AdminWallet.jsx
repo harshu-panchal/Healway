@@ -1211,16 +1211,6 @@ const AdminWallet = () => {
                                     <IoCalendarOutline className="h-3.5 w-3.5" />
                                     <span>{formatDate(transaction.createdAt)}</span>
                                   </div>
-                                  <div className="flex items-center gap-1">
-                                    <IoReceiptOutline className="h-3.5 w-3.5" />
-                                    <span>{transaction.transactionId}</span>
-                                  </div>
-                                  {transaction.appointmentId && (
-                                    <div className="flex items-center gap-1">
-                                      <span className="font-semibold">Apt:</span>
-                                      <span>{shortenId(transaction.appointmentId)}</span>
-                                    </div>
-                                  )}
                                   {transaction.orderId && (
                                     <div className="flex items-center gap-1">
                                       <span className="font-semibold">Order:</span>
@@ -1517,10 +1507,6 @@ const AdminWallet = () => {
                   <div>
                     <p className="text-xs text-slate-500">Requested At</p>
                     <p className="mt-1 text-sm font-semibold text-slate-900">{formatDate(viewingWithdrawal.requestedAt)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Transaction ID</p>
-                    <p className="mt-1 text-sm font-semibold text-slate-900">{viewingWithdrawal.transactionId}</p>
                   </div>
                   {viewingWithdrawal.approvedAt && (
                     <>

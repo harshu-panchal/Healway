@@ -36,7 +36,7 @@ const getVisitsCount = (patient) => {
     patient.totalVisits ?? patient.totalAppointments ?? patient.totalConsultations
   )
 
-  if (Number.isFinite(explicitCount) && explicitCount > 0) {
+  if (Number.isFinite(explicitCount) && explicitCount >= 0) {
     return explicitCount
   }
 
@@ -143,7 +143,7 @@ const DoctorAllPatients = () => {
             // Preserve original address object for later use
             originalAddress: patient.address,
             firstVisit: patient.firstVisit || patient.firstAppointmentDate || null,
-            lastVisit: lastVisitFallback,
+            lastVisit: patient.lastAppointmentDate || lastVisitFallback,
             totalVisits: visitsCount,
             patientType: visitsCount > 1 ? 'returning' : 'new',
             totalConsultations: Number(patient.totalConsultations || 0),

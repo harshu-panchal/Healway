@@ -1274,6 +1274,7 @@ const DoctorConsultations = () => {
 
   // Saved prescriptions - loaded from consultation data or patient history
   const [savedPrescriptions, setSavedPrescriptions] = useState([])
+  const [isSavingPrescription, setIsSavingPrescription] = useState(false)
 
   // Load prescriptions when patient is selected
   const loadPrescriptions = useCallback(async () => {
@@ -1298,42 +1299,64 @@ const DoctorConsultations = () => {
             const prescPatientId = presc.patientId?._id || presc.patientId?.id || presc.patientId
             return prescPatientId?.toString() === patientId?.toString()
           })
-          .map(presc => ({
-            id: presc._id || presc.id,
-            _id: presc._id || presc.id,
-            consultationId: presc.consultationId?._id || presc.consultationId || presc.consultationId,
-            patientId: presc.patientId?._id || presc.patientId?.id || presc.patientId,
-            patientName: presc.patientId?.firstName && presc.patientId?.lastName
-              ? `${presc.patientId.firstName} ${presc.patientId.lastName}`
-              : selectedConsultation.patientName || 'Patient',
-            patientImage: presc.patientId?.profileImage || selectedConsultation.patientImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedConsultation.patientName || 'Patient')}&background=0077C2&color=fff&size=160`,
-            patientPhone: presc.patientId?.phone || selectedConsultation.patientPhone || '',
-            patientEmail: presc.patientId?.email || selectedConsultation.patientEmail || '',
-            patientAddress: presc.patientId?.address || selectedConsultation.patientAddress || '',
-            // Get diagnosis, symptoms, investigations from consultationId
-            diagnosis: presc.consultationId?.diagnosis || presc.diagnosis || '',
-            symptoms: presc.consultationId?.symptoms || presc.symptoms || '',
-            investigations: presc.consultationId?.investigations || presc.investigations || [],
-            advice: presc.consultationId?.advice || presc.notes || presc.advice || '',
-            followUpDate: presc.consultationId?.followUpDate || presc.expiryDate || presc.followUpDate || '',
-            date: presc.createdAt ? new Date(presc.createdAt).toISOString() : new Date().toISOString(),
-            savedAt: presc.createdAt ? new Date(presc.createdAt).toLocaleString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            }) : new Date().toLocaleString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            }),
-            status: presc.status || 'active',
-            pdfFileUrl: presc.pdfFileUrl || null,
-            originalData: presc,
-          }))
+          .map(presc => {
+            const appointment = presc.consultationId?.appointmentId || selectedConsultation.originalData?.appointmentId || selectedConsultation.appointmentId;
+            const isElse = appointment?.patientType === 'Else' || selectedConsultation.patientType === 'Else';
+            const displayPatientName = isElse && appointment?.patientName
+              ? appointment.patientName
+              : (presc.patientId?.firstName && presc.patientId?.lastName
+                ? `${presc.patientId.firstName} ${presc.patientId.lastName}`
+                : selectedConsultation.patientName || 'Patient');
+            const displayPatientPhone = isElse && appointment?.patientPhone
+              ? appointment.patientPhone
+              : (presc.patientId?.phone || selectedConsultation.patientPhone || '');
+            const displayPatientEmail = isElse && appointment?.patientEmail
+              ? appointment.patientEmail
+              : (presc.patientId?.email || selectedConsultation.patientEmail || '');
+            const displayPatientAge = isElse && appointment?.patientAge
+              ? appointment.patientAge
+              : (presc.patientId?.age || selectedConsultation.age || '');
+            const displayPatientGender = isElse && appointment?.patientGender
+              ? appointment.patientGender
+              : (presc.patientId?.gender || selectedConsultation.gender || '');
+
+            return {
+              id: presc._id || presc.id,
+              _id: presc._id || presc.id,
+              consultationId: presc.consultationId?._id || presc.consultationId || presc.consultationId,
+              patientId: presc.patientId?._id || presc.patientId?.id || presc.patientId,
+              patientName: displayPatientName,
+              patientImage: presc.patientId?.profileImage || selectedConsultation.patientImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayPatientName)}&background=0077C2&color=fff&size=160`,
+              patientPhone: displayPatientPhone,
+              patientEmail: displayPatientEmail,
+              patientAddress: presc.patientId?.address || selectedConsultation.patientAddress || '',
+              patientAge: displayPatientAge,
+              patientGender: displayPatientGender,
+              // Get diagnosis, symptoms, investigations from consultationId
+              diagnosis: presc.consultationId?.diagnosis || presc.diagnosis || '',
+              symptoms: presc.consultationId?.symptoms || presc.symptoms || '',
+              investigations: presc.consultationId?.investigations || presc.investigations || [],
+              advice: presc.consultationId?.advice || presc.notes || presc.advice || '',
+              followUpDate: presc.consultationId?.followUpDate || presc.expiryDate || presc.followUpDate || '',
+              date: presc.createdAt ? new Date(presc.createdAt).toISOString() : new Date().toISOString(),
+              savedAt: presc.createdAt ? new Date(presc.createdAt).toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              }) : new Date().toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+              status: presc.status || 'active',
+              pdfFileUrl: presc.pdfFileUrl || null,
+              originalData: presc,
+            }
+          })
 
         setSavedPrescriptions(filteredPrescriptions)
         console.log('✅ Loaded prescriptions for patient:', filteredPrescriptions.length)
@@ -2330,6 +2353,7 @@ const DoctorConsultations = () => {
       return
     }
 
+    setIsSavingPrescription(true)
     try {
       // If editing a prescription, get consultation ID from the prescription being edited
       let consultationId = null
@@ -2602,10 +2626,7 @@ const DoctorConsultations = () => {
         console.log('✅ Updated consultation with ID:', consultationId)
       }
 
-      // Now create prescription with real consultation ID (MongoDB ObjectId)
-      console.log('Creating prescription with consultationId:', consultationId)
-
-      // Check if prescription already exists for this consultation
+      // Check if prescription already exists for this consultation (for UI / toast purposes only)
       let existingPrescription = null
       try {
         const { getPrescriptions } = await import('../doctor-services/doctorService')
@@ -2613,118 +2634,18 @@ const DoctorConsultations = () => {
         if (existingPrescriptionsResponse.success && existingPrescriptionsResponse.data?.items?.length > 0) {
           existingPrescription = existingPrescriptionsResponse.data.items[0]
           console.log('⚠️ Prescription already exists for this consultation:', existingPrescription._id || existingPrescription.id)
-
-          // If editing the same prescription, we can proceed to update consultation
-          // But we can't create a new prescription - show message
-          if (editingPrescriptionId && (existingPrescription._id?.toString() === editingPrescriptionId.toString() || existingPrescription.id?.toString() === editingPrescriptionId.toString())) {
-            console.log('✅ Editing existing prescription - consultation will be updated, prescription already exists')
-            // Use existing prescription
-            const prescriptionResponse = {
-              success: true,
-              data: existingPrescription
-            }
-
-            // Update saved prescriptions list with updated data
-            const transformedPrescription = {
-              id: existingPrescription._id || existingPrescription.id,
-              _id: existingPrescription._id || existingPrescription.id,
-              consultationId: existingPrescription.consultationId?._id || existingPrescription.consultationId || consultationId,
-              patientId: existingPrescription.patientId?._id || existingPrescription.patientId?.id || existingPrescription.patientId || selectedConsultation.patientId,
-              patientName: existingPrescription.patientId?.firstName && existingPrescription.patientId?.lastName
-                ? `${existingPrescription.patientId.firstName} ${existingPrescription.patientId.lastName}`
-                : selectedConsultation.patientName || 'Patient',
-              patientImage: existingPrescription.patientId?.profileImage || selectedConsultation.patientImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedConsultation.patientName || 'Patient')}&background=0077C2&color=fff&size=160`,
-              patientPhone: existingPrescription.patientId?.phone || selectedConsultation.patientPhone || '',
-              patientEmail: existingPrescription.patientId?.email || selectedConsultation.patientEmail || '',
-              patientAddress: existingPrescription.patientId?.address || selectedConsultation.patientAddress || '',
-              diagnosis: diagnosis || '',
-              symptoms: symptoms || '',
-              investigations: investigations || [],
-              advice: advice || '',
-              followUpDate: followUpDate || '',
-              date: existingPrescription.createdAt ? new Date(existingPrescription.createdAt).toISOString() : new Date().toISOString(),
-              savedAt: existingPrescription.createdAt ? new Date(existingPrescription.createdAt).toLocaleString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              }) : new Date().toLocaleString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              }),
-              status: existingPrescription.status || 'active',
-              pdfFileUrl: existingPrescription.pdfFileUrl || null,
-              originalData: existingPrescription,
-            }
-
-            setSavedPrescriptions((prev) =>
-              prev.map(p => (p.id || p._id) === (transformedPrescription.id || transformedPrescription._id) ? transformedPrescription : p)
-            )
-
-            // Update consultation data
-            const updatedConsultation = {
-              ...selectedConsultation,
-              id: consultationId,
-              _id: consultationId,
-              status: selectedConsultation?.status || 'in-progress',
-              diagnosis,
-              vitals,
-              investigations,
-              advice,
-              prescriptionId: existingPrescription._id || existingPrescription.id,
-            }
-
-            setConsultations((prev) =>
-              prev.map((cons) =>
-                (cons.id === selectedConsultation.id || cons._id === consultationId) ? updatedConsultation : cons
-              )
-            )
-
-            setSelectedConsultation(updatedConsultation)
-
-            toast.success('Prescription updated successfully!')
-
-            // Reset form
-            setDiagnosis('')
-            setSymptoms('')
-            setInvestigations([])
-            setAdvice('')
-            setFollowUpDate('')
-            setVitals({
-              bloodPressure: { systolic: '', diastolic: '' },
-              temperature: '',
-              pulse: '',
-              respiratoryRate: '',
-              oxygenSaturation: '',
-              weight: '',
-              height: '',
-              bmi: '',
-            })
-            setEditingPrescriptionId(null)
-            setActiveTab('saved')
-            return // Exit early since we handled the update
-          } else {
-            // Prescription exists but we're not editing it - show error
-            toast.error('Prescription already exists for this consultation. Please edit the existing prescription instead.')
-            return
-          }
         }
       } catch (checkError) {
         console.error('Error checking existing prescription:', checkError)
-        // Continue to create new prescription if check fails
       }
 
-      // Create new prescription
+      // Save prescription (handles both create and update transparently on backend)
+      console.log('Saving prescription with consultationId:', consultationId)
       const prescriptionResponse = await createPrescription({
         consultationId: consultationId, // Use real MongoDB ObjectId
         notes: advice || '', // Use advice as notes
         expiryDate: followUpDate || null,
         // Include diagnosis, symptoms, investigations in the request
-        // Backend will get these from consultation, but we can also pass them explicitly
         diagnosis: diagnosis || '',
         symptoms: symptoms || '',
         investigations: investigations || [],
@@ -2733,18 +2654,38 @@ const DoctorConsultations = () => {
       if (prescriptionResponse) {
         // Transform prescription data to match component structure
         const prescriptionData = prescriptionResponse
+        const appointment = prescriptionData.consultationId?.appointmentId || selectedConsultation.originalData?.appointmentId || selectedConsultation.appointmentId;
+        const isElse = appointment?.patientType === 'Else' || selectedConsultation.patientType === 'Else';
+        const displayPatientName = isElse && appointment?.patientName
+          ? appointment.patientName
+          : (prescriptionData.patientId?.firstName && prescriptionData.patientId?.lastName
+            ? `${prescriptionData.patientId.firstName} ${prescriptionData.patientId.lastName}`
+            : selectedConsultation.patientName || 'Patient');
+        const displayPatientPhone = isElse && appointment?.patientPhone
+          ? appointment.patientPhone
+          : (prescriptionData.patientId?.phone || selectedConsultation.patientPhone || '');
+        const displayPatientEmail = isElse && appointment?.patientEmail
+          ? appointment.patientEmail
+          : (prescriptionData.patientId?.email || selectedConsultation.patientEmail || '');
+        const displayPatientAge = isElse && appointment?.patientAge
+          ? appointment.patientAge
+          : (prescriptionData.patientId?.age || selectedConsultation.age || '');
+        const displayPatientGender = isElse && appointment?.patientGender
+          ? appointment.patientGender
+          : (prescriptionData.patientId?.gender || selectedConsultation.gender || '');
+
         const transformedPrescription = {
           id: prescriptionData._id || prescriptionData.id,
           _id: prescriptionData._id || prescriptionData.id,
           consultationId: prescriptionData.consultationId?._id || prescriptionData.consultationId || consultationId,
           patientId: prescriptionData.patientId?._id || prescriptionData.patientId?.id || prescriptionData.patientId || selectedConsultation.patientId,
-          patientName: prescriptionData.patientId?.firstName && prescriptionData.patientId?.lastName
-            ? `${prescriptionData.patientId.firstName} ${prescriptionData.patientId.lastName}`
-            : selectedConsultation.patientName || 'Patient',
-          patientImage: prescriptionData.patientId?.profileImage || selectedConsultation.patientImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedConsultation.patientName || 'Patient')}&background=0077C2&color=fff&size=160`,
-          patientPhone: prescriptionData.patientId?.phone || selectedConsultation.patientPhone || '',
-          patientEmail: prescriptionData.patientId?.email || selectedConsultation.patientEmail || '',
+          patientName: displayPatientName,
+          patientImage: prescriptionData.patientId?.profileImage || selectedConsultation.patientImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayPatientName)}&background=0077C2&color=fff&size=160`,
+          patientPhone: displayPatientPhone,
+          patientEmail: displayPatientEmail,
           patientAddress: prescriptionData.patientId?.address || selectedConsultation.patientAddress || '',
+          patientAge: displayPatientAge,
+          patientGender: displayPatientGender,
           // Get diagnosis, symptoms, investigations from consultationId
           diagnosis: prescriptionData.consultationId?.diagnosis || diagnosis || '',
           symptoms: prescriptionData.consultationId?.symptoms || symptoms || '',
@@ -2804,7 +2745,7 @@ const DoctorConsultations = () => {
         // Also update selectedConsultation state (but keep status as is)
         setSelectedConsultation(updatedConsultation)
 
-        toast.success('Prescription saved successfully!')
+        toast.success(existingPrescription ? 'Prescription updated successfully!' : 'Prescription saved successfully!')
 
         // Reset form and editing state ONLY after successful save
         setDiagnosis('')
@@ -2834,6 +2775,8 @@ const DoctorConsultations = () => {
       console.error('Error saving prescription:', error)
       toast.error(error.message || error.response?.data?.message || 'Failed to save prescription')
       // Don't reset form if error occurred
+    } finally {
+      setIsSavingPrescription(false)
     }
   }
 
@@ -3928,11 +3871,21 @@ const DoctorConsultations = () => {
                     <div className="flex flex-col sm:flex-row gap-3">
                       <button
                         type="button"
+                        disabled={isSavingPrescription}
                         onClick={handleSavePrescription}
-                        className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-white border-2 border-primary px-6 py-3.5 text-sm font-semibold text-primary shadow-sm transition hover:bg-primary/5 active:scale-95"
+                        className={`flex-1 flex items-center justify-center gap-2 rounded-xl bg-white border-2 border-primary px-6 py-3.5 text-sm font-semibold text-primary shadow-sm transition hover:bg-primary/5 active:scale-95 ${isSavingPrescription ? 'opacity-70 cursor-not-allowed' : ''}`}
                       >
-                        <IoCheckmarkCircleOutline className="h-5 w-5" />
-                        Save Prescription
+                        {isSavingPrescription ? (
+                          <>
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <IoCheckmarkCircleOutline className="h-5 w-5" />
+                            Save Prescription
+                          </>
+                        )}
                       </button>
                       <button
                         type="button"

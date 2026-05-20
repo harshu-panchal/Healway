@@ -26,6 +26,7 @@ const notificationSchema = new mongoose.Schema(
         'consultation',
         'session',
         'queue',
+        'announcement',
       ],
       required: true,
       index: true,

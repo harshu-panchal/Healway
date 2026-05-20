@@ -9,6 +9,8 @@ const {
   sendDoctorAppointmentNotification,
   sendAppointmentCancellationEmail,
   createAppointmentNotification,
+  sendAppointmentBookingEmail,
+  sendAppointmentRescheduledEmail,
 } = require("../../services/notificationService");
 // Redis removed
 const { ROLES } = require("../../utils/constants");
@@ -865,9 +867,9 @@ exports.createAppointment = asyncHandler(async (req, res) => {
       appointment: populatedAppointment
     });
 
-    // Send push and in-app notification to doctor if confirmed (COD/Free/Wallet)
+    // Send push and in-app notification to doctor and patient if confirmed (COD/Free/Wallet)
     if (appointment.status === 'scheduled') {
-      const { createAppointmentNotification } = require('../../services/notificationService');
+      const { createAppointmentNotification, sendAppointmentBookingEmail } = require('../../services/notificationService');
       const fullPopulatedAppointment = await Appointment.findById(appointment._id)
         .populate("doctorId", "firstName lastName specialization profileImage");
 
@@ -878,6 +880,21 @@ exports.createAppointment = asyncHandler(async (req, res) => {
         eventType: "created",
         patient: patient,
       }).catch((e) => console.error("Doctor creation notification error:", e));
+
+      createAppointmentNotification({
+        userId: id,
+        userType: "patient",
+        appointment: fullPopulatedAppointment,
+        eventType: "created",
+        doctor: fullPopulatedAppointment.doctorId,
+      }).catch((e) => console.error("Patient creation notification error:", e));
+
+      // Send booking acknowledgment email for Wallet/Free/COD as well
+      sendAppointmentBookingEmail({
+        patient,
+        doctor: fullPopulatedAppointment.doctorId,
+        appointment,
+      }).catch((e) => console.error("Booking received email error:", e));
     }
   } catch (error) {
     console.error("Socket.IO/Notification error:", error);
@@ -1419,7 +1436,7 @@ exports.rescheduleAppointment = asyncHandler(async (req, res) => {
   try {
     const patient = await Patient.findById(id);
 
-    await sendAppointmentConfirmationEmail({
+    await sendAppointmentRescheduledEmail({
       patient,
       doctor,
       appointment,
@@ -1615,7 +1632,7 @@ exports.verifyAppointmentPayment = asyncHandler(async (req, res) => {
       type: "payment",
       amount: appointment.fee,
       status: "failed",
-      description: `Appointment payment failed - Invalid signature for appointment ${appointment._id}`,
+      description: `Appointment payment failed - Invalid signature`,
       referenceId: appointment._id.toString(),
       category: "appointment",
       paymentMethod: paymentMethod || "razorpay",
@@ -1650,7 +1667,7 @@ exports.verifyAppointmentPayment = asyncHandler(async (req, res) => {
       type: "payment",
       amount: appointment.fee,
       status: "failed",
-      description: `Appointment payment failed - Payment not successful for appointment ${appointment._id}`,
+      description: `Appointment payment failed - Payment not successful`,
       referenceId: appointment._id.toString(),
       category: "appointment",
       paymentMethod: paymentMethod || "razorpay",
@@ -1736,7 +1753,7 @@ exports.verifyAppointmentPayment = asyncHandler(async (req, res) => {
     type: "payment",
     amount: appointment.fee,
     status: "completed",
-    description: `Appointment payment successful for appointment ${appointment._id}`,
+    description: `Appointment payment successful`,
     referenceId: appointment._id.toString(),
     category: "appointment",
     paymentMethod: paymentMethod || "razorpay",
@@ -1768,11 +1785,11 @@ exports.verifyAppointmentPayment = asyncHandler(async (req, res) => {
       const doctor = await Doctor.findById(appointment.doctorId);
 
       // Send email (don't await - fire and forget)
-      sendAppointmentConfirmationEmail({
+      sendAppointmentBookingEmail({
         patient,
         doctor,
         appointment,
-      }).catch((e) => console.error("Confirmation email error:", e));
+      }).catch((e) => console.error("Booking received email error:", e));
 
       const populatedAppointment = await Appointment.findById(appointment._id)
         .populate("doctorId", "firstName lastName specialization profileImage");
@@ -1782,7 +1799,7 @@ exports.verifyAppointmentPayment = asyncHandler(async (req, res) => {
         userId: id,
         userType: "patient",
         appointment: populatedAppointment,
-        eventType: "confirmed",
+        eventType: "created",
         doctor,
       }).catch((e) => console.error("Patient notification error:", e));
 

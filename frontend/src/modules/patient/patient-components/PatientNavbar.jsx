@@ -94,29 +94,79 @@ const PatientNavbar = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
 
-    const MIN_KEYBOARD_HEIGHT = 150
-    let baselineHeight = window.visualViewport?.height || window.innerHeight
+    let maxHeight = window.visualViewport?.height || window.innerHeight
 
     const updateKeyboardState = () => {
       const currentHeight = window.visualViewport?.height || window.innerHeight
-      const heightDiff = baselineHeight - currentHeight
-      const keyboardVisible = heightDiff > MIN_KEYBOARD_HEIGHT && currentHeight < baselineHeight * 0.85
-
-      setIsKeyboardOpen(keyboardVisible)
-
-      if (!keyboardVisible) {
-        baselineHeight = currentHeight
+      
+      // Update maxHeight if we find a larger height (indicates no keyboard)
+      if (currentHeight > maxHeight) {
+        maxHeight = currentHeight
       }
+
+      const heightDiff = maxHeight - currentHeight
+      // A keyboard is open if the viewport height is reduced by more than 100px
+      const keyboardVisible = heightDiff > 100
+
+      // Check if an input, select, or textarea is currently focused as an additional check
+      const activeEl = document.activeElement;
+      const isInputFocused = activeEl && (
+        activeEl.tagName === 'INPUT' || 
+        activeEl.tagName === 'TEXTAREA' ||
+        activeEl.tagName === 'SELECT' ||
+        activeEl.getAttribute('contenteditable') === 'true'
+      );
+
+      setIsKeyboardOpen(keyboardVisible || !!isInputFocused)
+    }
+
+    // Helper listeners for immediate focus-based detection
+    const handleFocusIn = (e) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.getAttribute('contenteditable') === 'true') {
+        setIsKeyboardOpen(true);
+      }
+    };
+
+    const handleFocusOut = () => {
+      setTimeout(() => {
+        const activeEl = document.activeElement;
+        const isInputFocused = activeEl && (
+          activeEl.tagName === 'INPUT' || 
+          activeEl.tagName === 'TEXTAREA' ||
+          activeEl.tagName === 'SELECT' ||
+          activeEl.getAttribute('contenteditable') === 'true'
+        );
+        if (!isInputFocused) {
+          const currentHeight = window.visualViewport?.height || window.innerHeight;
+          const heightDiff = maxHeight - currentHeight;
+          setIsKeyboardOpen(heightDiff > 100);
+        }
+      }, 50);
+    };
+
+    const handleOrientationChange = () => {
+      setTimeout(() => {
+        // Reset maxHeight on orientation change to the new full-screen height
+        maxHeight = window.visualViewport?.height || window.innerHeight
+        updateKeyboardState()
+      }, 300)
     }
 
     window.addEventListener('resize', updateKeyboardState)
     window.visualViewport?.addEventListener('resize', updateKeyboardState)
-    window.addEventListener('orientationchange', updateKeyboardState)
+    window.addEventListener('orientationchange', handleOrientationChange)
+    document.addEventListener('focusin', handleFocusIn)
+    document.addEventListener('focusout', handleFocusOut)
+
+    // Initial check
+    updateKeyboardState()
 
     return () => {
       window.removeEventListener('resize', updateKeyboardState)
       window.visualViewport?.removeEventListener('resize', updateKeyboardState)
-      window.removeEventListener('orientationchange', updateKeyboardState)
+      window.removeEventListener('orientationchange', handleOrientationChange)
+      document.removeEventListener('focusin', handleFocusIn)
+      document.removeEventListener('focusout', handleFocusOut)
     }
   }, [])
 

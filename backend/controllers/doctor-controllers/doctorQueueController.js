@@ -4,7 +4,7 @@ const Doctor = require("../../models/Doctor");
 const WalletTransaction = require("../../models/WalletTransaction");
 const { getIO } = require("../../config/socket");
 const { calculateProviderEarning } = require("../../utils/commissionConfig");
-const { createAppointmentNotification } = require("../../services/notificationService");
+const { createAppointmentNotification, sendAppointmentConfirmationEmail } = require("../../services/notificationService");
 
 // GET /api/doctors/queue
 exports.getQueue = asyncHandler(async (req, res) => {
@@ -137,7 +137,7 @@ exports.updateQueueStatus = asyncHandler(async (req, res) => {
           amount: earning,
           balance: doctor.walletBalance,
           status: 'completed',
-          description: `Earnings for completed appointment ${appointment._id} (after platform fees)`,
+          description: `Earnings for completed appointment (after platform fees)`,
           appointmentId: appointment._id,
           referenceId: appointment._id.toString(),
           metadata: {
@@ -154,7 +154,7 @@ exports.updateQueueStatus = asyncHandler(async (req, res) => {
           amount: commission,
           balance: 0, // Admin balance not tracked per transaction here
           status: 'completed',
-          description: `Platform fee for appointment ${appointment._id}`,
+          description: `Platform fee for appointment`,
           appointmentId: appointment._id,
           referenceId: appointment._id.toString(),
           metadata: {
@@ -173,15 +173,27 @@ exports.updateQueueStatus = asyncHandler(async (req, res) => {
   // Create patient notification when doctor confirms appointment
   if (status === "confirmed" && previousStatus !== "confirmed") {
     try {
-      const doctor = await Doctor.findById(id).select("firstName lastName");
+      const Patient = require("../../models/Patient");
+      const patient = await Patient.findById(appointment.patientId);
+      const doctor = await Doctor.findById(id);
+
       await createAppointmentNotification({
         userId: appointment.patientId,
         userType: "patient",
         appointment,
         eventType: "confirmed",
         doctor,
-        sendEmail: true,
+        sendEmail: false, // Turn off generic notification email
       });
+
+      if (patient && doctor) {
+        // Send the rich detailed HTML appointment confirmation email now
+        await sendAppointmentConfirmationEmail({
+          patient,
+          doctor,
+          appointment,
+        }).catch((e) => console.error("Error sending doctor confirmation email:", e));
+      }
     } catch (error) {
       console.error("Error creating appointment confirmed notification:", error);
     }
@@ -274,7 +286,7 @@ exports.markAsPaid = asyncHandler(async (req, res) => {
       amount: earning,
       balance: doctor.walletBalance,
       status: 'completed',
-      description: `Cash payment received for appointment ${appointment._id} (after platform fees)`,
+      description: `Cash payment received (after platform fees)`,
       appointmentId: appointment._id,
       referenceId: appointment._id.toString(),
       metadata: { 
@@ -292,7 +304,7 @@ exports.markAsPaid = asyncHandler(async (req, res) => {
       amount: commission,
       balance: 0,
       status: 'completed',
-      description: `Platform fee for cash appointment ${appointment._id}`,
+      description: `Platform fee for cash appointment`,
       appointmentId: appointment._id,
       referenceId: appointment._id.toString(),
       metadata: { 

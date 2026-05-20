@@ -1,4 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   IoArrowBackOutline,
@@ -12,7 +15,8 @@ import {
   IoCardOutline,
   IoWalletOutline,
   IoGiftOutline,
-} from "react-icons/io5";
+  IoPerson,
+} from 'react-icons/io5';
 import {
   getPatientAppointments,
   rescheduleAppointment,
@@ -552,15 +556,23 @@ const PatientAppointments = () => {
             >
               <div className="flex items-start gap-4">
                 <div className="relative shrink-0">
-                  <img
-                    src={appointment.doctor.image}
-                    alt={appointment.doctor.name}
-                    className="h-16 w-16 rounded-2xl object-cover ring-2 ring-slate-100 bg-slate-100"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(appointment.doctor.name)}&background=0077C2&color=fff&size=128&bold=true`;
-                    }}
-                  />
+                  {appointment.doctor.image && !appointment.doctor.image.includes('ui-avatars') ? (
+                    <img
+                      src={appointment.doctor.image}
+                      alt={appointment.doctor.name}
+                      className="h-16 w-16 rounded-2xl object-cover ring-2 ring-slate-100 bg-slate-100"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.style.display = 'none';
+                        if (e.target.nextSibling) {
+                          e.target.nextSibling.style.display = 'flex';
+                        }
+                      }}
+                    />
+                  ) : null}
+                  <div className={`h-16 w-16 rounded-2xl ring-2 ring-slate-100 bg-slate-100 text-slate-400 items-center justify-center ${appointment.doctor.image && !appointment.doctor.image.includes('ui-avatars') ? 'hidden' : 'flex'}`}>
+                    <IoPerson className="h-8 w-8 text-slate-400" />
+                  </div>
                   {(displayStatus === "confirmed" ||
                     displayStatus === "scheduled" ||
                     appointment.status === "upcoming") && (

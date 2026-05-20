@@ -408,13 +408,15 @@ const AdminSupport = () => {
 
                     {/* Action Button */}
                     <div className="flex sm:flex-col sm:items-end shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleStatusChange(request)}
-                        className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--color-primary-dark)] whitespace-nowrap"
-                      >
-                        Update Status
-                      </button>
+                      {request.status !== 'closed' && (
+                        <button
+                          type="button"
+                          onClick={() => handleStatusChange(request)}
+                          className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--color-primary-dark)] whitespace-nowrap"
+                        >
+                          Update Status
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -457,9 +459,15 @@ const AdminSupport = () => {
                   onChange={(e) => setNewStatus(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 transition hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 >
-                  <option value="pending">Pending</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="resolved">Resolved</option>
+                  {selectedRequest.status === 'pending' && (
+                    <option value="pending">Pending</option>
+                  )}
+                  {(selectedRequest.status === 'pending' || selectedRequest.status === 'in_progress') && (
+                    <option value="in_progress">In Progress</option>
+                  )}
+                  {(selectedRequest.status === 'pending' || selectedRequest.status === 'in_progress' || selectedRequest.status === 'resolved') && (
+                    <option value="resolved">Resolved</option>
+                  )}
                   <option value="closed">Closed</option>
                 </select>
               </div>
