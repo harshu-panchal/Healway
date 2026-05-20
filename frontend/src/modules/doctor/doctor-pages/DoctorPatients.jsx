@@ -55,6 +55,11 @@ const formatDate = (dateString) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+const isPayAtClinicMethod = (paymentMethod = '') => {
+  const method = String(paymentMethod || '').toLowerCase()
+  return method === 'cod' || method === 'cash' || method === 'pay_at_clinic'
+}
+
 const DoctorPatients = () => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -96,6 +101,12 @@ const DoctorPatients = () => {
           appointmentType: appt.appointmentType || appt.type || 'New',
           consultationMode: appt.consultationMode || 'in_person',
           paymentStatus: appt.paymentStatus || 'pending',
+          paymentMethod:
+            appt.paymentMethod ||
+            appt.paymentType ||
+            appt.payment?.method ||
+            appt.paymentInfo?.paymentMethod ||
+            '',
           paidAmount: appt.paidAmount || 0,
           remainingAmount: appt.remainingAmount ?? appt.fee ?? 0,
           fee: appt.fee || 0,
@@ -200,9 +211,34 @@ const DoctorPatients = () => {
 
   const handleComplete = async (appointmentId) => {
     try {
+      const appointment = appointments.find((apt) => apt.id === appointmentId || apt._id === appointmentId)
+      const shouldSetPaidOnComplete = Boolean(
+        appointment &&
+        appointment.paymentStatus !== 'paid' &&
+        (isPayAtClinicMethod(appointment.paymentMethod) || appointment.paymentStatus === 'partial' || appointment.paymentStatus === 'pending')
+      )
+
+      if (shouldSetPaidOnComplete) {
+        await markAppointmentAsPaid(appointmentId)
+      }
+
       const response = await updateQueueStatus(appointmentId, 'completed')
       if (response) {
         toast.success('Appointment marked as completed')
+        setAppointments((prev) =>
+          prev.map((apt) =>
+            (apt.id === appointmentId || apt._id === appointmentId)
+              ? {
+                ...apt,
+                status: 'completed',
+                paymentStatus: shouldSetPaidOnComplete ? 'paid' : apt.paymentStatus,
+                paidAmount: shouldSetPaidOnComplete ? apt.fee : apt.paidAmount,
+                remainingAmount: shouldSetPaidOnComplete ? 0 : apt.remainingAmount,
+                paymentMethod: shouldSetPaidOnComplete ? (apt.paymentMethod || 'cash') : apt.paymentMethod,
+              }
+              : apt
+          )
+        )
         fetchAppointments()
       } else {
         toast.error(response.message || 'Failed to complete appointment')
@@ -412,8 +448,10 @@ const DoctorPatients = () => {
                         }`}
                     >
                       {appointment.paymentStatus === 'paid' || appointment.paymentStatus === 'free'
-                        ? 'Payment: Paid'
-                        : 'Payment: Not Paid'}
+                        ? 'Payment: Completed'
+                        : isPayAtClinicMethod(appointment.paymentMethod)
+                          ? 'Payment: Pending At Clinic'
+                          : 'Payment: Pending'}
                     </span>
                   </div>
 
@@ -446,8 +484,10 @@ const DoctorPatients = () => {
                       <IoDocumentTextOutline className="h-3.5 w-3.5" />
                       History
                     </button>
-                    {appointment.consultationMode?.toLowerCase() === 'in_person' &&
-                      appointment.paymentStatus === 'pending' &&
+                    {(appointment.consultationMode?.toLowerCase() === 'in_person' ||
+                      appointment.consultationMode?.toLowerCase() === 'in-person') &&
+                      appointment.paymentStatus !== 'paid' &&
+                      (isPayAtClinicMethod(appointment.paymentMethod) || appointment.paymentStatus === 'pending' || appointment.paymentStatus === 'partial') &&
                       appointment.status !== 'cancelled' &&
                       (
                         <button

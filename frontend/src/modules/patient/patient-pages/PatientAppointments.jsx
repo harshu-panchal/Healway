@@ -32,10 +32,15 @@ import AppointmentDetailsModal from "../patient-components/AppointmentDetailsMod
 // Default appointments (will be replaced by API data)
 const defaultAppointments = [];
 
+const isPayAtClinicMethod = (paymentMethod = "") => {
+  const method = String(paymentMethod || "").toLowerCase();
+  return method === "cod" || method === "cash" || method === "pay_at_clinic";
+};
+
 // Map backend status to frontend display status
 const mapBackendStatusToDisplay = (status, paymentStatus, paymentMethod) => {
   // Payment pending has highest priority, EXCEPT for COD
-  if (paymentStatus === "pending" && paymentMethod !== "cod") return "pending";
+  if (paymentStatus === "pending" && !isPayAtClinicMethod(paymentMethod)) return "pending";
 
   switch (status) {
     case "scheduled":
@@ -291,7 +296,14 @@ const PatientAppointments = () => {
             paidAmount: apt.paidAmount || 0,
             remainingAmount: apt.remainingAmount || 0,
             paymentStatus: apt.paymentStatus || "pending",
-            paymentMethod: apt.paymentMethod,
+            paymentMethod:
+              apt.paymentMethod ||
+              apt.paymentType ||
+              apt.originalData?.paymentMethod ||
+              apt.originalData?.paymentType ||
+              apt.payment?.method ||
+              apt.paymentInfo?.paymentMethod ||
+              "",
             cancelledBy: apt.cancelledBy,
             cancelledAt: apt.cancelledAt,
             cancelReason: apt.cancellationReason || apt.cancelReason,
@@ -535,7 +547,7 @@ const PatientAppointments = () => {
           const displayStatus = mapBackendStatusToDisplay(appointment.status, appointment.paymentStatus, appointment.paymentMethod);
           const isPendingPayment =
             appointment.paymentStatus === "pending" &&
-            appointment.paymentMethod !== "cod" &&
+            !isPayAtClinicMethod(appointment.paymentMethod) &&
             displayStatus !== "cancelled";
           const statusText =
             displayStatus === "cancelled"
@@ -633,7 +645,7 @@ const PatientAppointments = () => {
                       </div>
                     )}
                     {/* Payment Status Summary */}
-                    {(appointment.paymentStatus || appointment.paymentMethod === "cod") && (
+                    {(appointment.paymentStatus || isPayAtClinicMethod(appointment.paymentMethod)) && (
                       <div className="mt-3 pt-3 border-t border-slate-100">
                         {appointment.paymentStatus === "partial" && (
                           <div className="rounded-xl border border-amber-200 bg-amber-50 p-2.5">
@@ -663,7 +675,7 @@ const PatientAppointments = () => {
                           </div>
                         )}
 
-                        {appointment.paymentMethod === "cod" && appointment.paymentStatus !== "paid" && (
+                        {isPayAtClinicMethod(appointment.paymentMethod) && appointment.paymentStatus !== "paid" && (
                           <div className="rounded-xl border border-blue-200 bg-blue-50 p-2.5">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-1.5">
@@ -736,30 +748,19 @@ const PatientAppointments = () => {
                     appointment.status === "upcoming" ||
                     isPendingPayment) && (
                       <div className="flex gap-2 mt-3">
-                        {isPendingPayment ? (
+                        <button
+                          onClick={() => handleViewDetails(appointment)}
+                          className="flex-1 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-[rgba(0,119,194,0.2)] transition hover:bg-[var(--color-primary-dark)] active:scale-95"
+                        >
+                          View Details
+                        </button>
+                        {(appointment.status === "scheduled" || appointment.status === "pending_payment") && (
                           <button
-                            onClick={() => handleCompletePayment(appointment)}
-                            className="flex-1 rounded-xl bg-amber-600 px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-amber-200 transition hover:bg-amber-700 active:scale-95"
+                            onClick={() => handleCancelAppointment(appointment.id)}
+                            className="flex-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100 active:scale-95"
                           >
-                            Complete Payment
+                            Cancel
                           </button>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => handleViewDetails(appointment)}
-                              className="flex-1 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-[rgba(0,119,194,0.2)] transition hover:bg-[var(--color-primary-dark)] active:scale-95"
-                            >
-                              View Details
-                            </button>
-                            {(appointment.status === "scheduled" || appointment.status === "pending_payment" || isPendingPayment) && (
-                              <button
-                                onClick={() => handleCancelAppointment(appointment.id)}
-                                className="flex-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100 active:scale-95"
-                              >
-                                Cancel
-                              </button>
-                            )}
-                          </>
                         )}
                         {isPendingPayment && (
                           <button

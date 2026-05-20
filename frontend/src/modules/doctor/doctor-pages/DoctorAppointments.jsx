@@ -58,6 +58,11 @@ const getTypeIcon = (type) => {
   return IoPersonOutline;
 };
 
+const isPayAtClinicMethod = (paymentMethod = "") => {
+  const method = String(paymentMethod || "").toLowerCase();
+  return method === "cod" || method === "cash" || method === "pay_at_clinic";
+};
+
 // Map backend status to frontend display status
 const mapBackendStatusToDisplay = (backendStatus) => {
   switch (backendStatus) {
@@ -154,6 +159,13 @@ const DoctorAppointments = () => {
         toast.error(err.message || "Failed to mark as paid");
       }
     }
+  };
+
+  const getDoctorPaymentLabel = (appointment) => {
+    if (appointment.paymentStatus === "paid" || appointment.paymentStatus === "free") return "Payment Completed";
+    if (isPayAtClinicMethod(appointment.paymentMethod)) return "Payment Pending (Pay at Clinic)";
+    if (appointment.paymentStatus === "partial") return "Payment Pending (Partial)";
+    return "Payment Pending";
   };
 
   // Reset page when period filter or search changes
@@ -311,7 +323,14 @@ const DoctorAppointments = () => {
               paidAmount: apt.paidAmount || 0,
               remainingAmount: apt.remainingAmount || 0,
               paymentStatus: apt.paymentStatus || "pending",
-              paymentMethod: apt.paymentMethod,
+              paymentMethod:
+                apt.paymentMethod ||
+                apt.paymentType ||
+                apt.originalData?.paymentMethod ||
+                apt.originalData?.paymentType ||
+                apt.payment?.method ||
+                apt.paymentInfo?.paymentMethod ||
+                "",
               originalData: apt,
             };
           });
@@ -975,10 +994,25 @@ const DoctorAppointments = () => {
                               e.stopPropagation();
                               if (window.confirm(`Mark appointment with ${appointment.patientName} as completed?`)) {
                                 try {
+                                  const shouldSetPaidOnComplete =
+                                    appointment.paymentStatus !== "paid" &&
+                                    (isPayAtClinicMethod(appointment.paymentMethod) || appointment.paymentStatus === "partial" || appointment.paymentStatus === "pending");
+
+                                  if (shouldSetPaidOnComplete) {
+                                    await markAppointmentAsPaid(appointment._id || appointment.id);
+                                  }
+
                                   await updateQueueStatus(appointment._id || appointment.id, "completed");
                                   setAppointments(prev => prev.map(apt =>
                                     (apt.id === appointment.id || apt._id === appointment._id)
-                                      ? { ...apt, status: "completed" }
+                                      ? {
+                                        ...apt,
+                                        status: "completed",
+                                        paymentStatus: shouldSetPaidOnComplete ? "paid" : apt.paymentStatus,
+                                        paidAmount: shouldSetPaidOnComplete ? apt.fee : apt.paidAmount,
+                                        remainingAmount: shouldSetPaidOnComplete ? 0 : apt.remainingAmount,
+                                        paymentMethod: shouldSetPaidOnComplete ? (apt.paymentMethod || "cash") : apt.paymentMethod
+                                      }
                                       : apt
                                   ));
                                   toast.success("Appointment completed! Earnings added to wallet.");
@@ -1042,6 +1076,21 @@ const DoctorAppointments = () => {
                           }
                           return null;
                         })()}
+
+                        {((isPayAtClinicMethod(appointment.paymentMethod) || appointment.paymentStatus === "partial") &&
+                          appointment.paymentStatus !== "paid") && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMarkAsPaid(appointment);
+                            }}
+                            className="flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 sm:py-2 text-sm sm:text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-amber-600 shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
+                          >
+                            <IoCashOutline className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                            <span>Update Payment Status</span>
+                          </button>
+                        )}
                       </div>
                     )}
 
@@ -1090,8 +1139,27 @@ const DoctorAppointments = () => {
                       </div>
                     </div>
 
-                    {(appointment.paymentStatus || appointment.paymentMethod === "cod") && (
+                    {(appointment.paymentStatus || isPayAtClinicMethod(appointment.paymentMethod)) && (
                       <div className="mt-2 space-y-1">
+                        <div className={`rounded-xl border p-2 ${appointment.paymentStatus === "paid" || appointment.paymentStatus === "free"
+                          ? "border-emerald-200 bg-emerald-50"
+                          : "border-amber-200 bg-amber-50"
+                          }`}>
+                          <div className="flex items-center gap-1.5">
+                            {appointment.paymentStatus === "paid" || appointment.paymentStatus === "free" ? (
+                              <IoCheckmarkCircleOutline className="h-3.5 w-3.5 text-emerald-600" />
+                            ) : (
+                              <IoTimeOutline className="h-3.5 w-3.5 text-amber-600" />
+                            )}
+                            <span className={`text-[10px] font-bold uppercase tracking-tight ${appointment.paymentStatus === "paid" || appointment.paymentStatus === "free"
+                              ? "text-emerald-800"
+                              : "text-amber-800"
+                              }`}>
+                              {getDoctorPaymentLabel(appointment)}
+                            </span>
+                          </div>
+                        </div>
+
                         {appointment.paymentStatus === "partial" && (
                           <div className="rounded-xl border border-amber-200 bg-amber-50 p-2">
                             <div className="flex items-center justify-between">
@@ -1127,7 +1195,7 @@ const DoctorAppointments = () => {
                           </div>
                         )}
 
-                        {appointment.paymentMethod === "cod" && appointment.paymentStatus !== "paid" && (
+                        {isPayAtClinicMethod(appointment.paymentMethod) && appointment.paymentStatus !== "paid" && (
                           <div className="rounded-xl border border-blue-200 bg-blue-50 p-2">
                             <div className="flex items-center gap-1.5">
                               <IoWalletOutline className="h-3.5 w-3.5 text-blue-600" />
