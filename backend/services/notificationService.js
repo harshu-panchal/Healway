@@ -202,13 +202,28 @@ const createAppointmentNotification = async ({ userId, userType, appointment, ev
       break;
     case 'cancelled':
       if (userType === 'doctor') {
-        return null;
+        // Skip notifying doctor if they initiated the cancellation
+        if (appointment.cancelledBy === 'doctor') {
+          return null;
+        }
+        const appointmentDate = getAppointmentDate(appointment);
+        const formattedDate = formatAppointmentDate(appointmentDate);
+
+        title = 'Appointment Cancelled';
+        if (patient) {
+          const patientName = `${patient.firstName} ${patient.lastName || ''}`.trim();
+          message = `Appointment for ${formattedDate} has been cancelled by ${patientName}`;
+        } else {
+          message = `Appointment for ${formattedDate} has been cancelled by patient`;
+        }
+        actionUrl = '/doctor/patients';
+      } else {
+        title = 'Appointment Cancelled';
+        message = doctor
+          ? `Your appointment with Dr. ${doctor.firstName} ${doctor.lastName || ''} has been cancelled`
+          : 'Appointment has been cancelled';
+        actionUrl = '/patient/appointments';
       }
-      title = 'Appointment Cancelled';
-      message = doctor
-        ? `Your appointment with Dr. ${doctor.firstName} ${doctor.lastName || ''} has been cancelled`
-        : 'Appointment has been cancelled';
-      actionUrl = '/patient/appointments';
       break;
     case 'rescheduled':
       if (userType === 'doctor') {

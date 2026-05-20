@@ -458,6 +458,24 @@ export const NotificationProvider = ({ children, module = 'patient' }) => {
     }
   }, [currentModule]) // Removed location.pathname to avoid re-fetching on every internal navigation within a module
 
+  // Dynamically register FCM token for patient and doctor when authenticated
+  useEffect(() => {
+    if ((currentModule === 'patient' || currentModule === 'doctor') && !location.pathname.includes('/login')) {
+      const token = localStorage.getItem(`${currentModule}AuthToken`) ||
+        localStorage.getItem(`${currentModule}AccessToken`) ||
+        sessionStorage.getItem(`${currentModule}AuthToken`) ||
+        sessionStorage.getItem(`${currentModule}AccessToken`)
+
+      if (token) {
+        import('../services/pushNotificationService')
+          .then(({ registerFCMToken }) => {
+            registerFCMToken(currentModule, false).catch(() => {})
+          })
+          .catch((err) => console.error('FCM register import error:', err))
+      }
+    }
+  }, [currentModule, location.pathname])
+
   const value = {
     notifications,
     unreadCount,
