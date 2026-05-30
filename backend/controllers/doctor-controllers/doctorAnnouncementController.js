@@ -50,7 +50,7 @@ exports.getMyAnnouncements = asyncHandler(async (req, res) => {
     ]
   })
     .populate('senderId', 'firstName lastName name profileImage')
-    .sort({ createdAt: -1 });
+    .sort({ sortOrder: 1, createdAt: -1 });
 
   res.status(200).json({
     success: true,

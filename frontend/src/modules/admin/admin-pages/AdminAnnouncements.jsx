@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { IoMegaphoneOutline, IoPeopleOutline, IoStatsChartOutline, IoTimeOutline, IoAddOutline, IoImageOutline } from 'react-icons/io5'
+import { IoMegaphoneOutline, IoPeopleOutline, IoStatsChartOutline, IoTimeOutline, IoAddOutline, IoImageOutline, IoMenuOutline } from 'react-icons/io5'
+import { Reorder } from 'framer-motion'
 import { useToast } from '../../../contexts/ToastContext'
-import { getAllAnnouncements, getAnnouncementMetrics, createAdminAnnouncement, uploadAnnouncementImage } from '../admin-services/adminService'
+import { getAllAnnouncements, getAnnouncementMetrics, createAdminAnnouncement, uploadAnnouncementImage, reorderAnnouncements } from '../admin-services/adminService'
 import PageLoader from '../../../components/PageLoader'
 
 const AdminAnnouncements = () => {
@@ -84,6 +85,32 @@ const AdminAnnouncements = () => {
       toast.error(error.response?.data?.message || 'Failed to publish announcement')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleReorder = async (newOrder) => {
+    const updatedAnnouncements = [...announcements]
+    const indices = filteredAnnouncements.map(fa => announcements.findIndex(a => a._id === fa._id))
+    indices.sort((a, b) => a - b)
+    
+    indices.forEach((index, i) => {
+      updatedAnnouncements[index] = newOrder[i]
+    })
+    
+    setAnnouncements(updatedAnnouncements)
+    
+    try {
+      const orders = updatedAnnouncements.map((ann, index) => ({
+        id: ann._id,
+        sortOrder: index,
+      }))
+      
+      await reorderAnnouncements(orders)
+      toast.success('Announcement order updated successfully')
+    } catch (error) {
+      console.error('Error reordering announcements:', error)
+      toast.error('Failed to update announcement order')
+      fetchData()
     }
   }
 
@@ -171,15 +198,30 @@ const AdminAnnouncements = () => {
           <table className="w-full text-left">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
+                <th className="px-6 py-4 w-10"></th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Announcement</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Author</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Target</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <Reorder.Group
+              as="tbody"
+              axis="y"
+              values={filteredAnnouncements}
+              onReorder={handleReorder}
+              className="divide-y divide-slate-100"
+            >
               {filteredAnnouncements.map((ann) => (
-                <tr key={ann._id} className="hover:bg-slate-50/50 transition-colors">
+                <Reorder.Item
+                  as="tr"
+                  key={ann._id}
+                  value={ann}
+                  className="hover:bg-slate-50/50 transition-colors cursor-move group"
+                >
+                  <td className="px-6 py-4 text-center">
+                    <IoMenuOutline className="text-slate-300 group-hover:text-slate-500 transition-colors text-lg" />
+                  </td>
                   <td className="px-6 py-4">
                     <div className="max-w-xs">
                       <p className="text-sm font-bold text-slate-900 truncate">{ann.title}</p>
@@ -216,9 +258,9 @@ const AdminAnnouncements = () => {
                       )}
                     </div>
                   </td>
-                </tr>
+                </Reorder.Item>
               ))}
-            </tbody>
+            </Reorder.Group>
           </table>
           {filteredAnnouncements.length === 0 && (
             <div className="py-12 text-center text-slate-500">No {filter !== 'all' ? filter : ''} announcements found.</div>

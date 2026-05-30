@@ -133,7 +133,7 @@ const createAnnouncementInAppNotifications = async (announcement) => {
 exports.getAllAnnouncements = asyncHandler(async (req, res) => {
   const announcements = await Announcement.find()
     .populate('senderId', 'firstName lastName name email specialization profileImage')
-    .sort({ createdAt: -1 });
+    .sort({ sortOrder: 1, createdAt: -1 });
 
   res.status(200).json({
     success: true,
@@ -361,4 +361,57 @@ exports.getAnnouncementMetrics = asyncHandler(async (req, res) => {
       targetBoth
     },
   });
+});
+
+// @desc    Reorder announcements
+// @route   PATCH /api/admin/announcements/reorder
+// @access  Private (Admin)
+exports.updateAnnouncementsOrder = asyncHandler(async (req, res) => {
+  const { orders } = req.body; // Array of { id, sortOrder }
+
+  if (!orders || !Array.isArray(orders)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Orders array is required.',
+    });
+  }
+
+  if (orders.length === 0) {
+    return res.status(200).json({
+      success: true,
+      message: 'No announcements to reorder.',
+    });
+  }
+
+  const bulkOps = orders
+    .filter(item => item.id && item.sortOrder !== undefined)
+    .map((item) => ({
+      updateOne: {
+        filter: { _id: item.id },
+        update: { $set: { sortOrder: Number(item.sortOrder) } },
+      },
+    }));
+
+  if (bulkOps.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid orders data provided.',
+    });
+  }
+
+  try {
+    await Announcement.bulkWrite(bulkOps);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Announcements reordered successfully.',
+    });
+  } catch (error) {
+    console.error('Bulk reorder error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to reorder announcements. Some IDs might be invalid.',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
 });

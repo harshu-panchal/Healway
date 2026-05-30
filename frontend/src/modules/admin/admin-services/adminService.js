@@ -109,6 +109,20 @@ export const getAnnouncementMetrics = async () => {
 }
 
 /**
+ * Reorder announcements
+ * @param {Array} orders - Array of { id: string, sortOrder: number }
+ */
+export const reorderAnnouncements = async (orders) => {
+  try {
+    const response = await apiClient.patch('/admin/announcements/reorder', { orders })
+    return response
+  } catch (error) {
+    console.error('Error reordering announcements:', error)
+    throw error
+  }
+}
+
+/**
  * Upload announcement image
  * @param {File} file - Image file
  * @returns {Promise<object>} Response data with URL

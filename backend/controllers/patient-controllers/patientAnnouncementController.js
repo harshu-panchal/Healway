@@ -37,7 +37,7 @@ exports.getAnnouncements = asyncHandler(async (req, res) => {
     ]
   })
     .populate('senderId', 'firstName lastName name specialization profileImage')
-    .sort({ priority: -1, createdAt: -1 });
+    .sort({ sortOrder: 1, priority: -1, createdAt: -1 });
 
   res.status(200).json({
     success: true,

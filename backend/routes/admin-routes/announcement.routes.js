@@ -8,10 +8,12 @@ const {
   updateAnnouncementStatus,
   deleteAnnouncement,
   getAnnouncementMetrics,
+  updateAnnouncementsOrder,
 } = require('../../controllers/admin-controllers/adminAnnouncementController');
 
 router.get('/', protect('admin'), getAllAnnouncements);
 router.post('/', protect('admin'), createAdminAnnouncement);
+router.patch('/reorder', protect('admin'), updateAnnouncementsOrder);
 router.get('/metrics', protect('admin'), getAnnouncementMetrics);
 router.patch('/:id/status', protect('admin'), updateAnnouncementStatus);
 router.patch('/:id', protect('admin'), updateAnnouncement);
