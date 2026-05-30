@@ -10,14 +10,23 @@ import { ToastProvider } from './contexts/ToastContext'
 const originalError = console.error
 console.error = (...args) => {
   // Filter out Razorpay SVG attribute errors
-  if (
-    args[0]?.includes?.('<svg> attribute') ||
-    args[0]?.includes?.('Expected length') ||
-    args[0]?.includes?.('"auto"')
-  ) {
-    return // Suppress these errors
+  if (typeof args[0] === 'string') {
+    if (
+      args[0].includes('<svg> attribute') ||
+      args[0].includes('Expected length') ||
+      args[0].includes('"auto"')
+    ) {
+      return // Suppress these errors
+    }
   }
-  originalError.apply(console, args)
+  
+  try {
+    originalError.apply(console, args)
+  } catch (e) {
+    // If native console.error throws a coercion error, prevent it from crashing the app
+    // and log a fallback message safely.
+    originalError('[console.error crash prevented]: Could not log the original error object due to a primitive conversion failure.');
+  }
 }
 
 createRoot(document.getElementById('root')).render(
