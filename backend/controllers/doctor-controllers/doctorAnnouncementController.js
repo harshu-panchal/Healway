@@ -5,7 +5,7 @@ const asyncHandler = require('../../middleware/asyncHandler');
 // @route   POST /api/doctors/announcements
 // @access  Private (Doctor)
 exports.createAnnouncement = asyncHandler(async (req, res) => {
-  const { title, content, targetType, targetPatients, priority, expiryDate, image } = req.body;
+  const { title, content, targetType, targetPatients, priority, expiryDate, image, contactNumber, whatsappNumber } = req.body;
   const { id: senderId } = req.auth;
 
   const announcement = await Announcement.create({
@@ -18,6 +18,8 @@ exports.createAnnouncement = asyncHandler(async (req, res) => {
     priority,
     expiryDate,
     image,
+    contactNumber,
+    whatsappNumber,
     approvalStatus: 'pending', // Doctors announcements need approval
   });
 

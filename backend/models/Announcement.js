@@ -58,6 +58,14 @@ const announcementSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    contactNumber: {
+      type: String,
+      trim: true,
+    },
+    whatsappNumber: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true,

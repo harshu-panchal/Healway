@@ -146,7 +146,7 @@ exports.getAllAnnouncements = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/announcements
 // @access  Private (Admin)
 exports.createAdminAnnouncement = asyncHandler(async (req, res) => {
-  const { title, content, targetType, targetPatients, priority, expiryDate, image } = req.body;
+  const { title, content, targetType, targetPatients, priority, expiryDate, image, contactNumber, whatsappNumber } = req.body;
   const { id: senderId } = req.auth;
 
   const announcement = await Announcement.create({
@@ -159,6 +159,8 @@ exports.createAdminAnnouncement = asyncHandler(async (req, res) => {
     priority,
     expiryDate,
     image,
+    contactNumber,
+    whatsappNumber,
     approvalStatus: 'approved', // Admin announcements are auto-approved
   });
 

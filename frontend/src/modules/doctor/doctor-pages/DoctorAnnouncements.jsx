@@ -124,28 +124,36 @@ const DoctorAnnouncements = () => {
                     </span>
 
                     <div className="flex items-center gap-3 flex-wrap">
-                      {supportPhone && (
-                        <a
-                          href={`tel:${supportPhone.replace(/[^\d+]/g, '')}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 text-xs font-semibold transition-all active:scale-95"
-                        >
-                          <IoCallOutline className="h-3.5 w-3.5" />
-                          <span>Call Support</span>
-                        </a>
-                      )}
-                      {whatsappNumber && (
-                        <a
-                          href={`https://wa.me/${formatWhatsappNumber(whatsappNumber)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 text-xs font-semibold transition-all active:scale-95"
-                        >
-                          <IoLogoWhatsapp className="h-3.5 w-3.5 text-emerald-500" />
-                          <span>WhatsApp</span>
-                        </a>
-                      )}
+                      {(() => {
+                        const displayPhone = ann.contactNumber || supportPhone;
+                        const displayWhatsapp = ann.whatsappNumber || whatsappNumber;
+                        return (
+                          <>
+                            {displayPhone && (
+                              <a
+                                href={`tel:${displayPhone.replace(/[^\d+]/g, '')}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 text-xs font-semibold transition-all active:scale-95"
+                              >
+                                <IoCallOutline className="h-3.5 w-3.5" />
+                                <span>Call Support</span>
+                              </a>
+                            )}
+                            {displayWhatsapp && (
+                              <a
+                                href={`https://wa.me/${formatWhatsappNumber(displayWhatsapp)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 text-xs font-semibold transition-all active:scale-95"
+                              >
+                                <IoLogoWhatsapp className="h-3.5 w-3.5 text-emerald-500" />
+                                <span>WhatsApp</span>
+                              </a>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

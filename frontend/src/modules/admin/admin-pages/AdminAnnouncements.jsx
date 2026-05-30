@@ -21,7 +21,9 @@ const AdminAnnouncements = () => {
     targetType: 'both',
     priority: 'medium',
     expiryDate: '',
-    image: ''
+    image: '',
+    contactNumber: '',
+    whatsappNumber: ''
   })
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -78,7 +80,9 @@ const AdminAnnouncements = () => {
         targetType: 'both',
         priority: 'medium',
         expiryDate: '',
-        image: ''
+        image: '',
+        contactNumber: '',
+        whatsappNumber: ''
       })
       fetchData()
     } catch (error) {
@@ -374,6 +378,28 @@ const AdminAnnouncements = () => {
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
                   </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Contact Number (Optional)</label>
+                  <input
+                    type="text"
+                    value={formData.contactNumber}
+                    onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all outline-none"
+                    placeholder="+1234567890"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">WhatsApp Number (Optional)</label>
+                  <input
+                    type="text"
+                    value={formData.whatsappNumber}
+                    onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all outline-none"
+                    placeholder="+1234567890"
+                  />
                 </div>
               </div>
               <div>
