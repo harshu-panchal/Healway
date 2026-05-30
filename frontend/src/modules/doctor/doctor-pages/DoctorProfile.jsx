@@ -1742,6 +1742,68 @@ const DoctorProfile = () => {
     event.target.value = "";
   };
 
+  const handleDocumentUpload = async (event) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    // Validate files
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxFiles = 10;
+    
+    const currentDocsCount = formData.documents?.length || 0;
+    if (currentDocsCount + files.length > maxFiles) {
+      toast.error(`Maximum ${maxFiles} documents allowed. Please remove some documents first.`);
+      return;
+    }
+
+    for (const file of files) {
+      if (file.type !== "application/pdf") {
+        toast.error(`${file.name} is not a PDF file. Only PDF files are allowed.`);
+        return;
+      }
+      if (file.size > maxSize) {
+        toast.error(`${file.name} is too large. Maximum file size is 5MB.`);
+        return;
+      }
+    }
+
+    try {
+      toast.info("Uploading document...");
+      const convertFileToBase64 = (file) => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve({
+            name: file.name,
+            data: reader.result,
+            type: file.type
+          });
+          reader.onerror = reject;
+        });
+      };
+
+      const base64Files = await Promise.all(files.map(convertFileToBase64));
+      
+      const response = await updateDoctorProfile({ 
+        documents: [...(formData.documents || []), ...base64Files] 
+      });
+      
+      if (response && (response.success || response.doctor)) {
+         const savedDoctor = response.data || response.doctor || response;
+         setFormData((prev) => ({
+           ...prev,
+           documents: savedDoctor.documents || []
+         }));
+         toast.success("Document uploaded successfully!");
+      }
+
+    } catch (error) {
+      console.error("Error uploading document:", error);
+      toast.error(error.message || "Failed to upload document");
+    }
+    event.target.value = "";
+  };
+
   const handleRemoveSignature = () => {
     setFormData((prev) => ({
       ...prev,
@@ -4743,9 +4805,38 @@ const DoctorProfile = () => {
                       })}
                     </div>
                   ) : (
-                    <p className="text-sm text-slate-500 italic">
-                      No documents uploaded
-                    </p>
+                    <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50/50 p-6 sm:p-8 text-center">
+                      <IoDocumentTextOutline className="h-10 w-10 sm:h-14 sm:w-14 text-slate-400 mx-auto mb-3" />
+                      <p className="text-sm sm:text-base font-semibold text-slate-700 mb-1">
+                        No documents uploaded
+                      </p>
+                      <p className="text-xs sm:text-sm text-slate-500">
+                        Upload verification documents (PDF only)
+                      </p>
+                    </div>
+                  )}
+
+                  {isEditing && (
+                    <div className="pt-2">
+                      <label
+                        htmlFor="document-upload-input"
+                        className="w-full flex items-center justify-center gap-1.5 sm:gap-2 rounded-lg border border-primary bg-white px-2 sm:px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/5 cursor-pointer shadow-sm"
+                      >
+                        <IoAddOutline className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                        <span>Upload Document</span>
+                        <input
+                          type="file"
+                          accept="application/pdf"
+                          onChange={handleDocumentUpload}
+                          className="hidden"
+                          id="document-upload-input"
+                          multiple
+                        />
+                      </label>
+                      <p className="text-[10px] sm:text-xs text-slate-500 text-center mt-2">
+                        Max file size: 5MB. PDF files only. Maximum 10 documents.
+                      </p>
+                    </div>
                   )}
                 </div>
               )}

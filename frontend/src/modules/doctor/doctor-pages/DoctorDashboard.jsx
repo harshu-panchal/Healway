@@ -43,6 +43,7 @@ import {
   IoArrowForwardOutline,
   IoVideocamOutline,
   IoCallOutline,
+  IoAlertCircleOutline,
 } from 'react-icons/io5'
 
 // Default stats (will be replaced by API data)
@@ -752,10 +753,6 @@ const DoctorDashboard = () => {
     return <PageLoader />
   }
 
-  if (profile?.status === 'pending') {
-    return <DoctorPendingApproval doctorName={profile.firstName} />
-  }
-
   return (
     <>
       <DoctorNavbar />
@@ -804,6 +801,24 @@ const DoctorDashboard = () => {
             {/* Removed Queue Status Button */}
           </div>
         </header>
+
+        {profile?.status === 'pending' && (
+          <div className="bg-amber-50 border-l-4 border-amber-500 p-4 mb-2 rounded-xl shadow-sm">
+            <div className="flex items-start">
+              <div className="flex-shrink-0 mt-0.5">
+                <IoAlertCircleOutline className="h-5 w-5 text-amber-500" aria-hidden="true" />
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-amber-800">Your account is under review</h3>
+                <div className="mt-1 text-sm text-amber-700">
+                  <p>
+                    You can access your dashboard and complete your profile, but patients will not be able to view or book appointments until your profile is approved by the admin.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Search Bar - Desktop Only */}
         <div className="hidden lg:block mb-6">

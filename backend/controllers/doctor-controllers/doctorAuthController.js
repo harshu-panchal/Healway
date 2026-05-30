@@ -1128,6 +1128,9 @@ exports.updateDoctorProfile = asyncHandler(async (req, res) => {
           } catch (docError) {
             console.error(`❌ Error processing document ${doc.name}:`, docError);
           }
+        } else if (doc && doc.fileUrl) {
+          // Keep existing document
+          processedDocuments.push(doc);
         }
       }
 

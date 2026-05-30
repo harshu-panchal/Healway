@@ -79,9 +79,9 @@ const protect = (...allowedRoles) =>
     if (
       [ROLES.DOCTOR].includes(role) &&
       user.status &&
-      user.status !== APPROVAL_STATUS.APPROVED
+      user.status === APPROVAL_STATUS.REJECTED
     ) {
-      throw createError(403, 'Account is not approved yet. Please wait for admin approval.');
+      throw createError(403, 'Account is rejected by admin. Please contact support.');
     }
 
     // Check if account is active

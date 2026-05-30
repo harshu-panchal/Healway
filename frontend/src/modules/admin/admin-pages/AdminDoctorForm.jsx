@@ -17,6 +17,7 @@ import {
   IoCallOutline,
   IoPersonOutline,
   IoMailOutline,
+  IoEyeOutline,
 } from 'react-icons/io5'
 import { useToast } from '../../../contexts/ToastContext'
 import adminService, {
@@ -1286,8 +1287,39 @@ const AdminDoctorForm = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {formData.documents.map((doc, index) => (
                         <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200">
-                          <span className="text-sm truncate max-w-[200px]">{doc.name}</span>
-                          <button type="button" onClick={() => removeFile('documents', index)} className="text-red-500"><IoCloseOutline className="h-5 w-5" /></button>
+                          <span className="text-sm truncate max-w-[200px]" title={doc.name}>{doc.name}</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const url = doc.fileUrl || doc.url || doc.data;
+                                if (url) {
+                                  if (url.startsWith('data:')) {
+                                    const win = window.open();
+                                    if (win) {
+                                      win.document.write(`<iframe src="${url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                    }
+                                  } else {
+                                    window.open(url, '_blank');
+                                  }
+                                } else {
+                                  toast.warning('Document URL not found');
+                                }
+                              }}
+                              className="text-primary hover:text-primary-dark transition-colors"
+                              title="View Document"
+                            >
+                              <IoEyeOutline className="h-5 w-5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeFile('documents', index)}
+                              className="text-red-500 hover:text-red-700 transition-colors"
+                              title="Remove"
+                            >
+                              <IoCloseOutline className="h-5 w-5" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>

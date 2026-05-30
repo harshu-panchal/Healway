@@ -63,8 +63,8 @@ const getEligibleUserForLogin = async (role, normalizedPhone) => {
     throw error;
   }
 
-  if (user.status && user.status !== APPROVAL_STATUS.APPROVED) {
-    const error = new Error('Account pending admin approval. Please wait for confirmation.');
+  if (user.status === APPROVAL_STATUS.REJECTED) {
+    const error = new Error('Account has been rejected by admin. Please contact support.');
     error.status = 403;
     throw error;
   }
