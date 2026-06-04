@@ -1,5 +1,13 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
 require('dotenv').config();
+
+// Fix for querySrv ECONNREFUSED issues on local networks
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
+} catch (e) {
+  console.warn('⚠️ Could not set DNS servers, using default resolver:', e.message);
+}
 
 const connectDB = async () => {
   const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/healway';
