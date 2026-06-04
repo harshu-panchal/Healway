@@ -247,6 +247,14 @@ app.use(
   "/api/admin/announcements",
   require("./routes/admin-routes/announcement.routes")
 );
+app.use(
+  "/api/admin/banners",
+  require("./routes/admin-routes/banner.routes")
+);
+app.use(
+  "/api/patients/banners",
+  require("./routes/patient-routes/banner.routes")
+);
 
 app.use("/api/admin/specialties", require("./routes/admin-routes/specialty.routes"));
 app.use("/api/admin/services", require("./routes/admin-routes/service.routes"));

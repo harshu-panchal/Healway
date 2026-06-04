@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { IoMegaphoneOutline, IoPeopleOutline, IoStatsChartOutline, IoTimeOutline, IoAddOutline, IoImageOutline, IoMenuOutline } from 'react-icons/io5'
+import { IoMegaphoneOutline, IoPeopleOutline, IoStatsChartOutline, IoTimeOutline, IoAddOutline, IoImageOutline, IoMenuOutline, IoCloseOutline, IoPencilOutline, IoTrashOutline } from 'react-icons/io5'
 import { Reorder } from 'framer-motion'
 import { useToast } from '../../../contexts/ToastContext'
-import { getAllAnnouncements, getAnnouncementMetrics, createAdminAnnouncement, uploadAnnouncementImage, reorderAnnouncements } from '../admin-services/adminService'
+import { getAllAnnouncements, getAnnouncementMetrics, createAdminAnnouncement, uploadAnnouncementImage, reorderAnnouncements, updateAdminAnnouncement, deleteAdminAnnouncement } from '../admin-services/adminService'
 import PageLoader from '../../../components/PageLoader'
 
 const AdminAnnouncements = () => {
@@ -26,6 +26,9 @@ const AdminAnnouncements = () => {
     whatsappNumber: ''
   })
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   const toast = useToast()
 
@@ -71,9 +74,16 @@ const AdminAnnouncements = () => {
         return
       }
       setSubmitting(true)
-      await createAdminAnnouncement(formData)
-      toast.success('Announcement published successfully')
+      if (isEditing) {
+        await updateAdminAnnouncement(editingId, formData)
+        toast.success('Announcement updated successfully')
+      } else {
+        await createAdminAnnouncement(formData)
+        toast.success('Announcement published successfully')
+      }
       setShowModal(false)
+      setIsEditing(false)
+      setEditingId(null)
       setFormData({
         title: '',
         content: '',
@@ -86,9 +96,37 @@ const AdminAnnouncements = () => {
       })
       fetchData()
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to publish announcement')
+      toast.error(error.response?.data?.message || (isEditing ? 'Failed to update announcement' : 'Failed to publish announcement'))
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleEditClick = (ann) => {
+    setFormData({
+      title: ann.title || '',
+      content: ann.content || '',
+      targetType: ann.targetType || 'both',
+      priority: ann.priority || 'medium',
+      expiryDate: ann.expiryDate ? ann.expiryDate.split('T')[0] : '',
+      image: ann.image || '',
+      contactNumber: ann.contactNumber || '',
+      whatsappNumber: ann.whatsappNumber || ''
+    })
+    setEditingId(ann._id)
+    setIsEditing(true)
+    setShowModal(true)
+  }
+
+  const handleDeleteClick = async (id) => {
+    if (window.confirm('Are you sure you want to delete this announcement? This cannot be undone.')) {
+      try {
+        await deleteAdminAnnouncement(id)
+        toast.success('Announcement deleted successfully')
+        fetchData()
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to delete announcement')
+      }
     }
   }
 
@@ -207,6 +245,7 @@ const AdminAnnouncements = () => {
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Author</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Target</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <Reorder.Group
@@ -227,9 +266,27 @@ const AdminAnnouncements = () => {
                     <IoMenuOutline className="text-slate-300 group-hover:text-slate-500 transition-colors text-lg" />
                   </td>
                   <td className="px-6 py-4">
-                    <div className="max-w-xs">
-                      <p className="text-sm font-bold text-slate-900 truncate">{ann.title}</p>
-                      <p className="text-xs text-slate-500 truncate">{ann.content}</p>
+                    <div className="flex items-center gap-3">
+                      {ann.image ? (
+                        <div 
+                          className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden border border-slate-200 cursor-pointer shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedImage(ann.image)
+                          }}
+                          title="View Image"
+                        >
+                          <img src={ann.image} alt="Announcement" className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
+                          <IoMegaphoneOutline className="text-slate-400 text-lg" />
+                        </div>
+                      )}
+                      <div className="max-w-xs">
+                        <p className="text-sm font-bold text-slate-900 truncate">{ann.title}</p>
+                        <p className="text-xs text-slate-500 truncate">{ann.content}</p>
+                      </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -262,6 +319,24 @@ const AdminAnnouncements = () => {
                       )}
                     </div>
                   </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => handleEditClick(ann)}
+                        className="p-2 text-indigo-600 hover:text-indigo-900 rounded-lg hover:bg-indigo-50 transition-colors"
+                        title="Edit"
+                      >
+                        <IoPencilOutline className="text-lg" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(ann._id)}
+                        className="p-2 text-red-600 hover:text-red-900 rounded-lg hover:bg-red-50 transition-colors"
+                        title="Delete"
+                      >
+                        <IoTrashOutline className="text-lg" />
+                      </button>
+                    </div>
+                  </td>
                 </Reorder.Item>
               ))}
             </Reorder.Group>
@@ -272,14 +347,29 @@ const AdminAnnouncements = () => {
         </div>
       </div>
 
-      {/* Create Modal */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !submitting && setShowModal(false)}></div>
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => {
+            if (!submitting) {
+              setShowModal(false)
+              setIsEditing(false)
+              setEditingId(null)
+              setFormData({
+                title: '',
+                content: '',
+                targetType: 'both',
+                priority: 'medium',
+                expiryDate: '',
+                image: '',
+                contactNumber: '',
+                whatsappNumber: ''
+              })
+            }
+          }}></div>
           <div className="bg-white rounded-3xl w-full max-w-lg relative z-10 flex flex-col shadow-2xl max-h-[90vh]">
             <div className="p-6 border-b border-slate-100 shrink-0">
-              <h2 className="text-xl font-bold text-slate-900">Create Global Announcement</h2>
-              <p className="text-slate-500 text-sm mt-1">Send a notification to doctors, patients, or both.</p>
+              <h2 className="text-xl font-bold text-slate-900">{isEditing ? 'Edit Announcement' : 'Create Global Announcement'}</h2>
+              <p className="text-slate-500 text-sm mt-1">{isEditing ? 'Modify the announcement details below.' : 'Send a notification to doctors, patients, or both.'}</p>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto custom-scrollbar">
               <div>
@@ -423,7 +513,21 @@ const AdminAnnouncements = () => {
                 <button
                   type="button"
                   disabled={submitting}
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    setShowModal(false)
+                    setIsEditing(false)
+                    setEditingId(null)
+                    setFormData({
+                      title: '',
+                      content: '',
+                      targetType: 'both',
+                      priority: 'medium',
+                      expiryDate: '',
+                      image: '',
+                      contactNumber: '',
+                      whatsappNumber: ''
+                    })
+                  }}
                   className="flex-1 px-6 py-2.5 rounded-xl font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50"
                 >
                   Cancel
@@ -433,10 +537,31 @@ const AdminAnnouncements = () => {
                   disabled={submitting}
                   className="flex-1 px-6 py-2.5 rounded-xl font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50"
                 >
-                  {submitting ? 'Publishing...' : 'Publish Now'}
+                  {submitting ? 'Saving...' : (isEditing ? 'Save Changes' : 'Publish Now')}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Image Lightbox Modal */}
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm cursor-zoom-out"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div 
+            className="relative max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl bg-white p-2 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setSelectedImage(null)}
+              className="absolute top-4 right-4 p-2 rounded-full bg-slate-900/60 text-white hover:bg-slate-900/80 transition-colors z-10"
+            >
+              <IoCloseOutline className="text-xl" />
+            </button>
+            <img src={selectedImage} alt="Announcement Full View" className="max-w-full max-h-[80vh] object-contain rounded-lg" />
           </div>
         </div>
       )}

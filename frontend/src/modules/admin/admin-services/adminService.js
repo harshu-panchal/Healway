@@ -855,6 +855,46 @@ export const updateSupportTicketStatus = async (ticketId, status, adminNote = ''
   }
 }
 
+export const getAllBanners = async () => {
+  try {
+    const response = await apiClient.get('/admin/banners')
+    return response
+  } catch (error) {
+    console.error('Error fetching banners:', error)
+    throw error
+  }
+}
+
+export const createBanner = async (bannerData) => {
+  try {
+    const response = await apiClient.post('/admin/banners', bannerData)
+    return response
+  } catch (error) {
+    console.error('Error creating banner:', error)
+    throw error
+  }
+}
+
+export const updateBanner = async (id, bannerData) => {
+  try {
+    const response = await apiClient.patch(`/admin/banners/${id}`, bannerData)
+    return response
+  } catch (error) {
+    console.error('Error updating banner:', error)
+    throw error
+  }
+}
+
+export const deleteBanner = async (id) => {
+  try {
+    const response = await apiClient.delete(`/admin/banners/${id}`)
+    return response
+  } catch (error) {
+    console.error('Error deleting banner:', error)
+    throw error
+  }
+}
+
 export default {
   loginAdmin,
   storeAdminTokens,
@@ -905,6 +945,10 @@ export default {
   getSupportTicketById,
   respondToSupportTicket,
   updateSupportTicketStatus,
+  getAllBanners,
+  createBanner,
+  updateBanner,
+  deleteBanner,
   // Location Management
   getStates: async () => {
     try {
@@ -1082,3 +1126,4 @@ export default {
     }
   }
 }
+
