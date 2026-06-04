@@ -62,7 +62,7 @@ const AdminDoctors = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalItems, setTotalItems] = useState(0)
-  const itemsPerPage = 10
+  const itemsPerPage = 10000
 
   // Statistics Modal State
   const [selectedDoctor, setSelectedDoctor] = useState(null)
@@ -604,17 +604,10 @@ const AdminDoctors = () => {
         )}
       </div>
 
-      {/* Pagination */}
+      {/* Pagination replaced by showing all results count */}
       {!loading && doctors.length > 0 && (
-        <div className="mt-4">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-            loading={loading}
-          />
+        <div className="mt-4 text-xs sm:text-sm text-slate-600 font-medium">
+          Showing all <span className="font-semibold text-slate-900">{doctors.length}</span> results
         </div>
       )}
 

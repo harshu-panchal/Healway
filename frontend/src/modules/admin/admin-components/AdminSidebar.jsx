@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { IoLogOutOutline, IoBarChartOutline, IoCloseOutline } from 'react-icons/io5'
+import { IoLogOutOutline, IoBarChartOutline, IoCloseOutline, IoImageOutline } from 'react-icons/io5'
 import {
   IoPeopleOutline,
   IoMedicalOutline,
@@ -22,6 +22,7 @@ const sidebarNavItems = [
   { id: 'service', label: 'Services', to: '/admin/services', Icon: IoMegaphoneOutline },
   { id: 'wallet', label: 'Wallet', to: '/admin/wallet', Icon: IoWalletOutline },
   { id: 'announcements', label: 'Announcements', to: '/admin/announcements', Icon: IoMegaphoneOutline },
+  { id: 'banners', label: 'Banners', to: '/admin/banners', Icon: IoImageOutline },
   { id: 'legal-content', label: 'Legal Content', to: '/admin/legal-content', Icon: IoDocumentTextOutline },
   { id: 'support', label: 'Support', to: '/admin/support', Icon: IoHelpCircleOutline },
 ]

@@ -728,3 +728,20 @@ export const recordDoctorProfileView = async (doctorId) => {
     return { success: false }
   }
 }
+
+/**
+ * Get active banners for patient dashboard
+ * @returns {Promise<Array>} List of active banners
+ */
+export const getActiveBanners = async () => {
+  try {
+    const response = await apiClient.get('/patients/banners')
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to fetch banners')
+    }
+    return response.data || []
+  } catch (error) {
+    console.error('Error fetching active banners:', error)
+    throw error
+  }
+}

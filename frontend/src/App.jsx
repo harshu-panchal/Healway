@@ -90,6 +90,7 @@ const AdminLegalContent = lazy(() => import('./modules/admin/admin-pages/AdminLe
 const AdminSupport = lazy(() => import('./modules/admin/admin-pages/AdminSupport'))
 const AdminVerification = lazy(() => import('./modules/admin/admin-pages/AdminVerification'))
 const AdminAnnouncements = lazy(() => import('./modules/admin/admin-pages/AdminAnnouncements'))
+const AdminBanners = lazy(() => import('./modules/admin/admin-pages/AdminBanners'))
 const AdminSpecialization = lazy(() => import('./modules/admin/admin-pages/AdminSpecialization'))
 const AdminLocationManagement = lazy(() => import('./modules/admin/admin-pages/AdminLocationManagement'))
 const AdminServices = lazy(() => import('./modules/admin/admin-pages/AdminServices.jsx'))
@@ -266,6 +267,9 @@ function AdminRoutes() {
           } />
           <Route path="/announcements" element={
             <Suspense fallback={<PageLoader />}><ProtectedRoute module="admin"><AdminAnnouncements /></ProtectedRoute></Suspense>
+          } />
+          <Route path="/banners" element={
+            <Suspense fallback={<PageLoader />}><ProtectedRoute module="admin"><AdminBanners /></ProtectedRoute></Suspense>
           } />
           <Route path="/appointments" element={
             <Suspense fallback={<PageLoader />}><ProtectedRoute module="admin"><AdminAppointments /></ProtectedRoute></Suspense>

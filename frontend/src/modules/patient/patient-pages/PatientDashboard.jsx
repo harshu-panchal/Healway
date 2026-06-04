@@ -47,6 +47,7 @@ import {
   getDiscoveryDoctors,
   getDoctorSearchSuggestions,
   getLocations,
+  getActiveBanners,
 } from '../patient-services/patientService'
 import NotificationBell from '../../../components/NotificationBell'
 import { getFileUrl } from '../../../utils/apiClient'
@@ -104,6 +105,72 @@ const navItems = [
   { id: 'profile', label: 'Profile', to: '/patient/profile', Icon: IoPersonCircleOutline },
 ]
 
+const BannerCarousel = ({ banners, navigate }) => {
+  const [currentIndex, setCurrentIndex] = useState(0)
+
+  useEffect(() => {
+    if (banners.length <= 1) return
+    const timer = setInterval(() => {
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % banners.length)
+    }, 4000)
+    return () => clearInterval(timer)
+  }, [banners.length])
+
+  const handleBannerClick = (link) => {
+    if (!link) return
+    if (link.startsWith('http://') || link.startsWith('https://')) {
+      window.open(link, '_blank', 'noopener,noreferrer')
+    } else {
+      navigate(link)
+    }
+  }
+
+  return (
+    <div className="relative w-full rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-white">
+      <div 
+        className="flex transition-transform duration-500 ease-out"
+        style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+      >
+        {banners.map((banner, index) => (
+          <div 
+            key={banner._id || index}
+            onClick={() => handleBannerClick(banner.link)}
+            className="w-full flex-shrink-0 cursor-pointer aspect-[21/9] sm:aspect-[24/8] md:aspect-[3/1] relative overflow-hidden"
+          >
+            <img 
+              src={banner.imageUrl} 
+              alt={banner.title || 'Promotion'} 
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+            {banner.title && (
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-900/20 to-transparent flex items-end p-4">
+                <h3 className="text-white text-sm sm:text-base font-bold line-clamp-1 drop-shadow-sm">{banner.title}</h3>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Dots Indicator */}
+      {banners.length > 1 && (
+        <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-10 bg-slate-900/30 px-2.5 py-1 rounded-full backdrop-blur-[2px]">
+          {banners.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentIndex(index)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                index === currentIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/50'
+              }`}
+              aria-label={`Go to slide ${index + 1}`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const PatientDashboard = () => {
   const navigate = useNavigate()
   const toast = useToast()
@@ -127,6 +194,7 @@ const PatientDashboard = () => {
   const [searchResultDoctors, setSearchResultDoctors] = useState([])
   const [featuredDoctors, setFeaturedDoctors] = useState([])
   const [announcements, setAnnouncements] = useState([])
+  const [banners, setBanners] = useState([])
   const [profile, setProfile] = useState(null)
   const [activeTab, setActiveTab] = useState('doctors')
   const [specialties, setSpecialties] = useState([])
@@ -147,13 +215,14 @@ const PatientDashboard = () => {
       if (showLoading) setLoading(true)
       setError(null)
 
-      // Fetch profile, dashboard, featured doctors, announcements, and specialties in parallel
-      const [profileResponse, dashboardResponse, featuredResponse, announcementsResponse, specialtiesResponse] = await Promise.allSettled([
+      // Fetch profile, dashboard, featured doctors, announcements, specialties, and active banners in parallel
+      const [profileResponse, dashboardResponse, featuredResponse, announcementsResponse, specialtiesResponse, bannersResponse] = await Promise.allSettled([
         getPatientProfile().catch(() => null),
         getPatientDashboard(),
         getFeaturedDoctors().catch(() => []),
         getAnnouncements().catch(() => []),
-        getSpecialties().catch(() => [])
+        getSpecialties().catch(() => []),
+        getActiveBanners().catch(() => [])
       ])
 
       // Handle profile response (non-critical, don't block UI)
@@ -178,6 +247,11 @@ const PatientDashboard = () => {
       // Handle specialties response
       if (specialtiesResponse.status === 'fulfilled' && specialtiesResponse.value) {
         setSpecialties(specialtiesResponse.value || [])
+      }
+
+      // Handle banners response
+      if (bannersResponse.status === 'fulfilled' && bannersResponse.value) {
+        setBanners(bannersResponse.value || [])
       }
 
       // Handle dashboard response
@@ -546,46 +620,6 @@ const PatientDashboard = () => {
         })}
       </div>
 
-      {/* Announcements Section */}
-      {announcements.length > 0 && (
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-slate-900">Announcements</h2>
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-[10px] font-bold text-amber-700">
-                {announcements.length}
-              </span>
-            </div>
-            <button
-              onClick={() => navigate('/patient/announcements')}
-              className="text-sm font-semibold text-primary hover:text-primary-dark transition-colors"
-            >
-              View All
-            </button>
-          </div>
-          <div className="space-y-3">
-            {announcements.map((announcement) => (
-              <div
-                key={announcement._id}
-                onClick={() => navigate('/patient/announcements')}
-                className="flex items-start gap-3 p-3 rounded-lg border border-amber-50 bg-amber-50/30 hover:bg-amber-50 transition-colors cursor-pointer"
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
-                  <IoMegaphoneOutline className="h-4 w-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-bold text-slate-900 line-clamp-1">
-                    {announcement.title}
-                  </h3>
-                  <p className="text-xs text-slate-600 line-clamp-1 mt-0.5">
-                    {announcement.content}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Upcoming Schedule Card */}
       <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
@@ -689,6 +723,13 @@ const PatientDashboard = () => {
           )}
         </div>
       </div>
+
+      {/* Banner Carousel */}
+      {banners.length > 0 && (
+        <div className="mb-2">
+          <BannerCarousel banners={banners} navigate={navigate} />
+        </div>
+      )}
 
       {/* Featured Doctors Section */}
       {featuredDoctors.length > 0 && (
